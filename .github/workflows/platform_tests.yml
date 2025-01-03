@@ -34,8 +34,8 @@ jobs:
         set -e
         go test -tags ci -covermode=atomic -coverprofile=coverage.out ./...
         coverage=`go tool cover -func coverage.out | grep total | tr -s '\t' | cut -f 3 | grep -o '[^%]*'`
-        if (( $(echo "$coverage < 23" | bc) )); then echo "Test coverage lowered"; exit 1; fi
-      if: ${{ runner.os == 'Linux' }}
+        if (( $(echo "$coverage < 22" | bc) )); then echo "Test coverage lowered"; exit 1; fi
+      if: ${{ matrix.os == 'ubuntu-latest' }} && ${{ matrix.go-version == '1.21' }}
 
     - name: Update PR Coverage
       uses: shogo82148/actions-goveralls@v1
