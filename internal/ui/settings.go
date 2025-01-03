@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"fyshos.com/fynedesk"
+	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 )
@@ -257,7 +258,7 @@ func (d *deskSettings) loadRecents() {
 	str := fyne.CurrentApp().Preferences().String("recentapps")
 	desk := fynedesk.Instance().(*desktop)
 
-	var apps []fynedesk.AppData
+	var apps []appie.AppData
 	list := strings.Split(str, ",")
 
 	for _, s := range list {

@@ -6,6 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.5.3-0.20241018190600-e02dad22c257
 	github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd
 	github.com/BurntSushi/xgbutil v0.0.0-20160919175755-f7c97cef3b4e
+	github.com/FyshOS/appie v0.0.0-20250103204932-22db4d5f2ac4
 	github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2

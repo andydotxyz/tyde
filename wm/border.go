@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image/color"
 
+	"fyshos.com/fynedesk/internal/icon"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -24,14 +26,14 @@ func makeFiller() fyne.CanvasObject {
 }
 
 // NewBorder creates a new window border for the given window details
-func NewBorder(win fynedesk.Window, icon fyne.Resource, canMaximize bool) *Border {
+func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border {
 	desk := fynedesk.Instance()
 
-	if icon == nil {
+	if ico == nil {
 		iconTheme := desk.Settings().IconTheme()
-		app := desk.IconProvider().FindAppFromWinInfo(win)
+		app := icon.FindAppFromWinInfo(win, desk.IconProvider())
 		if app != nil {
-			icon = app.Icon(iconTheme, int(wmTheme.TitleHeight*2))
+			ico = app.Icon(iconTheme, int(wmTheme.TitleHeight*2))
 		}
 	}
 
@@ -80,7 +82,7 @@ func NewBorder(win fynedesk.Window, icon fyne.Resource, canMaximize bool) *Borde
 	titleBar.title = title
 	titleBar.max = max
 
-	appIcon := &widget.Button{Icon: icon, Importance: widget.LowImportance}
+	appIcon := &widget.Button{Icon: ico, Importance: widget.LowImportance}
 	appIcon.OnTapped = func() {
 		titleBar.showMenu(appIcon)
 	}

@@ -3,6 +3,8 @@ package test
 import (
 	"image"
 
+	"github.com/FyshOS/appie"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
@@ -13,7 +15,7 @@ import (
 // Desktop is an in-memory implementation for test purposes
 type Desktop struct {
 	settings fynedesk.DeskSettings
-	icons    fynedesk.ApplicationProvider
+	icons    appie.Provider
 	screens  fynedesk.ScreenList
 	wm       fynedesk.WindowManager
 }
@@ -63,17 +65,17 @@ func (*Desktop) SetDesktop(int) {
 }
 
 // IconProvider returns the icon provider, by default it uses a simple in-memory implementation
-func (td *Desktop) IconProvider() fynedesk.ApplicationProvider {
+func (td *Desktop) IconProvider() appie.Provider {
 	return td.icons
 }
 
 // SetIconProvider allows tests to set the icon provider used in this desktop
-func (td *Desktop) SetIconProvider(icons fynedesk.ApplicationProvider) {
+func (td *Desktop) SetIconProvider(icons appie.Provider) {
 	td.icons = icons
 }
 
 // RecentApps returns applications that have recently been run. This test instance returns nil.
-func (td *Desktop) RecentApps() []fynedesk.AppData {
+func (td *Desktop) RecentApps() []appie.AppData {
 	return nil
 }
 
@@ -92,7 +94,7 @@ func (*Desktop) Run() {
 }
 
 // RunApp launches the passed application with appropriate environment setup
-func (*Desktop) RunApp(app fynedesk.AppData) error {
+func (*Desktop) RunApp(app appie.AppData) error {
 	return app.Run([]string{}) // no added env
 }
 

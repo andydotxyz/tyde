@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/FyshOS/appie"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 
@@ -207,7 +208,7 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 	d.populateOrderList(orderList, addItem)
 
 	addButton.OnTapped = func() {
-		newAppPicker("Choose Application", func(data fynedesk.AppData) {
+		newAppPicker("Choose Application", func(data appie.AppData) {
 			d.launcherIcons = append(d.launcherIcons, data.Name())
 			d.populateOrderList(orderList, addItem)
 		}).Show()

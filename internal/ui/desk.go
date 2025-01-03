@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"fyshos.com/fynedesk/internal/notify"
+	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -28,8 +29,8 @@ type desktop struct {
 	wm.ShortcutHandler
 	app      fyne.App
 	wm       fynedesk.WindowManager
-	icons    fynedesk.ApplicationProvider
-	recent   []fynedesk.AppData
+	icons    appie.Provider
+	recent   []appie.AppData
 	screens  fynedesk.ScreenList
 	settings fynedesk.DeskSettings
 
@@ -143,7 +144,7 @@ func (l *desktop) setupRoot() {
 	l.root.Resize(fyne.NewSize(float32(l.screens.Primary().Width)/scale, float32(l.screens.Primary().Height)/scale))
 }
 
-func (l *desktop) RecentApps() []fynedesk.AppData {
+func (l *desktop) RecentApps() []appie.AppData {
 	return l.recent
 }
 
@@ -152,12 +153,12 @@ func (l *desktop) Run() {
 	l.run() // use the configured run method
 }
 
-func (l *desktop) RunApp(app fynedesk.AppData) error {
+func (l *desktop) RunApp(app appie.AppData) error {
 	vars := l.scaleVars(l.Screens().Active().CanvasScale())
 	err := app.Run(vars)
 
 	if err == nil {
-		l.recent = append([]fynedesk.AppData{app}, l.recent...)
+		l.recent = append([]appie.AppData{app}, l.recent...)
 		// remove if it was already on the list
 		for i := 1; i < len(l.recent); i++ {
 			if l.recent[i] == app {
@@ -216,7 +217,7 @@ func (l *desktop) RootSizePixels() (w, h uint32) {
 	return w, h
 }
 
-func (l *desktop) IconProvider() fynedesk.ApplicationProvider {
+func (l *desktop) IconProvider() appie.Provider {
 	return l.icons
 }
 
@@ -375,7 +376,7 @@ func (l *desktop) Screens() fynedesk.ScreenList {
 // NewDesktop creates a new desktop in fullscreen for main usage.
 // The WindowManager passed in will be used to manage the screen it is loaded on.
 // An ApplicationProvider is used to lookup application icons from the operating system.
-func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons fynedesk.ApplicationProvider, screenProvider fynedesk.ScreenList) fynedesk.Desktop {
+func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList) fynedesk.Desktop {
 	desk := newDesktop(app, mgr, icons)
 	desk.run = desk.runFull
 	screenProvider.AddChangeListener(desk.setupRoot)
@@ -391,7 +392,7 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons fynedesk.Applica
 // An ApplicationProvider is used to lookup application icons from the operating system.
 // If run during CI for testing it will return an in-memory window using the
 // fyne/test package.
-func NewEmbeddedDesktop(app fyne.App, icons fynedesk.ApplicationProvider) fynedesk.Desktop {
+func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	desk := newDesktop(app, &embededWM{}, icons)
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
@@ -401,7 +402,7 @@ func NewEmbeddedDesktop(app fyne.App, icons fynedesk.ApplicationProvider) fynede
 	return desk
 }
 
-func newDesktop(app fyne.App, wm fynedesk.WindowManager, icons fynedesk.ApplicationProvider) *desktop {
+func newDesktop(app fyne.App, wm fynedesk.WindowManager, icons appie.Provider) *desktop {
 	desk := &desktop{app: app, wm: wm, icons: icons, screens: newEmbeddedScreensProvider()}
 	desk.showMenu = desk.showMenuFull
 

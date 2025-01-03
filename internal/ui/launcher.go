@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"github.com/FyshOS/appie"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
@@ -37,7 +39,7 @@ func (e *appEntry) TypedKey(ev *fyne.KeyEvent) {
 type picker struct {
 	win      fyne.Window
 	desk     fynedesk.Desktop
-	callback func(data fynedesk.AppData)
+	callback func(data appie.AppData)
 	showMods bool
 
 	entry       *appEntry
@@ -85,7 +87,7 @@ func (l *picker) updateAppListMatching(input string) {
 
 func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 	var appList []fyne.CanvasObject
-	var iconList = []fynedesk.AppData{}
+	var iconList = []appie.AppData{}
 
 	dataRange := l.desk.IconProvider().FindAppsMatching(input)
 	for _, data := range dataRange {
@@ -112,7 +114,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 	return appList
 }
 
-func (l *picker) loadIcons(dataRange []fynedesk.AppData, appList []fyne.CanvasObject) {
+func (l *picker) loadIcons(dataRange []appie.AppData, appList []fyne.CanvasObject) {
 	iconTheme := l.desk.Settings().IconTheme()
 
 	for i, data := range dataRange {
@@ -149,7 +151,7 @@ func (l *picker) Show() {
 	l.win.Show()
 }
 
-func newAppPicker(title string, callback func(fynedesk.AppData)) *picker {
+func newAppPicker(title string, callback func(appie.AppData)) *picker {
 	var win fyne.Window
 	if d, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
 		win = d.CreateSplashWindow()
@@ -202,7 +204,7 @@ func ShowAppLauncher() {
 		return
 	}
 
-	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app fynedesk.AppData) {
+	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app appie.AppData) {
 		err := fynedesk.Instance().RunApp(app)
 		if err != nil {
 			fyne.LogError("Failed to start app", err)

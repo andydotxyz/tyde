@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/FyshOS/appie"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
@@ -185,6 +187,10 @@ func (n *networkApp) Icon(theme string, size int) fyne.Resource {
 	return wmtheme.WifiIcon
 }
 
-func (n *networkApp) Source() *fynedesk.AppSource {
+func (n *networkApp) MimeTypes() []string {
+	return []string{}
+}
+
+func (n *networkApp) Source() *appie.AppSource {
 	return nil
 }

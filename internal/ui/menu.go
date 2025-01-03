@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/FyshOS/appie"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -14,7 +16,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
@@ -156,7 +157,7 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	w.desk.WindowManager().ShowOverlay(w2, fyne.NewSize(300, 360), pos)
 }
 
-func (w *widgetPanel) newAppButton(app fynedesk.AppData, w2 fyne.Window) *widget.Button {
+func (w *widgetPanel) newAppButton(app appie.AppData, w2 fyne.Window) *widget.Button {
 	b := widget.NewButtonWithIcon(app.Name(), wmtheme.BrokenImageIcon, func() {
 		w2.Close()
 		_ = w.desk.RunApp(app)
@@ -165,7 +166,7 @@ func (w *widgetPanel) newAppButton(app fynedesk.AppData, w2 fyne.Window) *widget
 	return b
 }
 
-func (w *widgetPanel) loadIcon(app fynedesk.AppData, btn *widget.Button) {
+func (w *widgetPanel) loadIcon(app appie.AppData, btn *widget.Button) {
 	iconRes := app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
 
 	btn.SetIcon(iconRes)
