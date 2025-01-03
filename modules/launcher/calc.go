@@ -84,5 +84,6 @@ func (i *calcItem) Title() string {
 }
 
 func (i *calcItem) Launch() {
-	fyne.CurrentApp().Clipboard().SetContent(i.result)
+	// TODO remove once we are back on develop branch (after thread changes)
+	fyne.CurrentApp().Driver().AllWindows()[0].Clipboard().SetContent(i.result)
 }
