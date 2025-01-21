@@ -14,8 +14,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
@@ -445,7 +443,8 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 // If run during CI for testing it will return an in-memory window using the
 // fyne/test package.
 func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
-	desk := newDesktop(app, &embededWM{}, icons)
+	wm := &embededWM{}
+	desk := newDesktop(app, wm, icons)
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
 

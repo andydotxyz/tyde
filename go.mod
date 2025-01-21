@@ -21,7 +21,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/fyne-io/image v0.0.0-20240417123036-dc0ee9e7c964 // indirect
 	github.com/jackmordaunt/icns v1.0.1-0.20200413110149-9e181b441ab2 // indirect
-	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49 // indirect
+	github.com/jeandeaual/go-locale v0.0.0-20241217141322-fcc2cadd6f08 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.4.0 // indirect
 	github.com/rymdport/portal v0.3.0 // indirect
 	howett.net/plist v1.0.1 // indirect
@@ -54,7 +54,7 @@ require (
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/mobile v0.0.0-20231127183840-76ac6878050a // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
+	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.16.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
