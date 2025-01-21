@@ -103,7 +103,7 @@ func (w *widgetPanel) clockRefresh() {
 
 func (w *widgetPanel) formattedTime() string {
 	if w.desk.Settings().ClockFormatting() == "12h" {
-		return time.Now().Format("03:04pm")
+		return time.Now().Format("3:04pm")
 	}
 
 	return time.Now().Format("15:04")

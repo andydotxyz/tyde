@@ -29,6 +29,10 @@ func (tad *testAppData) Run([]string) error {
 	return nil
 }
 
+func (tad *testAppData) RunWithParameters([]string, []string) error {
+	return nil
+}
+
 func (tad *testAppData) Categories() []string {
 	return tad.categories
 }
