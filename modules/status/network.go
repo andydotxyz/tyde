@@ -174,6 +174,9 @@ func (n *networkApp) Run(env []string) error {
 	cmd.Env = vars
 	return cmd.Start()
 }
+func (n *networkApp) RunWithParameters(para_ms, env []string) error {
+	return n.Run(env)
+}
 
 func (n *networkApp) Categories() []string {
 	return []string{"Settings"}
