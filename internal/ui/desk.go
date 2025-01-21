@@ -4,14 +4,18 @@ import (
 	"math"
 	"os/exec"
 	"strconv"
+	"time"
 
 	"fyshos.com/fynedesk/internal/notify"
 	"github.com/FyshOS/appie"
+	"github.com/FyshOS/saver"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
@@ -115,7 +119,12 @@ func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 }
 
 func (l *desktop) updateBackgrounds(path string) {
-	l.root.Content().(*fyne.Container).Objects[0].(*background).updateBackground(path)
+	root := l.root.Content().(*fyne.Container).Objects[0]
+	if back, ok := root.(*background); ok {
+		back.updateBackground(path)
+	} else { // embed mode has another container
+		root.(*fyne.Container).Objects[0].(*background).updateBackground(path)
+	}
 }
 
 func (l *desktop) createPrimaryContent() fyne.CanvasObject {
@@ -150,6 +159,7 @@ func (l *desktop) RecentApps() []appie.AppData {
 
 func (l *desktop) Run() {
 	go l.wm.Run()
+	go l.watchScreenActivity()
 	l.run() // use the configured run method
 }
 
@@ -353,7 +363,9 @@ func (l *desktop) registerShortcuts() {
 	l.AddShortcut(fynedesk.NewShortcut("Calculator", fynedesk.KeyCalculator, 0),
 		l.calculator)
 	l.AddShortcut(fynedesk.NewShortcut("Lock screen", fyne.KeyL, fynedesk.UserModifier),
-		l.lockScreen)
+		func() {
+			l.TriggerScreensaver(true)
+		})
 }
 
 func (l *desktop) startXscreensaver() {
@@ -365,6 +377,44 @@ func (l *desktop) startXscreensaver() {
 	err = exec.Command("xscreensaver", "-no-splash").Start()
 	if err != nil {
 		fyne.LogError("Failed to lock screen", err)
+	}
+}
+
+func (l *desktop) TriggerScreensaver(lock bool) {
+	s := saver.NewScreenSaver(nil)
+	s.ClockFormat = l.settings.ClockFormatting()
+	if l.settings.ScreenSaverClock() {
+		s.Label = "(clock)"
+	} else {
+		s.Label = l.settings.ScreenSaverLabel()
+	}
+	s.Lock = lock
+
+	l.wm.ShowScreensaver(s)
+}
+
+var lastActivity time.Time
+
+func (l *desktop) DelayScreensaver() {
+	lastActivity = time.Now()
+}
+
+var idle bool
+
+func (l *desktop) watchScreenActivity() {
+	to := time.NewTicker(5 * time.Second)
+
+	for range to.C {
+		if lastActivity.Add(time.Minute * 5).Before(time.Now()) {
+
+			if !idle {
+				idle = true
+
+				l.TriggerScreensaver(false)
+			}
+		} else {
+			idle = false
+		}
 	}
 }
 
@@ -384,7 +434,9 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 
 	desk.setupRoot()
 	wm.StartAuthAgent()
-	go desk.startXscreensaver()
+	if desk.Settings().ScreenSaverType() == "XScreensaver" {
+		go desk.startXscreensaver()
+	}
 	return desk
 }
 
@@ -398,7 +450,8 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	desk.showMenu = desk.showMenuEmbed
 
 	desk.root = desk.newDesktopWindowEmbed()
-	desk.root.SetContent(desk.createPrimaryContent())
+	over := wm.setWindow(desk.root)
+	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), over))
 	return desk
 }
 
@@ -421,16 +474,17 @@ func (l *desktop) calculator() {
 	}
 }
 
-func (l *desktop) lockScreen() {
-	_, err := exec.LookPath("xscreensaver-command")
-	if err != nil {
-		fyne.LogError("xscreensaver-command not found", err)
-		l.WindowManager().Blank()
-		return
-	}
-	err = exec.Command("xscreensaver-command", "-lock").Start()
-	if err != nil {
-		fyne.LogError("Failed to lock screen", err)
-		l.WindowManager().Blank()
-	}
-}
+//func (l *desktop) runCommand() {
+//	w := l.app.NewWindow("Run Command")
+//	input := widget.NewEntry()
+//	// TODO add history etc...
+//	run := widget.NewButton("Run", func() {
+//
+//	})
+//	run.Importance = widget.HighImportance
+//
+//	w.SetContent(container.NewVBox(widget.NewLabel("Enter command to run:"),
+//		container.NewBorder(nil, nil, nil, run, input)))
+//	w.Resize(fyne.NewSize(250, 40))
+//	w.Show()
+//}

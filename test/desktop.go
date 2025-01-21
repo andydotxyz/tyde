@@ -120,3 +120,7 @@ func (td *Desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 func (td *Desktop) WindowManager() fynedesk.WindowManager {
 	return td.wm
 }
+
+func (td *Desktop) DelayScreensaver() {}
+
+func (td *Desktop) TriggerScreensaver(bool) {}

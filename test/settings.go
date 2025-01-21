@@ -1,8 +1,9 @@
 package test
 
 import (
-	"fyne.io/fyne/v2"
 	"fyshos.com/fynedesk"
+
+	"fyne.io/fyne/v2"
 )
 
 // Settings is a simple struct for managing settings within our tests
@@ -155,6 +156,18 @@ func (s *Settings) SetBorderButtonPosition(pos string) {
 // ClockFormatting returns the format that the clock uses for displaying the time. Either 12h or 24h.
 func (s *Settings) ClockFormatting() string {
 	return s.clockFormatting
+}
+
+func (s *Settings) ScreenSaverClock() bool {
+	return true
+}
+
+func (s *Settings) ScreenSaverLabel() string {
+	return "(clock)"
+}
+
+func (s *Settings) ScreenSaverType() string {
+	return "FyshOS"
 }
 
 // SetClockFormatting support setting the format that the clock should display
