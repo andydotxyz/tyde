@@ -13,7 +13,10 @@ import (
 
 func (x *x11WM) initScreensaver() {
 	err := screensaver.Init(x.x.Conn())
-	log.Println("ERR", err)
+	if err != nil {
+		log.Println("Failed to init screensaver extension")
+		return
+	}
 
 	//screensaver.SelectInput(conn.Conn(), xproto.Drawable(conn.Screen().Root),
 	//	screensaver.EventNotifyMask)
@@ -36,7 +39,7 @@ func (x *x11WM) watchScreensaver() {
 	}
 }
 
-var visible bool
+var screenSaverActive bool
 
 func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 	if fynedesk.Instance().Settings().ScreenSaverType() == "XScreensaver" {
@@ -49,13 +52,13 @@ func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 		return
 	}
 
-	if visible {
+	if screenSaverActive {
 		return
 	}
 
-	visible = true
+	screenSaverActive = true
 	s.OnUnlocked = func() {
-		visible = false
+		screenSaverActive = false
 	}
 
 	s.ShowWindow()
