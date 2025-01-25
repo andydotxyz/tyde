@@ -123,4 +123,4 @@ func (td *Desktop) WindowManager() fynedesk.WindowManager {
 
 func (td *Desktop) DelayScreensaver() {}
 
-func (td *Desktop) TriggerScreensaver(bool) {}
+func (td *Desktop) TriggerScreensaver() {}

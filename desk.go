@@ -27,7 +27,7 @@ type Desktop interface {
 	SetDesktop(int)
 
 	DelayScreensaver()
-	TriggerScreensaver(bool)
+	TriggerScreensaver()
 }
 
 var instance Desktop

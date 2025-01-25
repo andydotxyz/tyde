@@ -21,7 +21,7 @@ func (l *desktop) startXscreensaver() {
 	}
 }
 
-func (l *desktop) TriggerScreensaver(lock bool) {
+func (l *desktop) TriggerScreensaver() {
 	s := saver.NewScreenSaver(nil)
 	s.ClockFormat = l.settings.ClockFormatting()
 	if l.settings.ScreenSaverClock() {
@@ -29,7 +29,7 @@ func (l *desktop) TriggerScreensaver(lock bool) {
 	} else {
 		s.Label = l.settings.ScreenSaverLabel()
 	}
-	s.Lock = lock
+	s.Lock = true
 
 	go l.wm.ShowScreensaver(s)
 }
@@ -50,7 +50,7 @@ func (l *desktop) watchScreenActivity() {
 			if !idle {
 				idle = true
 
-				l.TriggerScreensaver(false)
+				l.TriggerScreensaver()
 			}
 		} else {
 			idle = false
