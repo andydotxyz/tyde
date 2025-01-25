@@ -111,7 +111,10 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	isEmbed := w.desk.(*desktop).root.Title() != RootWindowName
 	items1 = append(items1, &widget.Button{Icon: wmtheme.LockIcon, Importance: widget.LowImportance, OnTapped: func() {
 		w2.Close()
-		w.desk.TriggerScreensaver(true)
+		go func() {
+			time.Sleep(time.Millisecond * 300)
+			w.desk.TriggerScreensaver(true)
+		}()
 	}})
 	if !isEmbed {
 		if os.Getenv("FYNE_DESK_RUNNER") != "" {
