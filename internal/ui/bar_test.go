@@ -46,6 +46,11 @@ func (d *dummyIcon) Run([]string) error {
 	return nil
 }
 
+func (d *dummyIcon) RunWithParameters([]string, []string) error {
+	// no-op
+	return nil
+}
+
 func (d *dummyIcon) Source() *appie.AppSource {
 	// no-op
 	return nil
