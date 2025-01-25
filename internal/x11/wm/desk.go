@@ -424,9 +424,7 @@ func (x *x11WM) runLoop() {
 		case xproto.ClientMessageEvent:
 			x.handleClientMessage(ev)
 		case xproto.ConfigureNotifyEvent:
-			if ev.Window == x.x.RootWin() {
-				x.configureRoots()
-			}
+			x.notifyConfigure(ev)
 		case xproto.ConfigureRequestEvent:
 			x.configureWindow(ev.Window, ev)
 		case xproto.CreateNotifyEvent:
@@ -521,6 +519,12 @@ func (x *x11WM) configureRoots() {
 		fyne.LogError("", err)
 	}
 	go x.updateBackgrounds()
+}
+
+func (x *x11WM) notifyConfigure(ev xproto.ConfigureNotifyEvent) {
+	if ev.Window == x.x.RootWin() {
+		x.configureRoots()
+	}
 }
 
 func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEvent) {
