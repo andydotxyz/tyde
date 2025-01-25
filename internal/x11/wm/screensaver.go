@@ -1,3 +1,6 @@
+//go:build linux || openbsd || freebsd || netbsd
+// +build linux openbsd freebsd netbsd
+
 package wm
 
 import (
