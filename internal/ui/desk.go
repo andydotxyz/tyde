@@ -360,7 +360,7 @@ func (l *desktop) registerShortcuts() {
 		l.calculator)
 	l.AddShortcut(fynedesk.NewShortcut("Lock screen", fyne.KeyL, fynedesk.UserModifier),
 		func() {
-			l.TriggerScreensaver()
+			l.TriggerScreenSaver()
 		})
 }
 

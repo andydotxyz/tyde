@@ -26,8 +26,8 @@ type Desktop interface {
 	Desktop() int
 	SetDesktop(int)
 
-	DelayScreensaver()
-	TriggerScreensaver()
+	DelayScreenSaver()
+	TriggerScreenSaver()
 }
 
 var instance Desktop

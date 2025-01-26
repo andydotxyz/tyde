@@ -113,7 +113,7 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 		w2.Close()
 		go func() {
 			time.Sleep(time.Millisecond * 300)
-			w.desk.TriggerScreensaver()
+			w.desk.TriggerScreenSaver()
 		}()
 	}})
 	if !isEmbed {

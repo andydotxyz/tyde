@@ -21,7 +21,7 @@ func (l *desktop) startXscreensaver() {
 	}
 }
 
-func (l *desktop) TriggerScreensaver() {
+func (l *desktop) TriggerScreenSaver() {
 	s := saver.NewScreenSaver(nil)
 	s.ClockFormat = l.settings.ClockFormatting()
 	if l.settings.ScreenSaverClock() {
@@ -36,7 +36,7 @@ func (l *desktop) TriggerScreensaver() {
 
 var lastActivity time.Time
 
-func (l *desktop) DelayScreensaver() {
+func (l *desktop) DelayScreenSaver() {
 	lastActivity = time.Now()
 }
 
@@ -50,7 +50,7 @@ func (l *desktop) watchScreenActivity() {
 			if !idle {
 				idle = true
 
-				l.TriggerScreensaver()
+				l.TriggerScreenSaver()
 			}
 		} else {
 			idle = false

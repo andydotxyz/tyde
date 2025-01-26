@@ -110,7 +110,7 @@ func (e *embededWM) ShowScreensaver(s *saver.ScreenSaver) {
 func (e *embededWM) setWindow(win fyne.Window) fyne.CanvasObject {
 	e.root = win
 
-	return newSaverMonitor(fynedesk.Instance().DelayScreensaver)
+	return newSaverMonitor(fynedesk.Instance().DelayScreenSaver)
 }
 
 type saverMonitor struct {

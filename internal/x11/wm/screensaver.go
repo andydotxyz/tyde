@@ -37,7 +37,7 @@ func (x *x11WM) watchScreensaver() {
 		}
 
 		if info.MsSinceUserInput <= 5500 {
-			fynedesk.Instance().DelayScreensaver()
+			fynedesk.Instance().DelayScreenSaver()
 		}
 	}
 }
