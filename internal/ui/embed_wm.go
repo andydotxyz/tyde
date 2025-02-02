@@ -4,12 +4,15 @@ import (
 	"image"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 
 	"fyshos.com/fynedesk"
 )
 
 type embededWM struct {
 	windows []fynedesk.Window
+
+	multi *container.MultipleWindows
 }
 
 func (e *embededWM) AddWindow(win fynedesk.Window) {
