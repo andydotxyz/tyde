@@ -355,8 +355,8 @@ func (f *frame) decorate(force bool) {
 	xproto.PolyFillRectangleChecked(f.client.wm.Conn(), xproto.Drawable(f.client.id), f.rectGC, []xproto.Rectangle{rect})
 
 	rightWidthPix := f.topRightPixelWidth()
-	minWidth := f.canvas.Content().MinSize().Width
-	widthPix := uint16(minWidth*f.canvas.Scale()) - rightWidthPix
+	//minWidth := f.canvas.Content().MinSize().Width
+	widthPix := f.width //uint16(minWidth*f.canvas.Scale()) - rightWidthPix
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTop), xproto.Drawable(f.client.id), f.borderTopGC,
 		0, 0, 0, 0, widthPix, heightPix)
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTopRight), xproto.Drawable(f.client.id), f.borderTopRightGC,
