@@ -310,35 +310,25 @@ func (l *desktop) MouseOutNotify() {
 	l.bar.MouseOut()
 }
 
-func (l *desktop) startSettingsChangeListener(settings chan fynedesk.DeskSettings) {
-	for s := range settings {
-		l.clearModuleCache()
-		l.updateBackgrounds(s.Background())
-		l.widgets.reloadModules(l.Modules())
+func (l *desktop) fireSettingsChangeListener(s fynedesk.DeskSettings) {
+	l.clearModuleCache()
+	l.updateBackgrounds(s.Background())
+	l.widgets.reloadModules(l.Modules())
 
-		l.bar.iconSize = float32(l.Settings().LauncherIconSize())
-		l.bar.iconScale = float32(l.Settings().LauncherZoomScale())
-		l.bar.disableZoom = l.Settings().LauncherDisableZoom()
-		l.bar.updateIcons()
-		l.bar.updateIconOrder()
-		l.bar.updateTaskbar()
-	}
-}
-
-func (l *desktop) startFyneSettingsChangeListener(settings chan fyne.Settings) {
-	for range settings {
-		l.updateBackgrounds(l.Settings().Background())
-	}
+	l.bar.iconSize = l.Settings().LauncherIconSize()
+	l.bar.iconScale = l.Settings().LauncherZoomScale()
+	l.bar.disableZoom = l.Settings().LauncherDisableZoom()
+	l.bar.updateIcons()
+	l.bar.updateIconOrder()
+	l.bar.updateTaskbar()
 }
 
 func (l *desktop) addSettingsChangeListener() {
-	listener := make(chan fynedesk.DeskSettings)
-	l.Settings().AddChangeListener(listener)
-	go l.startSettingsChangeListener(listener)
+	l.Settings().AddChangeListener(l.fireSettingsChangeListener)
 
-	fyneListener := make(chan fyne.Settings)
-	l.app.Settings().AddChangeListener(fyneListener)
-	go l.startFyneSettingsChangeListener(fyneListener)
+	l.app.Settings().AddListener(func(_ fyne.Settings) {
+		l.updateBackgrounds(l.Settings().Background())
+	})
 }
 
 func (l *desktop) registerShortcuts() {

@@ -148,18 +148,12 @@ func (t *term) toggle() {
 }
 
 func matchTheme(bg, over *canvas.Rectangle) {
-	ch := make(chan fyne.Settings)
-	go func() {
-		for {
-			<-ch
-
-			bg.FillColor = theme.Color(theme.ColorNameBackground)
-			bg.Refresh()
-			over.FillColor = wmTheme.WidgetPanelBackground()
-			over.Refresh()
-		}
-	}()
-	fyne.CurrentApp().Settings().AddChangeListener(ch)
+	fyne.CurrentApp().Settings().AddListener(func(_ fyne.Settings) {
+		bg.FillColor = theme.Color(theme.ColorNameBackground)
+		bg.Refresh()
+		over.FillColor = wmTheme.WidgetPanelBackground()
+		over.Refresh()
+	})
 }
 
 func newTerm() fynedesk.Module {

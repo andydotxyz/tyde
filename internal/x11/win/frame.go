@@ -355,8 +355,8 @@ func (f *frame) decorate(force bool) {
 	xproto.PolyFillRectangleChecked(f.client.wm.Conn(), xproto.Drawable(f.client.id), f.rectGC, []xproto.Rectangle{rect})
 
 	rightWidthPix := f.topRightPixelWidth()
-	minWidth := f.canvas.Content().MinSize().Width
-	widthPix := uint16(minWidth*f.canvas.Scale()) - rightWidthPix
+	//minWidth := f.canvas.Content().MinSize().Width
+	widthPix := f.width //uint16(minWidth*f.canvas.Scale()) - rightWidthPix
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTop), xproto.Drawable(f.client.id), f.borderTopGC,
 		0, 0, 0, 0, widthPix, heightPix)
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTopRight), xproto.Drawable(f.client.id), f.borderTopRightGC,
@@ -381,6 +381,9 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 		f.canvas = canvas
 	} else {
 		b := f.canvas.Content().(*wm.Border)
+		b.CloseIntercept = func() {
+			f.client.Close()
+		}
 		b.SetTitle(f.client.props.Title())
 		b.SetMaximized(f.client.maximized)
 		b.SetIcon(f.client.Properties().Icon())
@@ -394,7 +397,7 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 	winPixWidth := f.borderTopWidth + rightWidthPix
 	winPtWidth := float32(winPixWidth) / scale
 	drawWidth := fyne.Max(minWidth, winPtWidth)
-	f.canvas.Resize(fyne.NewSize(drawWidth, wmTheme.TitleHeight))
+	f.canvas.Resize(fyne.NewSize(drawWidth, wmTheme.TitleHeight+16))
 	widthPix := uint16(drawWidth*f.canvas.Scale()) - rightWidthPix
 	img := f.canvas.Capture()
 
@@ -693,7 +696,7 @@ func (f *frame) mousePress(x, y int16, b xproto.Button) {
 			return ok
 		},
 	)
-	if obj != nil {
+	if _, ok := obj.(desktop.Cursorable); ok { // a button
 		f.ignoreDrag = true
 		return
 	}

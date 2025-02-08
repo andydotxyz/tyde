@@ -23,5 +23,5 @@ type DeskSettings interface {
 	ScreenSaverClock() bool
 	ScreenSaverLabel() string
 
-	AddChangeListener(listener chan DeskSettings)
+	AddChangeListener(listener func(DeskSettings))
 }

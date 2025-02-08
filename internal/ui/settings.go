@@ -32,7 +32,7 @@ type deskSettings struct {
 	screenSaver, screenSaverLabel   string
 
 	listenerLock    sync.Mutex
-	changeListeners []chan fynedesk.DeskSettings
+	changeListeners []func(fynedesk.DeskSettings)
 }
 
 func (d *deskSettings) Background() string {
@@ -99,7 +99,7 @@ func (d *deskSettings) ClockFormatting() string {
 	return d.clockFormatting
 }
 
-func (d *deskSettings) AddChangeListener(listener chan fynedesk.DeskSettings) {
+func (d *deskSettings) AddChangeListener(listener func(fynedesk.DeskSettings)) {
 	d.listenerLock.Lock()
 	defer d.listenerLock.Unlock()
 	d.changeListeners = append(d.changeListeners, listener)
@@ -110,12 +110,7 @@ func (d *deskSettings) apply() {
 	defer d.listenerLock.Unlock()
 
 	for _, listener := range d.changeListeners {
-		select {
-		case listener <- d:
-		default:
-			l := listener
-			go func() { l <- d }()
-		}
+		listener(d)
 	}
 }
 
