@@ -696,7 +696,7 @@ func (f *frame) mousePress(x, y int16, b xproto.Button) {
 			return ok
 		},
 	)
-	if obj != nil {
+	if _, ok := obj.(desktop.Cursorable); ok { // a button
 		f.ignoreDrag = true
 		return
 	}
