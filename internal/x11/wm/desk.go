@@ -164,16 +164,12 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 
 	x11.LoadCursors(conn)
 
-	listener := make(chan fyne.Settings)
-	a.Settings().AddChangeListener(listener)
+	a.Settings().AddListener(func(_ fyne.Settings) {
+		mgr.updateBackgrounds()
+		mgr.refreshBorders()
+		mgr.configureRoots()
+	})
 	a.Preferences().AddChangeListener(mgr.refreshBorders)
-	go func() {
-		for range listener {
-			mgr.updateBackgrounds()
-			mgr.refreshBorders()
-			mgr.configureRoots()
-		}
-	}()
 
 	return mgr, nil
 }
@@ -669,26 +665,22 @@ func (x *x11WM) setInitialWindowAttributes(win xproto.Window) {
 }
 
 func (x *x11WM) setupBindings() {
-	deskListener := make(chan fynedesk.DeskSettings)
-	fynedesk.Instance().Settings().AddChangeListener(deskListener)
-	go func() {
-		for range deskListener {
-			// this uses the state from the previous bind call
-			x.unbindShortcuts(x.rootID)
-			for _, c := range x.clients {
-				x.unbindShortcuts(c.(x11.XWin).ChildID())
-			}
-			x.currentBindings = nil
-
-			// this call sets up the new cache of shortcuts
-			x.bindShortcuts(x.rootID)
-			for _, c := range x.clients {
-				x.bindShortcuts(c.(x11.XWin).ChildID())
-			}
-
-			go x.updateBackgrounds()
+	fynedesk.Instance().Settings().AddChangeListener(func(_ fynedesk.DeskSettings) {
+		// this uses the state from the previous bind call
+		x.unbindShortcuts(x.rootID)
+		for _, c := range x.clients {
+			x.unbindShortcuts(c.(x11.XWin).ChildID())
 		}
-	}()
+		x.currentBindings = nil
+
+		// this call sets up the new cache of shortcuts
+		x.bindShortcuts(x.rootID)
+		for _, c := range x.clients {
+			x.bindShortcuts(c.(x11.XWin).ChildID())
+		}
+
+		go x.updateBackgrounds()
+	})
 }
 
 func (x *x11WM) setupWindow(win xproto.Window) {

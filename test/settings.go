@@ -1,8 +1,9 @@
 package test
 
 import (
-	"fyne.io/fyne/v2"
 	"fyshos.com/fynedesk"
+
+	"fyne.io/fyne/v2"
 )
 
 // Settings is a simple struct for managing settings within our tests
@@ -28,7 +29,7 @@ func NewSettings() *Settings {
 }
 
 // AddChangeListener is ignored for test instance
-func (*Settings) AddChangeListener(listener chan fynedesk.DeskSettings) {
+func (*Settings) AddChangeListener(listener func(fynedesk.DeskSettings)) {
 }
 
 // Background returns the path to background image (or "" if not set)

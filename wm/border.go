@@ -66,8 +66,7 @@ func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border
 // Border represents a window border. It draws the title bar and provides functions to manipulate it.
 type Border struct {
 	container.InnerWindow
-	content *fyne.Container
-	win     fynedesk.Window
+	win fynedesk.Window
 }
 
 // DoubleTapped is called when the user double taps a frame, it toggles the maximised state.

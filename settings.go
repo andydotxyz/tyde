@@ -20,5 +20,5 @@ type DeskSettings interface {
 	KeyboardModifier() fyne.KeyModifier
 	ModuleNames() []string
 
-	AddChangeListener(listener chan DeskSettings)
+	AddChangeListener(listener func(DeskSettings))
 }
