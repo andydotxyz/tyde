@@ -607,7 +607,7 @@ func (f *frame) mouseMotion(x, y int16) {
 	cursor := x11.DefaultCursor
 	if obj != nil {
 		if cur, ok := obj.(desktop.Cursorable); ok {
-			if cur.Cursor() == wm.CloseCursor {
+			if cur.Cursor() == desktop.PointerCursor {
 				cursor = x11.CloseCursor
 			}
 		}
