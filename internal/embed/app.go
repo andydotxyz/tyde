@@ -1,10 +1,12 @@
 package embed
 
 import (
+	"fyshos.com/fynedesk"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 type app struct {
@@ -22,6 +24,12 @@ func (a *app) Name() string {
 
 func (a *app) Run(_ []string) error {
 	w := container.NewInnerWindow(a.name, a.makeContent())
+
+	buttonAlign := widget.ButtonAlignLeading
+	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
+		buttonAlign = widget.ButtonAlignTrailing
+	}
+	w.Alignment = buttonAlign
 
 	a.m.Add(w)
 	return nil
