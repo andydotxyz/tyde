@@ -85,11 +85,6 @@ func (c *Border) SetIcon(icon fyne.Resource) {
 	c.Refresh()
 }
 
-func (c *Border) Hide() {
-	c.win.Close()
-	c.InnerWindow.Hide()
-}
-
 func (c *Border) showMenu(from fyne.CanvasObject) {
 	name := c.win.Properties().Title()
 	if len(name) > 25 {
