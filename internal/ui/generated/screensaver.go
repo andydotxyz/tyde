@@ -3,6 +3,7 @@ package screensaver
 
 import (
 	"context"
+
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 )
