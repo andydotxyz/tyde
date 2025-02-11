@@ -1,13 +1,23 @@
+// Note that you need to have github.com/knightpp/dbus-codegen-go installed
+//
+//go:generate dbus-codegen-go -prefix org.freedesktop -package screensaver -output generated/screensaver.go dbus/ScreenSaver.xml
 package ui
 
 import (
+	"math/rand"
 	"os/exec"
 	"time"
 
+	screensaver "fyshos.com/fynedesk/internal/ui/generated"
 	"github.com/FyshOS/saver"
+	"github.com/godbus/dbus/v5"
+	"github.com/godbus/dbus/v5/introspect"
+	"github.com/godbus/dbus/v5/prop"
 
 	"fyne.io/fyne/v2"
 )
+
+var inhibitCount = 0
 
 func (l *desktop) startXscreensaver() {
 	_, err := exec.LookPath("xscreensaver")
@@ -41,11 +51,12 @@ func (l *desktop) DelayScreenSaver() {
 }
 
 func (l *desktop) watchScreenActivity() {
+	watchDBus()
 	idle := false
 	to := time.NewTicker(5 * time.Second)
 
 	for range to.C {
-		if lastActivity.Add(time.Minute * 5).Before(time.Now()) {
+		if inhibitCount == 0 && lastActivity.Add(time.Minute*5).Before(time.Now()) {
 
 			if !idle {
 				idle = true
@@ -56,4 +67,56 @@ func (l *desktop) watchScreenActivity() {
 			idle = false
 		}
 	}
+}
+
+func watchDBus() {
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		fyne.LogError("failed to connect to DBus to watch for screensaver inhibits", err)
+		return
+	}
+
+	name := "org.freedesktop.ScreenSaver"
+	r, err := conn.RequestName(name, dbus.NameFlagDoNotQueue)
+	if err != nil || r != dbus.RequestNameReplyPrimaryOwner {
+		fyne.LogError("could not watch DBus screensaver, another is registered", err)
+		return
+	}
+
+	s := &screenSaverWatcher{}
+	path := "/org/freedesktop/ScreenSaver"
+	err = conn.ExportAll(s, dbus.ObjectPath(path), "org.freedesktop.ScreenSaver")
+	if err != nil {
+		fyne.LogError("failed to export inhibits", err)
+		return
+	}
+
+	node := introspect.Node{
+		Name: path,
+		Interfaces: []introspect.Interface{
+			introspect.IntrospectData,
+			prop.IntrospectData,
+			screensaver.IntrospectDataScreenSaver,
+		},
+	}
+	err = conn.Export(introspect.NewIntrospectable(&node), dbus.ObjectPath(path),
+		"org.freedesktop.DBus.Introspectable")
+	if err != nil {
+		fyne.LogError("could not export our node data", err)
+	}
+}
+
+type screenSaverWatcher struct {
+}
+
+func (s *screenSaverWatcher) Inhibit(_ dbus.Sender, _, _ string) (uint, *dbus.Error) {
+	id := rand.Uint32()
+	inhibitCount++
+
+	return uint(id), nil
+}
+
+func (s *screenSaverWatcher) UnInhibit(_ dbus.Sender, _ uint32) *dbus.Error {
+	inhibitCount--
+	return nil
 }
