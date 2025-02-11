@@ -1,6 +1,6 @@
 // Note that you need to have github.com/knightpp/dbus-codegen-go installed
-//
 //go:generate dbus-codegen-go -prefix org.freedesktop -package screensaver -output generated/screensaver.go dbus/ScreenSaver.xml
+
 package ui
 
 import (
@@ -41,7 +41,9 @@ func (l *desktop) TriggerScreenSaver() {
 	}
 	s.Lock = true
 
-	go l.wm.ShowScreensaver(s)
+	fyne.Do(func() {
+		l.wm.ShowScreensaver(s)
+	})
 }
 
 var lastActivity time.Time
@@ -109,14 +111,16 @@ func watchDBus() {
 type screenSaverWatcher struct {
 }
 
-func (s *screenSaverWatcher) Inhibit(_ dbus.Sender, _, _ string) (uint, *dbus.Error) {
+func (s *screenSaverWatcher) Inhibit(_ dbus.Sender, who, why string) (uint, *dbus.Error) {
 	id := rand.Uint32()
 	inhibitCount++
 
+	// TODO also check these are still alive every so often
 	return uint(id), nil
 }
 
-func (s *screenSaverWatcher) UnInhibit(_ dbus.Sender, _ uint32) *dbus.Error {
+func (s *screenSaverWatcher) UnInhibit(_ dbus.Sender, cookie uint32) *dbus.Error {
+	// TODO compare to the cookies logged
 	inhibitCount--
 	return nil
 }
