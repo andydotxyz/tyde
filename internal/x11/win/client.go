@@ -266,8 +266,8 @@ func (c *client) NotifyMouseMotion(x, y int16) {
 	c.frame.mouseMotion(x, y)
 }
 
-func (c *client) NotifyMousePress(x, y int16, b xproto.Button) {
-	c.frame.mousePress(x, y, b)
+func (c *client) NotifyMousePress(x, y int16, b xproto.Button, mods uint16) {
+	c.frame.mousePress(x, y, b, mods)
 }
 
 func (c *client) NotifyMouseRelease(x, y int16, b xproto.Button) {

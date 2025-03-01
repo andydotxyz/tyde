@@ -7,6 +7,8 @@ import (
 	"context"
 	"image"
 	"math"
+	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -49,6 +51,7 @@ type frame struct {
 	cancelFunc context.CancelFunc
 
 	pendingGeometry chan *configureGeometry
+	transparency    int
 
 	canvas test.WindowlessCanvas
 	client *client
@@ -670,7 +673,25 @@ func (f *frame) lookupResizeCursor(x, y int16) xproto.Cursor {
 	return x11.DefaultCursor
 }
 
-func (f *frame) mousePress(x, y int16, b xproto.Button) {
+func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
+	if b >= xproto.ButtonIndex4 && mods > 0 {
+		f.transparency -= 5
+		if b == xproto.ButtonIndex5 {
+			f.transparency += 10
+		}
+
+		if f.transparency < 0 {
+			f.transparency = 0
+		} else if f.transparency >= 90 {
+			f.transparency = 90
+		}
+
+		id := f.client.id
+		exec.Command("compton-trans", "-w", strconv.Itoa(int(id)), strconv.Itoa(100-f.transparency)).Run()
+
+		return
+	}
+
 	if b != xproto.ButtonIndex1 {
 		return
 	}
@@ -852,6 +873,18 @@ func (f *frame) show() {
 	xproto.GrabButton(f.client.wm.Conn(), true, f.client.id,
 		xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeSync,
 		f.client.wm.X().RootWin(), xproto.CursorNone, xproto.ButtonIndex1, xproto.ModMaskAny)
+
+	userMod := uint16(xproto.ModMask4)
+	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
+		userMod = xproto.ModMask1
+	}
+
+	xproto.GrabButton(f.client.wm.Conn(), false, f.client.id,
+		xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeSync,
+		0, xproto.CursorNone, xproto.ButtonIndex4, userMod)
+	xproto.GrabButton(f.client.wm.Conn(), false, f.client.id,
+		xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeSync,
+		0, xproto.CursorNone, xproto.ButtonIndex5, userMod)
 
 	c.RaiseToTop()
 	c.Focus()
