@@ -94,9 +94,11 @@ func (d *deskSettings) apply() {
 	d.listenerLock.Lock()
 	defer d.listenerLock.Unlock()
 
-	for _, listener := range d.changeListeners {
-		listener(d)
-	}
+	fyne.Do(func() {
+		for _, listener := range d.changeListeners {
+			listener(d)
+		}
+	})
 }
 
 func isModuleEnabled(name string, settings fynedesk.DeskSettings) bool {

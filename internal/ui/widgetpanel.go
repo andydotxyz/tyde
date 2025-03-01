@@ -80,7 +80,7 @@ func (w *widgetPanel) clockTick() {
 	go func() {
 		for {
 			<-tick.C
-			w.clockRefresh()
+			fyne.Do(w.clockRefresh)
 		}
 	}()
 }

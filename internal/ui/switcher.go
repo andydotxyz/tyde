@@ -227,10 +227,10 @@ func (s *Switcher) HideApply() {
 
 // HideCancel dismisses the application Switcher without changing window order.
 func (s *Switcher) HideCancel() {
-	go func() {
+	fyne.Do(func() {
 		time.Sleep(time.Millisecond * 100)
 		s.win.Hide()
-	}()
+	})
 }
 
 // Show the app switcher, it would then be hidden with HideApply or HideCancel.

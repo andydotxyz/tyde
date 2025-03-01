@@ -10,6 +10,8 @@ import (
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
+
+	"fyne.io/fyne/v2"
 )
 
 var (
@@ -25,12 +27,12 @@ var (
 func (x *x11WM) applyAppSwitcher() {
 	if switcherInstance == nil {
 		ignoreSwitcher = true
-		go func() {
+		fyne.Do(func() {
 			time.Sleep(time.Second / 4)
 			ignoreSwitcher = false
-		}()
+		})
 	} else {
-		go switcherInstance.HideApply()
+		fyne.Do(switcherInstance.HideApply)
 	}
 
 	xproto.UngrabKeyboard(x.x.Conn(), xproto.TimeCurrentTime)
