@@ -70,7 +70,7 @@ func (x *x11WM) handleActiveWin(ev xproto.ClientMessageEvent) {
 func (x *x11WM) handleButtonPress(ev xproto.ButtonPressEvent) {
 	for _, c := range x.clients {
 		if c.(x11.XWin).FrameID() == ev.Event {
-			c.(x11.XWin).NotifyMousePress(ev.RootX, ev.RootY, ev.Detail)
+			c.(x11.XWin).NotifyMousePress(ev.RootX, ev.RootY, ev.Detail, ev.State)
 		}
 	}
 	xevent.ReplayPointer(x.x)

@@ -97,8 +97,10 @@ func (w *widgetPanel) clockRefresh() {
 		w.rotate(w.vClock)
 	}
 
-	w.date.SetText(w.formattedDate())
-	canvas.Refresh(w.date)
+	fyne.Do(func() {
+		w.date.SetText(w.formattedDate())
+		w.date.Refresh()
+	})
 }
 
 func (w *widgetPanel) formattedTime() string {
@@ -156,8 +158,10 @@ func (w *widgetPanel) rotate(time *canvas.Text) {
 	w.rotated.Image = out
 	ratio := time.MinSize().Width / time.MinSize().Height
 	space := wmtheme.NarrowBarWidth - theme.Padding()*2
-	w.rotated.SetMinSize(fyne.NewSize(space, space*ratio))
-	w.rotated.Refresh()
+	fyne.Do(func() {
+		w.rotated.SetMinSize(fyne.NewSize(space, space*ratio))
+		w.rotated.Refresh()
+	})
 }
 
 func (w *widgetPanel) CreateRenderer() fyne.WidgetRenderer {
