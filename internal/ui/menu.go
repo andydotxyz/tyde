@@ -50,8 +50,11 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 		accList = append(accList, widget.NewAccordionItem(cat,
 			container.NewVBox(items...)))
 	}
-	acc.Items = accList
-	acc.Refresh()
+
+	fyne.Do(func() {
+		acc.Items = accList
+		acc.Refresh()
+	})
 }
 
 func (w *widgetPanel) askLogout() {
@@ -172,5 +175,7 @@ func (w *widgetPanel) newAppButton(app appie.AppData, w2 fyne.Window) *widget.Bu
 func (w *widgetPanel) loadIcon(app appie.AppData, btn *widget.Button) {
 	iconRes := app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
 
-	btn.SetIcon(iconRes)
+	fyne.Do(func() {
+		btn.SetIcon(iconRes)
+	})
 }

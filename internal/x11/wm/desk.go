@@ -242,9 +242,9 @@ func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
 	w.SetFixedSize(true)
 	w.Resize(s)
 
-	w.Show()
 	x.menuSize = s
 	x.menuPos = p
+	w.Show()
 }
 
 func (x *x11WM) ShowMenuOverlay(m *fyne.Menu, s fyne.Size, p fyne.Position) {
@@ -625,7 +625,9 @@ func (x *x11WM) RootID() xproto.Window {
 
 func (x *x11WM) NotifyWindowMoved(win fynedesk.Window) {
 	for _, l := range x.listeners {
-		go l.WindowMoved(win)
+		fyne.Do(func() {
+			l.WindowMoved(win)
+		})
 	}
 }
 
