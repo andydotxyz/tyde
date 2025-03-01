@@ -14,12 +14,12 @@ github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd h1:u7K2oMFMd8APDV3fM1j2rO3U/XJf1g1qC3DDTKou8iM=
 github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/FyshOS/appie v0.0.0-20250103211310-00f097d8e19d h1:bkIQPpxGMalOufoLbLDXQ/vrVwGUbtw1jbVZE8Y6nZI=
-github.com/FyshOS/appie v0.0.0-20250103211310-00f097d8e19d/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
+github.com/FyshOS/appie v0.0.0-20250210200903-09e0fadae9b2 h1:Ex95hOld+SfPXlkCus1UYJmejIyj4I68Vmf1gyweqDk=
+github.com/FyshOS/appie v0.0.0-20250210200903-09e0fadae9b2/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184 h1:Za0NHFsT0CCXf/X4hEaywjvEECccrM/xVVL8BzAy6JI=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184/go.mod h1:cOUmJ3HUVmH3W3u9Gj5hM73ZgrDxGNHKMr5T/sBKqLU=
-github.com/FyshOS/saver v0.0.0-20250125211336-528339462781 h1:jGmHNeimIf4DDEe8jkoUNX9r10+qGtkUG+3PMpjGSEs=
-github.com/FyshOS/saver v0.0.0-20250125211336-528339462781/go.mod h1:yIuAuYqnEyKaiNU4MD4xmyLcZl9QdDr2uTmT7lt02tI=
+github.com/FyshOS/saver v0.0.0-20250210195851-194e0eaf4d56 h1:8dYR5LoiKtMPvvl75plKGBViCHn9obus5iKwHqNf4TQ=
+github.com/FyshOS/saver v0.0.0-20250210195851-194e0eaf4d56/go.mod h1:Wt7jZKpGxGT8pqUUdyvCwsA/NsyDfWz3avRrcU5DXls=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/creack/pty v1.1.21 h1:1/QdRyBaHHJP61QkWMXlOIBfsgdDeeKfK8SYVUWJKf0=
