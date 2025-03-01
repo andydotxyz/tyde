@@ -48,7 +48,7 @@ func (x *x11WM) cancelAppSwitcher() {
 			ignoreSwitcher = false
 		}()
 	} else {
-		go switcherInstance.HideCancel()
+		switcherInstance.HideCancel()
 	}
 
 	xproto.UngrabKeyboard(x.x.Conn(), xproto.TimeCurrentTime)
@@ -60,7 +60,7 @@ func (x *x11WM) nextAppSwitcher() {
 		return
 	}
 
-	go switcherInstance.Next()
+	fyne.Do(switcherInstance.Next)
 }
 
 func (x *x11WM) previousAppSwitcher() {
@@ -68,7 +68,7 @@ func (x *x11WM) previousAppSwitcher() {
 		return
 	}
 
-	go switcherInstance.Previous()
+	fyne.Do(switcherInstance.Previous)
 }
 
 func (x *x11WM) showOrSelectAppSwitcher(reverse bool) {
@@ -85,32 +85,27 @@ func (x *x11WM) showOrSelectAppSwitcher(reverse bool) {
 
 	if switcherInstance != nil {
 		if reverse {
-			switcherInstance.Previous()
+			fyne.Do(switcherInstance.Previous)
 		} else {
-			switcherInstance.Next()
+			fyne.Do(switcherInstance.Next)
 		}
 
 		return
 	}
 
 	go func() {
+		var win *ui.Switcher
 		if reverse {
-			win := ui.NewAppSwitcherReverse(x.Windows(), fynedesk.Instance().IconProvider())
-
-			if ignoreSwitcher {
-				ignoreSwitcher = false
-			} else {
-				switcherInstance = win
-				win.Show()
-			}
+			win = ui.NewAppSwitcherReverse(x.Windows(), fynedesk.Instance().IconProvider())
 		} else {
-			win := ui.NewAppSwitcher(x.Windows(), fynedesk.Instance().IconProvider())
-			if ignoreSwitcher {
-				ignoreSwitcher = false
-			} else {
-				switcherInstance = win
-				win.Show()
-			}
+			win = ui.NewAppSwitcher(x.Windows(), fynedesk.Instance().IconProvider())
+		}
+
+		if ignoreSwitcher {
+			ignoreSwitcher = false
+		} else {
+			switcherInstance = win
+			fyne.Do(win.Show)
 		}
 	}()
 }

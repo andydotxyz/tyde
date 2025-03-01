@@ -51,10 +51,8 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 			container.NewVBox(items...)))
 	}
 
-	fyne.Do(func() {
-		acc.Items = accList
-		acc.Refresh()
-	})
+	acc.Items = accList
+	acc.Refresh()
 }
 
 func (w *widgetPanel) askLogout() {
@@ -143,7 +141,8 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	for _, app := range w.desk.RecentApps() {
 		btn := w.newAppButton(app, w2)
 		recent = append(recent, btn)
-		defer w.loadIcon(app, btn)
+
+		btn.Icon = app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
 	}
 
 	acc := widget.NewAccordion(widget.NewAccordionItem("Recent",
