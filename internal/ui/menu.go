@@ -8,6 +8,8 @@ import (
 
 	"github.com/FyshOS/appie"
 
+	_ "github.com/fyne-io/image/xpm"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -99,6 +101,7 @@ func (w *widgetPanel) askLogout() {
 
 func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	w2 := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
+	w2.SetPadded(true)
 	w2.Canvas().SetOnTypedKey(func(k *fyne.KeyEvent) {
 		if k.Name == fyne.KeyEscape {
 			w2.Close()

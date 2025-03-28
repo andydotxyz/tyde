@@ -3,7 +3,7 @@ module fyshos.com/fynedesk
 go 1.19
 
 require (
-	fyne.io/fyne/v2 v2.6.0-alpha1.0.20250301171938-b0a22071c873
+	fyne.io/fyne/v2 v2.6.0-beta1.0.20250328115133-21733d97c2c4
 	github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd
 	github.com/BurntSushi/xgbutil v0.0.0-20160919175755-f7c97cef3b4e
 	github.com/FyshOS/appie v0.0.0-20250210200903-09e0fadae9b2
@@ -11,6 +11,7 @@ require (
 	github.com/FyshOS/saver v0.0.0-20250210195851-194e0eaf4d56
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
+	github.com/fyne-io/image v0.1.1
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/mafik/pulseaudio v0.0.0-20200511091429-8449222912dd
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
@@ -19,11 +20,10 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
-	github.com/fyne-io/image v0.1.0 // indirect
 	github.com/jackmordaunt/icns v1.0.1-0.20200413110149-9e181b441ab2 // indirect
 	github.com/jeandeaual/go-locale v0.0.0-20241217141322-fcc2cadd6f08 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.5.1 // indirect
-	github.com/rymdport/portal v0.3.0 // indirect
+	github.com/rymdport/portal v0.4.1 // indirect
 	howett.net/plist v1.0.1 // indirect
 )
 
