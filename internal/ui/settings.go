@@ -107,10 +107,11 @@ func (d *deskSettings) AddChangeListener(listener func(fynedesk.DeskSettings)) {
 
 func (d *deskSettings) apply() {
 	d.listenerLock.Lock()
+	listeners := d.changeListeners
 	defer d.listenerLock.Unlock()
 
 	fyne.Do(func() {
-		for _, listener := range d.changeListeners {
+		for _, listener := range listeners {
 			listener(d)
 		}
 	})

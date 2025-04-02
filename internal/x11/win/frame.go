@@ -17,6 +17,7 @@ import (
 	"github.com/BurntSushi/xgbutil/xwindow"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/test"
@@ -318,7 +319,7 @@ func (f *frame) createPixmaps(depth byte) error {
 
 	backR, backG, backB, _ := theme.Color(theme.ColorNameDisabledButton).RGBA()
 	if f.client.Focused() {
-		backR, backG, backB, _ = theme.Color(theme.ColorNameBackground).RGBA()
+		backR, backG, backB, _ = theme.Color(theme.ColorNameOverlayBackground).RGBA()
 	}
 	bgColor := uint32(uint8(backR))<<16 | uint32(uint8(backG))<<8 | uint32(uint8(backB))
 
@@ -377,13 +378,15 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 	}
 
 	if f.canvas == nil {
-		canvas := software.NewCanvas()
-		canvas.SetPadded(false)
+		cnv := software.NewCanvas()
+		cnv.SetPadded(false)
 
-		canvas.SetContent(wm.NewBorder(f.client, f.client.Properties().Icon(), canMaximize))
-		f.canvas = canvas
+		b := wm.NewBorder(f.client, f.client.Properties().Icon(), canMaximize)
+		trans := &transparentTheme{Theme: theme.DefaultTheme(), frame: f}
+		cnv.SetContent(container.NewThemeOverride(b, trans))
+		f.canvas = cnv
 	} else {
-		b := f.canvas.Content().(*wm.Border)
+		b := f.canvas.Content().(*container.ThemeOverride).Content.(*wm.Border)
 		b.CloseIntercept = func() {
 			f.client.Close()
 		}
