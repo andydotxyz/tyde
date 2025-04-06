@@ -1,5 +1,5 @@
-fyne.io/fyne/v2 v2.6.0-rc2 h1:khreEwgchrCbuJBhn54yYSn38wWWHpy+VH03vt7IcYY=
-fyne.io/fyne/v2 v2.6.0-rc2/go.mod h1:YZt7SksjvrSNJCwbWFV32WON3mE1Sr7L41D29qMZ/lU=
+fyne.io/fyne/v2 v2.6.0-rc3 h1:RZ/+yIEXjpf7zlHAUU6zIhA77ZVAVN+OAwboZSR3E9M=
+fyne.io/fyne/v2 v2.6.0-rc3/go.mod h1:YZt7SksjvrSNJCwbWFV32WON3mE1Sr7L41D29qMZ/lU=
 fyne.io/systray v1.11.0 h1:D9HISlxSkx+jHSniMBR6fCFOUjk1x/OOOJLa9lJYAKg=
 fyne.io/systray v1.11.0/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
@@ -14,8 +14,8 @@ github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd h1:u7K2oMFMd8APDV3fM1j2rO3U/XJf1g1qC3DDTKou8iM=
 github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/FyshOS/appie v0.0.0-20250103211310-00f097d8e19d h1:bkIQPpxGMalOufoLbLDXQ/vrVwGUbtw1jbVZE8Y6nZI=
-github.com/FyshOS/appie v0.0.0-20250103211310-00f097d8e19d/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
+github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13 h1:BsJhZsXYmRx97C/HqTKOKF5fVJdLRb6K/tRQ1uHjCGU=
+github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184 h1:Za0NHFsT0CCXf/X4hEaywjvEECccrM/xVVL8BzAy6JI=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184/go.mod h1:cOUmJ3HUVmH3W3u9Gj5hM73ZgrDxGNHKMr5T/sBKqLU=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=

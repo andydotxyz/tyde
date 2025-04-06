@@ -119,6 +119,8 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 		themeButton := widget.NewButton(themeName, nil)
 		themeButton.OnTapped = func() {
 			themeLabel.SetText(themeButton.Text)
+
+			fynedesk.Instance().IconProvider().ClearCache()
 			d.populateThemeIcons(themeIcons, themeButton.Text)
 		}
 		themeList.Add(themeButton)

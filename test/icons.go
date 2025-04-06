@@ -81,6 +81,9 @@ func (tap *testAppProvider) AvailableThemes() []string {
 	return nil
 }
 
+func (tap *testAppProvider) ClearCache() {
+}
+
 func (tap *testAppProvider) FindAppFromName(appName string) appie.AppData {
 	return &testAppData{name: appName}
 }
