@@ -3,10 +3,10 @@ module fyshos.com/fynedesk
 go 1.19
 
 require (
-	fyne.io/fyne/v2 v2.6.0-rc2
+	fyne.io/fyne/v2 v2.6.0-rc3
 	github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd
 	github.com/BurntSushi/xgbutil v0.0.0-20160919175755-f7c97cef3b4e
-	github.com/FyshOS/appie v0.0.0-20250210200903-09e0fadae9b2
+	github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13
 	github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184
 	github.com/FyshOS/saver v0.0.0-20250210195851-194e0eaf4d56
 	github.com/Knetic/govaluate v3.0.0+incompatible

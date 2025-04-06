@@ -8,7 +8,7 @@ import (
 
 	"github.com/FyshOS/appie"
 
-	_ "github.com/fyne-io/image/xpm"
+	_ "github.com/fyne-io/image/xpm" // load in unix image format
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
