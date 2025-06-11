@@ -232,6 +232,11 @@ func editorPath() string {
 		return fysion
 	}
 
+	apptrix, err := exec.LookPath("apptrix")
+	if err == nil && apptrix != "" {
+		return apptrix
+	}
+
 	return ""
 }
 
