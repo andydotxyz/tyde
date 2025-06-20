@@ -44,9 +44,7 @@ func (l *desktop) TriggerScreenSaver() {
 	}
 	s.Lock = true
 
-	fyne.Do(func() {
-		l.wm.ShowScreensaver(s)
-	})
+	l.wm.ShowScreensaver(s)
 }
 
 func (l *desktop) DelayScreenSaver() {
@@ -64,7 +62,7 @@ func (l *desktop) watchScreenActivity() {
 			if !idle {
 				idle = true
 
-				l.TriggerScreenSaver()
+				fyne.Do(l.TriggerScreenSaver)
 			}
 		} else {
 			idle = false
