@@ -17,7 +17,10 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-var inhibitCount = 0
+var (
+	inhibitCount = 0
+	lastActivity = time.Now()
+)
 
 func (l *desktop) startXscreensaver() {
 	_, err := exec.LookPath("xscreensaver")
@@ -45,8 +48,6 @@ func (l *desktop) TriggerScreenSaver() {
 		l.wm.ShowScreensaver(s)
 	})
 }
-
-var lastActivity time.Time
 
 func (l *desktop) DelayScreenSaver() {
 	lastActivity = time.Now()
