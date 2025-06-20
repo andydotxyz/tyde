@@ -12,6 +12,8 @@ import (
 	"github.com/BurntSushi/xgb/screensaver"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/FyshOS/saver"
+
+	"fyne.io/fyne/v2"
 )
 
 func (x *x11WM) initScreensaver() {
@@ -64,5 +66,8 @@ func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 		screenSaverActive = false
 	}
 
-	s.ShowWindow()
+	go func() {
+		time.Sleep(time.Millisecond * 100)
+		fyne.Do(s.ShowWindows)
+	}()
 }
