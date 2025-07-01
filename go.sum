@@ -18,8 +18,8 @@ github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13 h1:BsJhZsXYmRx97C/HqT
 github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184 h1:Za0NHFsT0CCXf/X4hEaywjvEECccrM/xVVL8BzAy6JI=
 github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184/go.mod h1:cOUmJ3HUVmH3W3u9Gj5hM73ZgrDxGNHKMr5T/sBKqLU=
-github.com/FyshOS/saver v0.0.0-20250620203527-d1ae3af743da h1:PB4B4P1t8xwe+1rtRIxhg91/HdS0qQgLOkXzupaU3fc=
-github.com/FyshOS/saver v0.0.0-20250620203527-d1ae3af743da/go.mod h1:+aEJkNRwWJeHMbESN/4LEzVkePYbkaZZs0MbwDj3OWM=
+github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b h1:jYMu7OX+TAUjjQFTlwxwG0i/wdiVCslWPDXH+O4vkvU=
+github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b/go.mod h1:+aEJkNRwWJeHMbESN/4LEzVkePYbkaZZs0MbwDj3OWM=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/creack/pty v1.1.21 h1:1/QdRyBaHHJP61QkWMXlOIBfsgdDeeKfK8SYVUWJKf0=

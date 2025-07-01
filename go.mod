@@ -8,7 +8,7 @@ require (
 	github.com/BurntSushi/xgbutil v0.0.0-20160919175755-f7c97cef3b4e
 	github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13
 	github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184
-	github.com/FyshOS/saver v0.0.0-20250620203527-d1ae3af743da
+	github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
