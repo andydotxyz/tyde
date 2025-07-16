@@ -290,7 +290,7 @@ func getOffset() int {
 	hourStr := string(ret[0 : len(ret)-3])
 	minStr := string(ret[len(ret)-3:])
 
-	hours, err := strconv.ParseInt(hourStr, 10, 64)
-	mins, err := strconv.ParseInt(minStr, 10, 0)
+	hours, _ := strconv.ParseInt(hourStr, 10, 64)
+	mins, _ := strconv.ParseInt(minStr, 10, 0)
 	return int(hours)*60 + int(mins)
 }
