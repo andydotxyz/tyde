@@ -170,6 +170,10 @@ func (x *x11WM) handleInitialHints(ev xproto.ClientMessageEvent, hint string) {
 }
 
 func (x *x11WM) handleKeyPress(ev xproto.KeyPressEvent) {
+	if screenSaverActive {
+		return
+	}
+
 	userMod := ev.State&xproto.ModMask4 != 0
 	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 		userMod = ev.State&xproto.ModMask1 != 0
@@ -216,6 +220,10 @@ func (x *x11WM) handleKeyPress(ev xproto.KeyPressEvent) {
 }
 
 func (x *x11WM) handleKeyRelease(ev xproto.KeyReleaseEvent) {
+	if screenSaverActive {
+		return
+	}
+
 	userMod := keyCodeSuper
 	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 		userMod = keyCodeAlt

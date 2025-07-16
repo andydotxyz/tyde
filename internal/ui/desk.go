@@ -115,7 +115,12 @@ func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 }
 
 func (l *desktop) updateBackgrounds(path string) {
-	l.root.Content().(*fyne.Container).Objects[0].(*background).updateBackground(path)
+	root := l.root.Content().(*fyne.Container).Objects[0]
+	if back, ok := root.(*background); ok {
+		back.updateBackground(path)
+	} else { // embed mode has another container
+		root.(*fyne.Container).Objects[0].(*background).updateBackground(path)
+	}
 }
 
 func (l *desktop) createPrimaryContent() fyne.CanvasObject {
@@ -150,6 +155,7 @@ func (l *desktop) RecentApps() []appie.AppData {
 
 func (l *desktop) Run() {
 	go l.wm.Run()
+	go l.watchScreenActivity()
 	l.run() // use the configured run method
 }
 
@@ -343,19 +349,9 @@ func (l *desktop) registerShortcuts() {
 	l.AddShortcut(fynedesk.NewShortcut("Calculator", fynedesk.KeyCalculator, 0),
 		l.calculator)
 	l.AddShortcut(fynedesk.NewShortcut("Lock screen", fyne.KeyL, fynedesk.UserModifier),
-		l.lockScreen)
-}
-
-func (l *desktop) startXscreensaver() {
-	_, err := exec.LookPath("xscreensaver")
-	if err != nil {
-		fyne.LogError("xscreensaver command not found", err)
-		return
-	}
-	err = exec.Command("xscreensaver", "-no-splash").Start()
-	if err != nil {
-		fyne.LogError("Failed to lock screen", err)
-	}
+		func() {
+			l.TriggerScreenSaver()
+		})
 }
 
 // Screens returns the screens provider of the current desktop environment for access to screen functionality.
@@ -374,7 +370,9 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 
 	desk.setupRoot()
 	wm.StartAuthAgent()
-	go desk.startXscreensaver()
+	if desk.Settings().ScreenSaverType() == "XScreensaver" {
+		go desk.startXscreensaver()
+	}
 	return desk
 }
 
@@ -383,12 +381,14 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 // If run during CI for testing it will return an in-memory window using the
 // fyne/test package.
 func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
-	desk := newDesktop(app, &embededWM{}, icons)
+	wm := &embededWM{}
+	desk := newDesktop(app, wm, icons)
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
 
 	desk.root = desk.newDesktopWindowEmbed()
-	desk.root.SetContent(desk.createPrimaryContent())
+	over := wm.setWindow(desk.root)
+	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), over))
 	return desk
 }
 
@@ -411,16 +411,17 @@ func (l *desktop) calculator() {
 	}
 }
 
-func (l *desktop) lockScreen() {
-	_, err := exec.LookPath("xscreensaver-command")
-	if err != nil {
-		fyne.LogError("xscreensaver-command not found", err)
-		l.WindowManager().Blank()
-		return
-	}
-	err = exec.Command("xscreensaver-command", "-lock").Start()
-	if err != nil {
-		fyne.LogError("Failed to lock screen", err)
-		l.WindowManager().Blank()
-	}
-}
+//func (l *desktop) runCommand() {
+//	w := l.app.NewWindow("Run Command")
+//	input := widget.NewEntry()
+//	// TODO add history etc...
+//	run := widget.NewButton("Run", func() {
+//
+//	})
+//	run.Importance = widget.HighImportance
+//
+//	w.SetContent(container.NewVBox(widget.NewLabel("Enter command to run:"),
+//		container.NewBorder(nil, nil, nil, run, input)))
+//	w.Resize(fyne.NewSize(250, 40))
+//	w.Show()
+//}

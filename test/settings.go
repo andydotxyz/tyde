@@ -158,6 +158,21 @@ func (s *Settings) ClockFormatting() string {
 	return s.clockFormatting
 }
 
+// ScreenSaverClock returns if the text on the screensaver should be a clock.
+func (s *Settings) ScreenSaverClock() bool {
+	return true
+}
+
+// ScreenSaverLabel returns the string to use in the screensaver (if not a clock).
+func (s *Settings) ScreenSaverLabel() string {
+	return "FyshOS"
+}
+
+// ScreenSaverType returns whether this user should use FyshOS or XScreensaver savers.
+func (s *Settings) ScreenSaverType() string {
+	return "FyshOS"
+}
+
 // SetClockFormatting support setting the format that the clock should display
 func (s *Settings) SetClockFormatting(format string) {
 	if format == "24h" {

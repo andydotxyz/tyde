@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"sync"
@@ -27,6 +28,8 @@ type deskSettings struct {
 	moduleNames []string
 
 	narrowPanel, narrowLeftLauncher bool
+	screenSaverClock                bool
+	screenSaver, screenSaverLabel   string
 
 	listenerLock    sync.Mutex
 	changeListeners []func(fynedesk.DeskSettings)
@@ -74,6 +77,18 @@ func (d *deskSettings) NarrowWidgetPanel() bool {
 
 func (d *deskSettings) NarrowLeftLauncher() bool {
 	return d.narrowLeftLauncher
+}
+
+func (d *deskSettings) ScreenSaverClock() bool {
+	return d.screenSaverClock
+}
+
+func (d *deskSettings) ScreenSaverType() string {
+	return d.screenSaver
+}
+
+func (d *deskSettings) ScreenSaverLabel() string {
+	return d.screenSaverLabel
 }
 
 func (d *deskSettings) BorderButtonPosition() string {
@@ -180,6 +195,31 @@ func (d *deskSettings) setNarrowWidgetPanel(narrow bool) {
 	d.apply()
 }
 
+func (d *deskSettings) setScreenSaver(saver string) {
+	oldSaver := d.screenSaver
+	d.screenSaver = saver
+
+	fyne.CurrentApp().Preferences().SetString("savertype", saver)
+
+	if oldSaver == "XScreensaver" && saver != "XScreensaver" {
+		cmd := exec.Command("xscreensaver-command", "-exit")
+		_ = cmd.Start()
+	} else if oldSaver != "XScreensaver" && saver == "XScreensaver" {
+		cmd := exec.Command("xscreensaver", "--no-splash")
+		_ = cmd.Start()
+	}
+}
+
+func (d *deskSettings) setScreenSaverClock(show bool) {
+	d.screenSaverClock = show
+	fyne.CurrentApp().Preferences().SetBool("saverclock", show)
+}
+
+func (d *deskSettings) setScreenSaverLabel(text string) {
+	d.screenSaverLabel = text
+	fyne.CurrentApp().Preferences().SetString("saverlabel", text)
+}
+
 func (d *deskSettings) setBorderButtonPosition(pos string) {
 	d.borderButtonPosition = pos
 	fyne.CurrentApp().Preferences().SetString("borderbuttonposition", d.borderButtonPosition)
@@ -247,6 +287,9 @@ func (d *deskSettings) load() {
 	d.narrowPanel = fyne.CurrentApp().Preferences().BoolWithFallback("narrowpanel", true)
 
 	d.borderButtonPosition = fyne.CurrentApp().Preferences().StringWithFallback("borderbuttonposition", "Left")
+	d.screenSaver = fyne.CurrentApp().Preferences().StringWithFallback("savertype", "FyshOS")
+	d.screenSaverClock = fyne.CurrentApp().Preferences().BoolWithFallback("saverclock", true)
+	d.screenSaverLabel = fyne.CurrentApp().Preferences().StringWithFallback("saverlabel", "FyneDesk")
 
 	d.clockFormatting = fyne.CurrentApp().Preferences().StringWithFallback("clockformatting", "12h")
 	d.loadRecents()

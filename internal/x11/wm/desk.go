@@ -15,6 +15,7 @@ import (
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/randr"
+	"github.com/BurntSushi/xgb/screensaver"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
@@ -125,7 +126,8 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 		xproto.EventMaskButtonRelease |
 		xproto.EventMaskKeyPress |
 		xproto.EventMaskStructureNotify |
-		xproto.EventMaskSubstructureRedirect
+		xproto.EventMaskSubstructureRedirect |
+		screensaver.EventNotifyMask | screensaver.EventCycleMask
 	if err := xproto.ChangeWindowAttributesChecked(conn.Conn(), root, xproto.CwEventMask,
 		[]uint32{uint32(eventMask)}).Check(); err != nil {
 		conn.Conn().Close()
@@ -163,6 +165,7 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 	}
 
 	x11.LoadCursors(conn)
+	mgr.initScreensaver()
 
 	a.Settings().AddListener(func(_ fyne.Settings) {
 		mgr.updateBackgrounds()
@@ -409,9 +412,7 @@ func (x *x11WM) runLoop() {
 		case xproto.ClientMessageEvent:
 			x.handleClientMessage(ev)
 		case xproto.ConfigureNotifyEvent:
-			if ev.Window == x.x.RootWin() {
-				x.configureRoots()
-			}
+			x.notifyConfigure(ev)
 		case xproto.ConfigureRequestEvent:
 			x.configureWindow(ev.Window, ev)
 		case xproto.CreateNotifyEvent:
@@ -444,6 +445,8 @@ func (x *x11WM) runLoop() {
 			x.hideWindow(ev.Window)
 		case xproto.VisibilityNotifyEvent:
 			x.handleVisibilityChange(ev)
+		case screensaver.NotifyEvent:
+			// screensaver activate, except we manage it with an internal timer
 		}
 	}
 
@@ -504,6 +507,12 @@ func (x *x11WM) configureRoots() {
 		fyne.LogError("", err)
 	}
 	go x.updateBackgrounds()
+}
+
+func (x *x11WM) notifyConfigure(ev xproto.ConfigureNotifyEvent) {
+	if ev.Window == x.x.RootWin() {
+		x.configureRoots()
+	}
 }
 
 func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEvent) {

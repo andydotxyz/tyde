@@ -120,3 +120,9 @@ func (td *Desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 func (td *Desktop) WindowManager() fynedesk.WindowManager {
 	return td.wm
 }
+
+// DelayScreenSaver is called each time the user interacts with the system.
+func (td *Desktop) DelayScreenSaver() {}
+
+// TriggerScreenSaver can be called to immediately show the screensaver.
+func (td *Desktop) TriggerScreenSaver() {}

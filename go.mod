@@ -3,11 +3,12 @@ module fyshos.com/fynedesk
 go 1.19
 
 require (
-	fyne.io/fyne/v2 v2.6.0-rc3
+	fyne.io/fyne/v2 v2.6.1
 	github.com/BurntSushi/xgb v0.0.0-20201008132610-5f9e7b3c49cd
 	github.com/BurntSushi/xgbutil v0.0.0-20160919175755-f7c97cef3b4e
 	github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13
 	github.com/FyshOS/backgrounds v0.0.0-20230616202904-0a8b6ebaa184
+	github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
@@ -41,7 +42,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fyne-io/gl-js v0.1.0 // indirect
 	github.com/fyne-io/glfw-js v0.2.0 // indirect
-	github.com/fyne-io/terminal v0.0.0-20240728203942-56c3b98b9208
+	github.com/fyne-io/terminal v0.0.0-20250406165723-76d05b4c678a
 	github.com/go-gl/gl v0.0.0-20231021071112-07e5d0ea2e71 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a // indirect
 	github.com/go-text/render v0.2.0 // indirect
