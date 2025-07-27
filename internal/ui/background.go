@@ -6,7 +6,9 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	deskTheme "fyshos.com/fynedesk/theme"
 
 	"fyshos.com/fynedesk"
 	"github.com/FyshOS/backgrounds/builtin"
@@ -44,8 +46,12 @@ func (b *background) updateBackground(path string) {
 	_, err := os.Stat(path)
 	if path == "" || err != nil {
 		set := fyne.CurrentApp().Settings()
-		src := &builtin.Builtin{}
-		b.wallpaper.Objects[0] = src.Load(set.Theme(), set.ThemeVariant())
+		switch set.ThemeVariant() {
+		case theme.VariantLight:
+			b.wallpaper.Objects[0] = canvas.NewImageFromResource(deskTheme.BgLight)
+		default:
+			b.wallpaper.Objects[0] = canvas.NewImageFromResource(deskTheme.BgDark)
+		}
 	} else {
 		bg := canvas.NewImageFromFile(path)
 		bg.ScaleMode = canvas.ImageScaleFastest

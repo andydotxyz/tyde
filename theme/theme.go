@@ -21,6 +21,9 @@ var (
 	// AppIcon is the image for this application icon
 	AppIcon = resourceIconPng
 
+	BgDark  = resourceBgDark
+	BgLight = resourceBgLight
+
 	// BatteryIcon is the material design icon for battery in light and dark theme
 	BatteryIcon = theme.NewThemedResource(resourceBatterySvg)
 	// BrightnessIcon is the material design icon for brightness in light and dark theme

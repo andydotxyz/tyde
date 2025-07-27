@@ -14,6 +14,22 @@ var resourceBatterySvg = &fyne.StaticResource{
 	StaticContent: batterySvg,
 }
 
+//go:embed assets/bg-dark.svg
+var bgDarkSVG []byte
+
+var resourceBgDark = &fyne.StaticResource{
+	StaticName:    "bg-dark.svg",
+	StaticContent: bgDarkSVG,
+}
+
+//go:embed assets/bg-light.svg
+var bgLightSVG []byte
+
+var resourceBgLight = &fyne.StaticResource{
+	StaticName:    "bg-light.svg",
+	StaticContent: bgLightSVG,
+}
+
 //go:embed assets/brightness.svg
 var brightnessSvg []byte
 
