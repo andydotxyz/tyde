@@ -13,9 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/theme"
-	deskTheme "fyshos.com/fynedesk/theme"
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/randr"
 	"github.com/BurntSushi/xgb/screensaver"
@@ -27,6 +24,7 @@ import (
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xgraphics"
 	"github.com/BurntSushi/xgbutil/xprop"
+	"github.com/FyshOS/backgrounds/builtin"
 	"github.com/nfnt/resize"
 
 	"fyne.io/fyne/v2"
@@ -855,13 +853,9 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 	}
 
 	set := fyne.CurrentApp().Settings()
+	b := &builtin.Builtin{}
 	c := software.NewCanvas()
-	switch set.ThemeVariant() {
-	case theme.VariantLight:
-		c.SetContent(canvas.NewImageFromResource(deskTheme.BgLight))
-	default:
-		c.SetContent(canvas.NewImageFromResource(deskTheme.BgDark))
-	}
+	c.SetContent(b.Load(set.Theme(), set.ThemeVariant()))
 	c.SetScale(1.0)
 	c.Resize(fyne.NewSize(float32(w), float32(h)))
 	return c.Capture()

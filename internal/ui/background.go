@@ -11,6 +11,7 @@ import (
 	deskTheme "fyshos.com/fynedesk/theme"
 
 	"fyshos.com/fynedesk"
+	"github.com/FyshOS/backgrounds/builtin"
 )
 
 type background struct {
@@ -83,12 +84,8 @@ func newBackground() *background {
 		bg = img
 	} else {
 		set := fyne.CurrentApp().Settings()
-		switch set.ThemeVariant() {
-		case theme.VariantLight:
-			bg = canvas.NewImageFromResource(deskTheme.BgLight)
-		default:
-			bg = canvas.NewImageFromResource(deskTheme.BgDark)
-		}
+		b := &builtin.Builtin{}
+		bg = b.Load(set.Theme(), set.ThemeVariant())
 	}
 
 	ret := &background{wallpaper: container.NewStack(bg)}

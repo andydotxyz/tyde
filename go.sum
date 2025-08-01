@@ -16,6 +16,8 @@ github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc h1:7D+Bh06CRPCJO3gr
 github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13 h1:BsJhZsXYmRx97C/HqTKOKF5fVJdLRb6K/tRQ1uHjCGU=
 github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
+github.com/FyshOS/backgrounds v0.0.0-20230702072254-f09024611611 h1:hgLa7NAvEynMn3vuVMkBunY0Wwp+StCnOnuDDk7BK1E=
+github.com/FyshOS/backgrounds v0.0.0-20230702072254-f09024611611/go.mod h1:ABQfROv2MBxr5z/o8TozuvhAzBOFmMZNyfgI0BRUDcI=
 github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b h1:jYMu7OX+TAUjjQFTlwxwG0i/wdiVCslWPDXH+O4vkvU=
 github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b/go.mod h1:+aEJkNRwWJeHMbESN/4LEzVkePYbkaZZs0MbwDj3OWM=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
