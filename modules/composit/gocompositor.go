@@ -472,23 +472,10 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 	}()
 
 	if rootBuffer == 0 {
-		pixmap, err := xproto.NewPixmapId(conn)
+		err := createRootBuffer(conn)
 		if err != nil {
 			return err
 		}
-		err = xproto.CreatePixmapChecked(conn, xproto.Setup(conn).DefaultScreen(conn).RootDepth, pixmap,
-			xproto.Drawable(rootWindow), rootWidth, rootHeight).Check()
-		if err != nil {
-			return err
-		}
-		rootBuffer, err = render.NewPictureId(conn)
-		if err != nil {
-			return err
-		}
-		if err = render.CreatePictureChecked(conn, rootBuffer, xproto.Drawable(pixmap), rootVisualFormat.Id, 0, nil).Check(); err != nil {
-			return err
-		}
-		xproto.FreePixmap(conn, pixmap)
 	}
 
 	err := xfixes.SetPictureClipRegionChecked(conn, rootPicture, region, 0, 0).Check()
@@ -689,6 +676,27 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 	return nil
 }
 
+func createRootBuffer(conn *xgb.Conn) error {
+	pixmap, err := xproto.NewPixmapId(conn)
+	if err != nil {
+		return err
+	}
+	err = xproto.CreatePixmapChecked(conn, xproto.Setup(conn).DefaultScreen(conn).RootDepth, pixmap,
+		xproto.Drawable(rootWindow), rootWidth, rootHeight).Check()
+	if err != nil {
+		return err
+	}
+	rootBuffer, err = render.NewPictureId(conn)
+	if err != nil {
+		return err
+	}
+	if err = render.CreatePictureChecked(conn, rootBuffer, xproto.Drawable(pixmap), rootVisualFormat.Id, 0, nil).Check(); err != nil {
+		return err
+	}
+	xproto.FreePixmap(conn, pixmap)
+	return nil
+}
+
 func addDamage(conn *xgb.Conn, damage xfixes.Region) error {
 	if allDamage == 0 {
 		allDamage = damage
@@ -737,7 +745,7 @@ func finishUnmapClient(conn *xgb.Conn, client *client) error {
 }
 
 func getClientFromWindow(window xproto.Window) *client {
-	i := slices.IndexFunc(clients, func(c *client) bool {
+	i := indexFunc(clients, func(c *client) bool {
 		return c.win == window
 	})
 	if i == -1 {
@@ -875,7 +883,7 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 }
 
 func restackWin(window, target xproto.Window) {
-	i := slices.IndexFunc(clients, func(c *client) bool { return c.win == window })
+	i := indexFunc(clients, func(c *client) bool { return c.win == window })
 	if i == -1 {
 		return
 	}
@@ -887,13 +895,13 @@ func restackWin(window, target xproto.Window) {
 		return
 	}
 
-	j := slices.IndexFunc(clients, func(c *client) bool { return c.win == target })
+	j := indexFunc(clients, func(c *client) bool { return c.win == target })
 	if j == -1 {
 		clients = append(clients, c)
 		return
 	}
 
-	clients = slices.Insert(clients, j, c)
+	clients = insert(clients, j, c)
 }
 
 func configureClient(conn *xgb.Conn, e xproto.ConfigureNotifyEvent) error {
@@ -983,7 +991,7 @@ func circulateClient(e xproto.CirculateNotifyEvent) {
 }
 
 func destroyWin(conn *xgb.Conn, window xproto.Window, gone bool) {
-	i := slices.IndexFunc(clients, func(c *client) bool {
+	i := indexFunc(clients, func(c *client) bool {
 		return c.win == window
 	})
 	if i == -1 {
@@ -1008,7 +1016,7 @@ func destroyWin(conn *xgb.Conn, window xproto.Window, gone bool) {
 		client.damage = 0
 	}
 
-	clients = slices.Delete(clients, i, i+1)
+	clients = delete(clients, i, i+1)
 	return
 }
 
