@@ -126,7 +126,6 @@ func setup(conn *xgb.Conn) error {
 
 		err = composite.RedirectSubwindowsChecked(conn, rootWindow, composite.RedirectManual).Check()
 		if err != nil {
-			log.Printf("Failed to redirect subwindows: %v", err)
 			return err
 		}
 
@@ -314,12 +313,10 @@ func registerManager(conn *xgb.Conn, screen int) error {
 	atomName := fmt.Sprintf("_NET_WM_CM_S%d", screen)
 	atom, err := xproto.InternAtom(conn, false, uint16(len(atomName)), atomName).Reply()
 	if err != nil {
-		log.Printf("Failed to intern %s: %v", atomName, err)
 		return err
 	}
 	owner, err := xproto.GetSelectionOwner(conn, atom.Atom).Reply()
 	if err != nil {
-		log.Printf("could not query current compositor: %v", err)
 		return err
 	}
 	if owner.Owner != 0 {
@@ -328,18 +325,15 @@ func registerManager(conn *xgb.Conn, screen int) error {
 	}
 	win, err := xproto.NewWindowId(conn)
 	if err != nil {
-		log.Printf("Failed to create window: %v", err)
 		return err
 	}
 	err = xproto.CreateWindowChecked(conn, xproto.WindowClassCopyFromParent, win, rootWindow,
 		0, 0, 1, 1, 0, xproto.WindowClassInputOutput, 0, 0, nil).Check()
 	if err != nil {
-		log.Printf("Failed to create window: %v", err)
 		return err
 	}
 	err = xproto.SetSelectionOwnerChecked(conn, win, atom.Atom, xproto.TimeCurrentTime).Check()
 	if err != nil {
-		log.Printf("Failed to set selection owner: %v", err)
 		return err
 	}
 	return nil
@@ -656,7 +650,6 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 		if opacity != opaque && c.mask == 0 {
 			c.mask, _ = makeMask(conn, uint16(opacity>>16))
 		}
-		log.Println("I, O", i, len(clients), opacity, c.title)
 
 		if c.opaqueType == transparent || c.opaqueType == argb {
 			err = xfixes.IntersectRegionChecked(conn, c.clip, c.borderExtents, c.clip).Check()
