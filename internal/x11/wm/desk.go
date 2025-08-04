@@ -24,7 +24,7 @@ import (
 	"github.com/BurntSushi/xgbutil/xevent"
 	"github.com/BurntSushi/xgbutil/xgraphics"
 	"github.com/BurntSushi/xgbutil/xprop"
-	"github.com/FyshOS/backgrounds/builtin"
+	"github.com/FyshOS/backgrounds"
 	"github.com/nfnt/resize"
 
 	"fyne.io/fyne/v2"
@@ -853,7 +853,7 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 	}
 
 	set := fyne.CurrentApp().Settings()
-	b := &builtin.Builtin{}
+	b := backgrounds.Default()
 	c := software.NewCanvas()
 	c.SetContent(b.Load(set.Theme(), set.ThemeVariant()))
 	c.SetScale(1.0)
