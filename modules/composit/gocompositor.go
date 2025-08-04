@@ -10,7 +10,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -888,7 +887,7 @@ func restackWin(window, target xproto.Window) {
 		return
 	}
 	c := clients[i]
-	clients = slices.Delete(clients, i, i+1)
+	clients = delete(clients, i, i+1)
 
 	if target == 0 {
 		clients = append(clients, c)
