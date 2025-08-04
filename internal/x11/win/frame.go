@@ -7,8 +7,7 @@ import (
 	"context"
 	"image"
 	"math"
-	"os/exec"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/xgb/xproto"
@@ -138,7 +137,11 @@ func newFrame(c *client) *frame {
 		framed.childHeight = h - borderWidth - titleHeight
 	}
 
-	_ = ewmh.WmNameSet(c.wm.X(), f.Id, "FyneDesk Border")
+	title := "FyneDesk Border"
+	if strings.Contains(c.props.Title(), "FyneDesk:skip") {
+		title += " FyneDesk:skip"
+	}
+	_ = ewmh.WmNameSet(c.wm.X(), f.Id, title)
 	var offsetX, offsetY int16 = 0, 0
 	if !full && decorated {
 		offsetX = int16(borderWidth)
@@ -689,9 +692,7 @@ func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
 			f.transparency = 90
 		}
 
-		id := f.client.id
-		exec.Command("compton-trans", "-w", strconv.Itoa(int(id)), strconv.Itoa(100-f.transparency)).Run()
-
+		_ = ewmh.WmWindowOpacitySet(f.client.wm.X(), f.client.id, float64(100-f.transparency)/100.0)
 		return
 	}
 
@@ -970,4 +971,8 @@ func (f *frame) updateScale() {
 	// update border offset for current scale and redraw borders
 	f.updateGeometry(f.x, f.y, f.width, f.height, true)
 	f.applyTheme(true)
+}
+
+func (f *frame) setTransparency(win xproto.Window, alpha int) {
+	_ = ewmh.WmWindowOpacitySet(f.client.wm.X(), win, float64(alpha))
 }

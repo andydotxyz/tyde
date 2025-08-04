@@ -5,10 +5,13 @@ package composit
 // Many thanks to both!
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 
@@ -21,9 +24,13 @@ import (
 	"github.com/BurntSushi/xgb/xproto"
 )
 
+type opaqueType string
+
 type client struct {
 	title           string
 	win             xproto.Window
+	opacity         uint32
+	opaqueType      opaqueType
 	damaged, shaped bool
 
 	geom                         xproto.GetGeometryReply
@@ -51,9 +58,18 @@ var (
 	clients          []*client
 
 	netWmNameAtom  xproto.Atom
+	opacityAtom    xproto.Atom
 	utf8StringAtom xproto.Atom
 	wmNameAtom     xproto.Atom
 	stringAtom     xproto.Atom
+)
+
+const (
+	solid       opaqueType = ""
+	transparent opaqueType = "TRANSPARENT"
+	argb        opaqueType = "ARGB"
+
+	opaque = math.MaxUint32
 )
 
 type cookieReply[R any] interface {
@@ -126,6 +142,13 @@ func setup(conn *xgb.Conn) error {
 		if err = shape.SelectInputChecked(conn, rootWindow, true).Check(); err != nil {
 			return err
 		}
+
+		name := "_NET_WM_WINDOW_OPACITY"
+		opacityAtomReply, err := xproto.InternAtom(conn, false, uint16(len(name)), name).Reply()
+		if err != nil {
+			return err
+		}
+		opacityAtom = opacityAtomReply.Atom
 
 		tree, err := xproto.QueryTree(conn, rootWindow).Reply()
 		if err != nil {
@@ -229,6 +252,14 @@ func run(done chan struct{}) error {
 							rootTile = 0
 						}
 						break
+					}
+				}
+				if e.Atom == opacityAtom {
+					if c := getClientFromWindow(e.Window); c != nil {
+						if err := updateOpacity(conn, 0, c); err != nil {
+							fyne.LogError("failed to get opacity type", err)
+							repaint = true
+						}
 					}
 				}
 
@@ -543,19 +574,21 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 			c.extents = extents
 		}
 
-		x, y := c.geom.X, c.geom.Y
-		w, h := c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2
-		if err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, region, 0, 0).Check(); err != nil {
-			return err
-		}
-		err = xfixes.SubtractRegionChecked(conn, region, c.borderExtents, region).Check()
-		if err != nil {
-			return err
-		}
-		err = render.CompositeChecked(conn, render.PictOpSrc, c.pixels, 0, rootBuffer,
-			0, 0, 0, 0, x, y, w, h).Check()
-		if err != nil {
-			return err
+		if c.opaqueType == solid {
+			x, y := c.geom.X, c.geom.Y
+			w, h := c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2
+			if err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, region, 0, 0).Check(); err != nil {
+				return err
+			}
+			err = xfixes.SubtractRegionChecked(conn, region, c.borderExtents, region).Check()
+			if err != nil {
+				return err
+			}
+			err = render.CompositeChecked(conn, render.PictOpSrc, c.pixels, 0, rootBuffer,
+				0, 0, 0, 0, x, y, w, h).Check()
+			if err != nil {
+				return err
+			}
 		}
 
 		if c.clip == 0 {
@@ -595,6 +628,52 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 		err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, c.clip, 0, 0).Check()
 		if err != nil {
 			return err
+		}
+
+		opacity := c.opacity
+		isTop := true
+		if i < len(clients) && i > 0 {
+			isTop = false
+			for j := i - 1; j >= 0; j-- {
+				if j == 0 {
+					isTop = true
+				}
+				if clients[j].attributes.MapState != xproto.MapStateViewable {
+					continue
+				}
+				if !strings.Contains(clients[j].title, "FyneDesk:skip") {
+					break
+				}
+			}
+		}
+
+		if !isTop {
+			opacity = uint32(0.8 * float32(opacity))
+			_ = updateOpacity(conn, opacity, c)
+		} else {
+			_ = updateOpacity(conn, 0, c)
+		}
+		if opacity != opaque && c.mask == 0 {
+			c.mask, _ = makeMask(conn, uint16(opacity>>16))
+		}
+		log.Println("I, O", i, len(clients), opacity, c.title)
+
+		if c.opaqueType == transparent || c.opaqueType == argb {
+			err = xfixes.IntersectRegionChecked(conn, c.clip, c.borderExtents, c.clip).Check()
+			if err != nil {
+				return err
+			}
+			err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, c.clip, 0, 0).Check()
+			if err != nil {
+				return err
+			}
+			x, y := c.geom.X, c.geom.Y
+			w, h := c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2
+			err = render.CompositeChecked(conn, render.PictOpOver, c.pixels, c.mask, rootBuffer,
+				0, 0, 0, 0, x, y, w, h).Check()
+			if err != nil {
+				return err
+			}
 		}
 
 		if c.clip != 0 {
@@ -684,6 +763,64 @@ func unmapWin(conn *xgb.Conn, window xproto.Window) error {
 	return nil
 }
 
+func updateOpacity(conn *xgb.Conn, override uint32, c *client) error {
+	opacity, err := getOpacity(conn, c.win)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			fyne.LogError("could not fetch opacity property for"+c.title, err)
+		}
+		opacity = opaque
+	}
+	c.opacity = opacity
+	if override != 0 {
+		opacity = override
+	}
+
+	if c.mask != 0 {
+		render.FreePicture(conn, c.mask)
+		c.mask = 0
+	}
+
+	var format *render.Pictforminfo
+	if c.attributes.Class == xproto.WindowClassInputOnly {
+		format = nil
+	} else {
+		for _, v := range pictFormats.Screens[defaultScreen].Depths {
+			for _, f := range v.Visuals {
+				if f.Visual == c.attributes.Visual {
+					format = findPictFormat(pictFormats, f.Format)
+					break
+				}
+			}
+		}
+	}
+
+	c.opaqueType = solid
+	if format != nil && format.Type == render.PictTypeDirect && format.Direct.AlphaMask != 0 {
+		c.opaqueType = argb
+	} else if opacity != opaque {
+		c.opaqueType = transparent
+	}
+
+	if c.extents != 0 {
+		region, err := xfixes.NewRegionId(conn)
+		if err != nil {
+			return err
+		}
+		if err = xfixes.CreateRegionChecked(conn, region, nil).Check(); err != nil {
+			return err
+		}
+		err = xfixes.CopyRegionChecked(conn, c.extents, region).Check()
+		if err != nil {
+			return err
+		}
+		if err = addDamage(conn, region); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func mapWin(conn *xgb.Conn, window xproto.Window) error {
 	c := getClientFromWindow(window)
 	if c == nil {
@@ -717,6 +854,7 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		attributes:  *attr,
 		geom:        *geom,
 		shaped:      false,
+		opacity:     opaque,
 		shapeBounds: xproto.Rectangle{X: geom.X, Y: geom.Y, Width: geom.Width, Height: geom.Height},
 		damaged:     false,
 	}
@@ -1029,4 +1167,100 @@ func windowTitle(conn *xgb.Conn, window xproto.Window) (string, error) {
 		return string(prop.Value), nil
 	}
 	return "Unnamed", nil
+}
+
+func getOpacity(conn *xgb.Conn, window xproto.Window) (uint32, error) {
+	if opacityAtom == 0 {
+		name := "_NET_WM_WINDOW_OPACITY"
+		opacityAtomReply, err := xproto.InternAtom(conn, false, uint16(len(name)), name).Reply()
+		if err != nil {
+			return opaque, err
+		}
+		opacityAtom = opacityAtomReply.Atom
+	}
+
+	reply, err := xproto.GetProperty(conn, false, window, opacityAtom, xproto.GetPropertyTypeAny, 0, (1<<32)-1).Reply()
+	if err != nil {
+		return opaque, err
+	}
+	if reply.Format == 0 {
+		return opaque, os.ErrNotExist
+	}
+	if reply.Format != 32 {
+		return opaque, fmt.Errorf("unexpected format %d", reply.Format)
+	}
+	return xgb.Get32(reply.Value), nil
+}
+
+func makeMask(conn *xgb.Conn, a uint16) (render.Picture, error) {
+	depth := byte(8)
+	root := xproto.Setup(conn).DefaultScreen(conn).Root
+
+	pixmap, err := xproto.NewPixmapId(conn)
+	if err != nil {
+		return 0, err
+	}
+	err = xproto.CreatePixmapChecked(conn, depth, pixmap, xproto.Drawable(root), 1, 1).Check()
+	if err != nil {
+		return 0, err
+	}
+
+	formatId, err := findARGBPictFormat(conn, false)
+	if err != nil {
+		xproto.FreePixmap(conn, pixmap)
+		return 0, err
+	}
+
+	picture, err := render.NewPictureId(conn)
+	if err != nil {
+		xproto.FreePixmap(conn, pixmap)
+		return 0, err
+	}
+
+	mask := uint32(render.CpRepeat)
+	values := []uint32{1}
+	err = render.CreatePictureChecked(conn, picture, xproto.Drawable(pixmap), formatId, mask, values).Check()
+	if err != nil {
+		xproto.FreePixmap(conn, pixmap)
+		return 0, err
+	}
+
+	color := render.Color{Alpha: a, Red: 0, Green: 0, Blue: 0}
+	rects := []xproto.Rectangle{{X: 0, Y: 0, Width: 1, Height: 1}}
+	err = render.FillRectanglesChecked(conn, render.PictOpSrc, picture, color, rects).Check()
+	if err != nil {
+		render.FreePicture(conn, picture)
+		xproto.FreePixmap(conn, pixmap)
+		return 0, err
+	}
+
+	xproto.FreePixmap(conn, pixmap)
+	return picture, nil
+}
+
+func findARGBPictFormat(conn *xgb.Conn, argb bool) (render.Pictformat, error) {
+	reply, err := render.QueryPictFormats(conn).Reply()
+	if err != nil {
+		return 0, err
+	}
+	for _, f := range reply.Formats {
+		if argb {
+			if f.Type == render.PictTypeDirect && f.Depth == 32 &&
+				f.Direct.AlphaShift == 24 && f.Direct.AlphaMask == 0xff &&
+				f.Direct.RedShift == 16 && f.Direct.RedMask == 0xff &&
+				f.Direct.GreenShift == 8 && f.Direct.GreenMask == 0xff &&
+				f.Direct.BlueShift == 0 && f.Direct.BlueMask == 0xff {
+				return f.Id, nil
+			}
+		} else {
+			if f.Type == render.PictTypeDirect && f.Depth == 8 &&
+				f.Direct.AlphaShift == 0 && f.Direct.AlphaMask == 0xff &&
+				f.Direct.RedShift == 0 && f.Direct.RedMask == 0 &&
+				f.Direct.GreenShift == 0 && f.Direct.GreenMask == 0 &&
+				f.Direct.BlueShift == 0 && f.Direct.BlueMask == 0 {
+				return f.Id, nil
+			}
+		}
+	}
+	return 0, fmt.Errorf("standard picture format not found")
 }
