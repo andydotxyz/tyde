@@ -103,10 +103,8 @@ func (w *widgetPanel) clockRefresh() {
 		w.rotate(w.vClock)
 	}
 
-	fyne.Do(func() {
-		w.date.SetText(w.formattedDate())
-		w.date.Refresh()
-	})
+	w.date.SetText(w.formattedDate())
+	w.date.Refresh()
 }
 
 func (w *widgetPanel) formattedTime() string {

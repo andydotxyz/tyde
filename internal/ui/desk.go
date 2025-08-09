@@ -292,14 +292,17 @@ func (l *desktop) MouseInNotify(pos fyne.Position) {
 	if l.bar == nil {
 		return
 	}
-	mouseX, mouseY := pos.X, pos.Y
-	barX, barY := l.bar.Position().X, l.bar.Position().Y
-	barWidth, barHeight := l.bar.Size().Width, l.bar.Size().Height
-	if mouseX >= barX && mouseX <= barX+barWidth {
-		if mouseY >= barY && mouseY <= barY+barHeight {
-			l.bar.MouseIn(&deskDriver.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: pos, Position: pos}})
+
+	fyne.Do(func() {
+		mouseX, mouseY := pos.X, pos.Y
+		barX, barY := l.bar.Position().X, l.bar.Position().Y
+		barWidth, barHeight := l.bar.Size().Width, l.bar.Size().Height
+		if mouseX >= barX && mouseX <= barX+barWidth {
+			if mouseY >= barY && mouseY <= barY+barHeight {
+				l.bar.MouseIn(&deskDriver.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: pos, Position: pos}})
+			}
 		}
-	}
+	})
 }
 
 // MouseOutNotify can be called by the window manager to alert the desktop that the cursor has left the canvas
@@ -307,7 +310,7 @@ func (l *desktop) MouseOutNotify() {
 	if l.bar == nil {
 		return
 	}
-	l.bar.MouseOut()
+	fyne.Do(l.bar.MouseOut)
 }
 
 func (l *desktop) fireSettingsChangeListener(s fynedesk.DeskSettings) {
