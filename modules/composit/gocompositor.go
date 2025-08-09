@@ -89,16 +89,16 @@ func initExtension[S any, T cookieReply[S]](conn *xgb.Conn, initFunc func(conn *
 }
 
 func setup(conn *xgb.Conn) error {
-	if err := initExtension(conn, render.Init, render.QueryVersion, 0, 11); err != nil {
+	if err := initExtension[*render.QueryVersionReply, render.QueryVersionCookie](conn, render.Init, render.QueryVersion, 0, 11); err != nil {
 		return err
 	}
-	if err := initExtension(conn, composite.Init, composite.QueryVersion, 0, 2); err != nil {
+	if err := initExtension[*composite.QueryVersionReply, composite.QueryVersionCookie](conn, composite.Init, composite.QueryVersion, 0, 2); err != nil {
 		return err
 	}
-	if err := initExtension(conn, damage.Init, damage.QueryVersion, 1, 1); err != nil {
+	if err := initExtension[*damage.QueryVersionReply, damage.QueryVersionCookie](conn, damage.Init, damage.QueryVersion, 1, 1); err != nil {
 		return err
 	}
-	if err := initExtension(conn, xfixes.Init, xfixes.QueryVersion, 5, 0); err != nil {
+	if err := initExtension[*xfixes.QueryVersionReply, xfixes.QueryVersionCookie](conn, xfixes.Init, xfixes.QueryVersion, 5, 0); err != nil {
 		return err
 	}
 
