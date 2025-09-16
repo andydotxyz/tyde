@@ -701,7 +701,9 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 		x11.WindowExtendedHintsAdd(x.x, win, "_NET_WM_STATE_SKIP_TASKBAR")
 		x11.WindowExtendedHintsAdd(x.x, win, "_NET_WM_STATE_SKIP_PAGER")
 	}
-	x.AddWindow(c)
+	fyne.Do(func() {
+		x.AddWindow(c)
+	})
 	c.RaiseToTop()
 	c.Focus()
 	windowClientListUpdate(x)

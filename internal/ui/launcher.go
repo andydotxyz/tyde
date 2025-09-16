@@ -189,11 +189,13 @@ func newAppPicker(title string, callback func(appie.AppData)) *picker {
 		win.Close()
 	})
 
-	win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
-	win.Resize(fyne.NewSize(300,
-		cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
-	win.CenterOnScreen()
-	win.Canvas().Focus(entry)
+	fyne.Do(func() {
+		win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
+		win.Resize(fyne.NewSize(300,
+			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
+		win.CenterOnScreen()
+		win.Canvas().Focus(entry)
+	})
 	return l
 }
 

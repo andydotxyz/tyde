@@ -203,9 +203,12 @@ func (s *Switcher) loadUI(title string) {
 		s.win = win
 	}
 
-	win.SetContent(container.NewHBox(s.icons...))
-	win.CenterOnScreen()
-	win.SetTitle(title)
+	// we are called on a goroutine from wm/switcher.go
+	fyne.Do(func() {
+		win.SetContent(container.NewHBox(s.icons...))
+		win.CenterOnScreen()
+		win.SetTitle(title)
+	})
 }
 
 func (s *Switcher) loadIcons(list []fynedesk.Window) []fyne.CanvasObject {
