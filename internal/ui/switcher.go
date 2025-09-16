@@ -133,6 +133,7 @@ type Switcher struct {
 	win      fyne.Window
 	icons    []fyne.CanvasObject
 	provider appie.Provider
+	selected fynedesk.Window
 }
 
 func (s *Switcher) currentIndex() int {
@@ -146,7 +147,9 @@ func (s *Switcher) currentIndex() int {
 }
 
 func (s *Switcher) setCurrent(i int) {
-	s.win.Canvas().Focus(s.icons[i].(*switchIcon))
+	icon := s.icons[i].(*switchIcon)
+	s.win.Canvas().Focus(icon)
+	s.selected = icon.win
 }
 
 // Next selects the next logical lower window in the stack.
@@ -181,11 +184,11 @@ func (s *Switcher) Previous() {
 	s.setCurrent(i)
 }
 
-func (s *Switcher) raise(icon *switchIcon) {
-	if icon.win.Iconic() {
-		icon.win.Uniconify()
+func (s *Switcher) raise(win fynedesk.Window) {
+	if win.Iconic() {
+		win.Uniconify()
 	}
-	icon.win.RaiseToTop()
+	win.RaiseToTop()
 }
 
 func (s *Switcher) loadUI(title string) {
@@ -222,7 +225,10 @@ func (s *Switcher) loadIcons(list []fynedesk.Window) []fyne.CanvasObject {
 // whichever window was selected.
 func (s *Switcher) HideApply() {
 	s.HideCancel()
-	s.raise(s.win.Canvas().Focused().(*switchIcon))
+
+	if s.selected != nil {
+		s.raise(s.selected)
+	}
 }
 
 // HideCancel dismisses the application Switcher without changing window order.
@@ -252,7 +258,11 @@ func newAppSwitcherAt(off int, wins []fynedesk.Window, prov appie.Provider) *Swi
 	if off < 0 {
 		off = len(s.icons) + off // plus a negative is minus
 	}
-	s.win.Canvas().Focus(s.icons[off].(*switchIcon))
+	fyne.Do(func() {
+		icon := s.icons[off].(*switchIcon)
+		s.selected = icon.win
+		s.win.Canvas().Focus(icon)
+	})
 	return s
 }
 
