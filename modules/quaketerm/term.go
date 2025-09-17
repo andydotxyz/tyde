@@ -137,10 +137,16 @@ func (t *term) toggle() {
 	}
 
 	if !t.shown {
-		t.win = t.getHandle()
+		go func() {
+			t.win = t.getHandle()
 
-		t.win.Pin()
-		t.show()
+			if t.win != nil {
+				fyne.Do(func() {
+					t.win.Pin()
+					t.show()
+				})
+			}
+		}()
 	} else {
 		t.hide()
 		t.win = nil

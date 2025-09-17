@@ -212,7 +212,9 @@ func (x *x11WM) handleKeyPress(ev xproto.KeyPressEvent) {
 			mask := x.modifierToKeyMask(shortcut.Modifier)
 			code := x.keyNameToCode(shortcut.KeyName)
 			if code == ev.Detail && (mask == ev.State-numlock || mask == xproto.ModMaskAny) {
-				go desk.TypedShortcut(shortcut)
+				fyne.Do(func() {
+					desk.TypedShortcut(shortcut)
+				})
 				return
 			}
 		}
