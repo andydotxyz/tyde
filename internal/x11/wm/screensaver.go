@@ -29,18 +29,32 @@ func (x *x11WM) initScreensaver() {
 }
 
 func (x *x11WM) watchScreensaver() {
-	to := time.NewTicker(5 * time.Second)
+	// more complex than time.Timer so that when the OS sleeps it does not stack ticks...
+	wait := make(chan struct{})
+	time.AfterFunc(time.Second, func() {
+		wait <- struct{}{}
+	})
+	previous := time.Now()
 
-	for range to.C {
+	for range wait {
 		info, err := screensaver.QueryInfo(x.x.Conn(), xproto.Drawable(x.x.Screen().Root)).Reply()
 		if err != nil {
 			log.Println("ERR", err)
 			continue
 		}
 
-		if info.MsSinceUserInput <= 5500 {
+		now := time.Now()
+		slept := now.Sub(previous).Seconds() > 2 // skipped a tick
+		previous = now
+		if slept {
+			fynedesk.Instance().TriggerScreenSaver()
+		} else if info.MsSinceUserInput <= 1500 {
 			fynedesk.Instance().DelayScreenSaver()
 		}
+
+		time.AfterFunc(time.Second, func() {
+			wait <- struct{}{}
+		})
 	}
 }
 

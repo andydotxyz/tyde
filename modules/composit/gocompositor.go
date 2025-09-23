@@ -186,12 +186,20 @@ func run(done chan struct{}) error {
 			return nil
 		default:
 			ev, err := conn.WaitForEvent()
+			var repaint bool
+
 			if err != nil {
-				fyne.LogError("error waiting for event", err)
-				continue
+				var badDamageError *damage.BadDamageError
+				if errors.As(err, &badDamageError) {
+					repaint = true
+				}
+
+				if err != nil {
+					fyne.LogError("error waiting for event", err)
+					continue
+				}
 			}
 
-			var repaint bool
 			switch e := ev.(type) {
 			case xproto.CreateNotifyEvent:
 				if err := addClient(conn, e.Window); err != nil {
@@ -732,7 +740,7 @@ func finishUnmapClient(conn *xgb.Conn, client *client) error {
 	}
 	err := xproto.ChangeWindowAttributesChecked(conn, client.win, xproto.CwEventMask, []uint32{0}).Check()
 	if err != nil {
-		fyne.LogError("Error clearing event mask for"+client.title, err)
+		fyne.LogError("Error clearing event mask for "+client.title, err)
 	}
 	if client.borderExtents != 0 {
 		_ = xfixes.DestroyRegion(conn, client.borderExtents)
