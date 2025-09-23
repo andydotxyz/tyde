@@ -112,15 +112,17 @@ func (n *network) tick() {
 		for {
 			val := n.networkName()
 			if val != n.name.Text {
-				n.name.SetText(val)
+				fyne.Do(func() {
+					n.name.SetText(val)
 
-				if val == "" {
-					n.icon.SetIcon(wmtheme.WifiOffIcon)
-				} else if val == networkNameEthernet {
-					n.icon.SetIcon(wmtheme.EthernetIcon)
-				} else {
-					n.icon.SetIcon(wmtheme.WifiIcon)
-				}
+					if val == "" {
+						n.icon.SetIcon(wmtheme.WifiOffIcon)
+					} else if val == networkNameEthernet {
+						n.icon.SetIcon(wmtheme.EthernetIcon)
+					} else {
+						n.icon.SetIcon(wmtheme.WifiIcon)
+					}
+				})
 			}
 			<-tick.C
 		}
