@@ -57,8 +57,10 @@ var (
 	clients          []*client
 
 	netWmNameAtom  xproto.Atom
+	netWmStateAtom xproto.Atom
 	opacityAtom    xproto.Atom
 	utf8StringAtom xproto.Atom
+	atomAtom       xproto.Atom
 	wmNameAtom     xproto.Atom
 	stringAtom     xproto.Atom
 )
@@ -612,16 +614,17 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 
 		opacity := c.opacity
 		isTop := true
-		if i < len(clients) && i > 0 {
-			isTop = false
+		if i > 0 {
 			for j := i - 1; j >= 0; j-- {
-				if j == 0 {
-					isTop = true
-				}
-				if clients[j].attributes.MapState != xproto.MapStateViewable {
+				if strings.Contains(clients[j].title, "FyneDesk:skip") {
 					continue
 				}
-				if !strings.Contains(clients[j].title, "FyneDesk:skip") {
+				if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
+					continue
+				}
+
+				if clients[j].attributes.MapState == xproto.MapStateViewable {
+					isTop = false
 					break
 				}
 			}
@@ -1167,6 +1170,43 @@ func windowTitle(conn *xgb.Conn, window xproto.Window) (string, error) {
 		return string(prop.Value), nil
 	}
 	return "Unnamed", nil
+}
+
+func windowSkipped(conn *xgb.Conn, window xproto.Window) (bool, error) {
+	if netWmStateAtom == 0 {
+		a := "_NET_WM_STATE"
+		atom, err := xproto.InternAtom(conn, false, uint16(len(a)), a).Reply()
+		if err != nil {
+			return false, err
+		}
+		netWmStateAtom = atom.Atom
+	}
+
+	if atomAtom == 0 {
+		b := "ATOM"
+		atom, err := xproto.InternAtom(conn, false, uint16(len(b)), b).Reply()
+		if err != nil {
+			return false, err
+		}
+		atomAtom = atom.Atom
+	}
+
+	prop, err := xproto.GetProperty(conn, false, window, netWmStateAtom, atomAtom, 0, 1024).Reply()
+	if err == nil && prop.Type == atomAtom && len(prop.Value) > 0 {
+		aid := xproto.Atom(xgb.Get32(prop.Value))
+		reply, err := xproto.GetAtomName(conn, aid).Reply()
+		if err != nil {
+			return false, fmt.Errorf("AtomName: Error fetching name for ATOM "+
+				"id '%d': %s", aid, err)
+		}
+		if reply.Name == "_NET_WM_STATE_SKIP_TASKBAR" {
+			return true, nil
+		}
+
+		return false, nil
+	}
+
+	return false, err
 }
 
 func getOpacity(conn *xgb.Conn, window xproto.Window) (uint32, error) {
