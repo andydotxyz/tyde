@@ -157,7 +157,7 @@ func (x *x11WM) handleFocus(win xproto.Window) {
 	if c == nil {
 		return
 	}
-	c.Refresh()
+	fyne.Do(c.Refresh)
 }
 
 func (x *x11WM) handleInitialHints(ev xproto.ClientMessageEvent, hint string) {
@@ -312,7 +312,7 @@ func (x *x11WM) handlePropertyChange(ev xproto.PropertyNotifyEvent) {
 	}
 	switch propAtom {
 	case "_NET_WM_NAME", "WM_NAME":
-		c.Refresh()
+		fyne.Do(c.Refresh)
 	case "WM_NORMAL_HINTS":
 		// Force a reconfigure to make sure the client is constrained to the new size hints
 		x, y, w, h := c.Geometry()

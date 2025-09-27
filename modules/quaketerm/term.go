@@ -77,7 +77,7 @@ func (t *term) createTerm() {
 func (t *term) getHandle() fynedesk.Window {
 	// TODO a better way to capture window frame without showing it and waiting...
 	//t.ui.Resize(fyne.NewSize(0, 0))
-	t.ui.Show()
+	fyne.Do(t.ui.Show)
 
 	i := 0
 	for {
