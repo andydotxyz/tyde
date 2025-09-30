@@ -264,7 +264,7 @@ func run(done chan struct{}) error {
 				}
 				if e.Atom == opacityAtom {
 					if c := getClientFromWindow(e.Window); c != nil {
-						if err := updateOpacity(conn, 0, c); err != nil {
+						if err := updateOpacity(conn, 1, c); err != nil {
 							fyne.LogError("failed to get opacity type", err)
 							repaint = true
 						}
@@ -620,32 +620,34 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 			return err
 		}
 
-		opacity := c.opacity
-		isTop := true
-		if i > 0 {
-			for j := i - 1; j >= 0; j-- {
-				if strings.Contains(clients[j].title, "FyneDesk:skip") {
-					continue
-				}
-				if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
-					continue
-				}
+		if strings.Contains(c.title, "Quake Terminal") {
+			_ = updateOpacity(conn, 0.8, c)
+		} else {
+			isTop := true
+			if i > 0 {
+				for j := i - 1; j >= 0; j-- {
+					if strings.Contains(clients[j].title, "FyneDesk:skip") {
+						continue
+					}
+					if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
+						continue
+					}
 
-				if clients[j].attributes.MapState == xproto.MapStateViewable {
-					isTop = false
-					break
+					if clients[j].attributes.MapState == xproto.MapStateViewable {
+						isTop = false
+						break
+					}
 				}
 			}
-		}
 
-		if !isTop {
-			opacity = uint32(0.8 * float32(opacity))
-			_ = updateOpacity(conn, opacity, c)
-		} else {
-			_ = updateOpacity(conn, 0, c)
+			if !isTop {
+				_ = updateOpacity(conn, 0.8, c)
+			} else {
+				_ = updateOpacity(conn, 1.0, c)
+			}
 		}
-		if opacity != opaque && c.mask == 0 {
-			c.mask, _ = makeMask(conn, uint16(opacity>>16))
+		if c.opacity != opaque && c.mask == 0 {
+			c.mask, _ = makeMask(conn, uint16(c.opacity>>16))
 		}
 
 		if c.opaqueType == transparent || c.opaqueType == argb {
@@ -774,18 +776,19 @@ func unmapWin(conn *xgb.Conn, window xproto.Window) error {
 	return nil
 }
 
-func updateOpacity(conn *xgb.Conn, override uint32, c *client) error {
+func updateOpacity(conn *xgb.Conn, fallback float32, c *client) error {
 	opacity, err := getOpacity(conn, c.win)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			fyne.LogError("could not fetch opacity property for"+c.title, err)
 		}
-		opacity = opaque
+		if fallback < 1.0 {
+			opacity = uint32(fallback * float32(opaque))
+		} else {
+			opacity = opaque
+		}
 	}
 	c.opacity = opacity
-	if override != 0 {
-		opacity = override
-	}
 
 	if c.mask != 0 {
 		render.FreePicture(conn, c.mask)
