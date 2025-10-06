@@ -9,6 +9,7 @@ require (
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
 	github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13
 	github.com/FyshOS/backgrounds v0.0.0-20250801103510-beb69e83c20b
+	github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864
 	github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
@@ -19,8 +20,11 @@ require (
 	github.com/stretchr/testify v1.11.1
 )
 
+require github.com/creack/pty v1.1.21 // indirect
+
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
+	github.com/FyshOS/fancyfs v0.0.0-20250930160104-540b1faf4b09 // indirect
 	github.com/fyne-io/oksvg v0.2.0 // indirect
 	github.com/hack-pad/go-indexeddb v0.3.2 // indirect
 	github.com/hack-pad/safejs v0.1.0 // indirect
@@ -37,7 +41,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
 	github.com/BurntSushi/graphics-go v0.0.0-20160129215708-b43f31a4a966 // indirect
-	github.com/creack/pty v1.1.21 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fredbi/uri v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -56,9 +59,11 @@ require (
 	github.com/yuin/goldmark v1.7.8 // indirect
 	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.22.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20191220152344-7d838166824d
+
+replace fyne.io/fyne/v2 => fyne.io/fyne/v2 v2.6.2-0.20250928194716-af93936fca00

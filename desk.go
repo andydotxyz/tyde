@@ -22,9 +22,11 @@ type Desktop interface {
 
 	AddShortcut(shortcut *Shortcut, handler func())
 	ShowMenuAt(menu *fyne.Menu, pos fyne.Position)
+	Root() fyne.Window
 
 	Desktop() int
 	SetDesktop(int)
+	ShowSettings()
 
 	DelayScreenSaver()
 	TriggerScreenSaver()

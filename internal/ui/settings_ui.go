@@ -414,6 +414,7 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 	list, err := storage.List(themes)
 	if err != nil {
 		fyne.LogError("Unable to list themes - missing?", err)
+		themeList = make([]string, 1)
 	} else {
 		for _, l := range list {
 			if false { // TODO with 1.21 } !slices.Contains(themeList, l.Name()) {
