@@ -164,6 +164,10 @@ func NewNetwork() fynedesk.Module {
 type networkApp struct {
 }
 
+func (n *networkApp) Actions() []appie.Action {
+	return nil
+}
+
 func (n *networkApp) Name() string {
 	return "Network Settings"
 }
@@ -176,6 +180,7 @@ func (n *networkApp) Run(env []string) error {
 	cmd.Env = vars
 	return cmd.Start()
 }
+
 func (n *networkApp) RunWithParameters(_, env []string) error {
 	return n.Run(env)
 }

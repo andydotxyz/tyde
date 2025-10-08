@@ -168,8 +168,20 @@ func (l *desktop) Run() {
 }
 
 func (l *desktop) RunApp(app appie.AppData) error {
+	return l.runExec(app, app.Run)
+}
+
+func (l *desktop) RunAppAction(app appie.AppData, id int) error {
+	if app.Actions() == nil || len(app.Actions())-1 < id {
+		return nil
+	}
+
+	return l.runExec(app, app.Actions()[id].Run)
+}
+
+func (l *desktop) runExec(app appie.AppData, runner func(env []string) error) error {
 	vars := l.scaleVars(l.Screens().Active().CanvasScale())
-	err := app.Run(vars)
+	err := runner(vars)
 
 	if err == nil {
 		l.recent = append([]appie.AppData{app}, l.recent...)

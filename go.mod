@@ -7,7 +7,7 @@ require (
 	fyne.io/fyne/v2 v2.6.3
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
-	github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13
+	github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1
 	github.com/FyshOS/backgrounds v0.0.0-20250801103510-beb69e83c20b
 	github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864
 	github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b

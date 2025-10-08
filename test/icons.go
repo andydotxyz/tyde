@@ -21,6 +21,10 @@ func NewAppData(name string) appie.AppData {
 	return &testAppData{name: name}
 }
 
+func (tad *testAppData) Actions() []appie.Action {
+	return nil
+}
+
 func (tad *testAppData) Name() string {
 	return tad.name
 }

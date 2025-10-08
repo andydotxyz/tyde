@@ -21,6 +21,10 @@ type dummyIcon struct {
 	name string
 }
 
+func (d *dummyIcon) Actions() []appie.Action {
+	return nil
+}
+
 func (d *dummyIcon) Categories() []string {
 	return []string{}
 }

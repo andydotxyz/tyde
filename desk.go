@@ -10,6 +10,7 @@ import (
 type Desktop interface {
 	Run()
 	RunApp(appie.AppData) error
+	RunAppAction(data appie.AppData, id int) error
 	RecentApps() []appie.AppData
 	Settings() DeskSettings
 	ContentBoundsPixels(*Screen) (x, y, w, h uint32)

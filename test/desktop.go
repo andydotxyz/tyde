@@ -101,6 +101,14 @@ func (*Desktop) RunApp(app appie.AppData) error {
 	return app.Run([]string{}) // no added env
 }
 
+func (*Desktop) RunAppAction(app appie.AppData, id int) error {
+	if app.Actions() == nil || len(app.Actions())-1 < id {
+		return nil
+	}
+
+	return app.Actions()[id].Run([]string{}) // no added env
+}
+
 // Screens returns the list of screens this desktop runs on, by default a simple 2000x1000 value
 func (td *Desktop) Screens() fynedesk.ScreenList {
 	return td.screens

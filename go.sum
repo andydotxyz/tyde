@@ -16,8 +16,8 @@ github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc h1:7D+Bh06CRPCJO3gr2F7h1sriovOZ8BMhca2Rg85c2nk=
 github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13 h1:BsJhZsXYmRx97C/HqTKOKF5fVJdLRb6K/tRQ1uHjCGU=
-github.com/FyshOS/appie v0.0.0-20250406164553-92c4d10e3b13/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
+github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1 h1:SOyQnlbCi7TwBGz31KYG3OX9b0gKx4Er2GChCR5Cun8=
+github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1/go.mod h1:Gtvb1fKDXbE9HjMtoYdB2MPSSGy6PdtMl0TC9dSF8q0=
 github.com/FyshOS/backgrounds v0.0.0-20250801103510-beb69e83c20b h1:y2k7oFblVrInXbQR81sx64FHcsDABWCHLtBSLLoRE74=
 github.com/FyshOS/backgrounds v0.0.0-20250801103510-beb69e83c20b/go.mod h1:Ona6bJ2L1Sw+exbXfgmBsBZIHXbQ+boDv43xI1C0NVY=
 github.com/FyshOS/fancyfs v0.0.0-20250930160104-540b1faf4b09 h1:HfEQ+kAztupgytWI7QqzXajwhI9R54i8q4uh2xUFEDs=
