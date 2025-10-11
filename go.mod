@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	codeberg.org/sdassow/unyts v0.4.0
-	fyne.io/fyne/v2 v2.6.3
+	fyne.io/fyne/v2 v2.7.0-rc1
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
 	github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1
@@ -46,7 +46,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fyne-io/gl-js v0.2.0 // indirect
 	github.com/fyne-io/glfw-js v0.3.0 // indirect
-	github.com/fyne-io/terminal v0.0.0-20250930154455-01f22f8e8061
+	github.com/fyne-io/terminal v0.0.0-20251011194533-4e70e940f452
 	github.com/go-gl/gl v0.0.0-20231021071112-07e5d0ea2e71 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a // indirect
 	github.com/go-text/render v0.2.0 // indirect
@@ -65,5 +65,3 @@ require (
 )
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20191220152344-7d838166824d
-
-replace fyne.io/fyne/v2 => fyne.io/fyne/v2 v2.6.2-0.20250928194716-af93936fca00
