@@ -101,6 +101,7 @@ func (*Desktop) RunApp(app appie.AppData) error {
 	return app.Run([]string{}) // no added env
 }
 
+// RunAppAction launches the passed application's action with appropriate environment setup
 func (*Desktop) RunAppAction(app appie.AppData, id int) error {
 	if app.Actions() == nil || len(app.Actions())-1 < id {
 		return nil
