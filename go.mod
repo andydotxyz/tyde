@@ -4,11 +4,11 @@ go 1.19
 
 require (
 	codeberg.org/sdassow/unyts v0.4.0
-	fyne.io/fyne/v2 v2.7.0-rc1
+	fyne.io/fyne/v2 v2.7.0
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
 	github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1
-	github.com/FyshOS/backgrounds v0.0.0-20250801103510-beb69e83c20b
+	github.com/FyshOS/backgrounds v0.0.0-20251013144618-20210a43c572
 	github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864
 	github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b
 	github.com/Knetic/govaluate v3.0.0+incompatible
@@ -46,7 +46,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fyne-io/gl-js v0.2.0 // indirect
 	github.com/fyne-io/glfw-js v0.3.0 // indirect
-	github.com/fyne-io/terminal v0.0.0-20251011194533-4e70e940f452
+	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	github.com/go-gl/gl v0.0.0-20231021071112-07e5d0ea2e71 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a // indirect
 	github.com/go-text/render v0.2.0 // indirect
