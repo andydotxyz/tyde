@@ -17,13 +17,13 @@ import (
 
 const (
 	delay     = time.Second / 25
-	termTitle = "Quake Terminal " + ui.SkipTaskbarHint
+	termTitle = "Terminal Overlay " + ui.SkipTaskbarHint
 	height    = 240
 	step      = 40
 )
 
 var termMeta = fynedesk.ModuleMetadata{
-	Name:        "\"Quake\" (hover) terminal",
+	Name:        "Terminal Overlay",
 	NewInstance: newTerm,
 }
 
@@ -42,7 +42,7 @@ func (t *term) Metadata() fynedesk.ModuleMetadata {
 
 func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
 	return map[*fynedesk.Shortcut]func(){
-		&fynedesk.Shortcut{Name: "Open Quake Terminal", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
+		&fynedesk.Shortcut{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
 			t.toggle()
 		}}
 }
