@@ -138,8 +138,8 @@ func newFrame(c *client) *frame {
 	}
 
 	title := "FyneDesk Border"
-	if strings.Contains(c.props.Title(), "Quake Terminal") {
-		title = "Quake Terminal"
+	if strings.Contains(c.props.Title(), "Terminal Overlay") {
+		title = "Terminal Overlay"
 	}
 	if strings.Contains(c.props.Title(), "FyneDesk:skip") {
 		title += " FyneDesk:skip"

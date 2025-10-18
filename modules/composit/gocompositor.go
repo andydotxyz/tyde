@@ -622,7 +622,7 @@ func paintAll(conn *xgb.Conn, region xfixes.Region) error {
 			return err
 		}
 
-		if strings.Contains(c.title, "Quake Terminal") {
+		if strings.Contains(c.title, "Terminal Overlay") {
 			_ = updateOpacity(conn, 0.8, c)
 		} else {
 			isTop := true
