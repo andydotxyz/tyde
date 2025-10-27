@@ -34,8 +34,9 @@ func (l *desktop) startXscreensaver() {
 	}
 }
 
-func (l *desktop) TriggerScreenSaver() {
+func (l *desktop) TriggerScreenSaver(delay bool) {
 	s := saver.NewScreenSaver(nil)
+	s.LockImmediately = !delay
 	s.ClockFormat = l.settings.ClockFormatting()
 	if l.settings.ScreenSaverClock() {
 		s.Label = "(clock)"
@@ -62,7 +63,9 @@ func (l *desktop) watchScreenActivity() {
 			if !idle {
 				idle = true
 
-				fyne.Do(l.TriggerScreenSaver)
+				fyne.Do(func() {
+					l.TriggerScreenSaver(true)
+				})
 			}
 		} else {
 			idle = false

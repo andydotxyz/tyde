@@ -39,7 +39,7 @@ func (x *x11WM) watchScreensaver() {
 	for range wait {
 		info, err := screensaver.QueryInfo(x.x.Conn(), xproto.Drawable(x.x.Screen().Root)).Reply()
 		if err != nil {
-			log.Println("ERR", err)
+			fyne.LogError("Failed to query screensaver info", err)
 			continue
 		}
 
@@ -47,7 +47,7 @@ func (x *x11WM) watchScreensaver() {
 		slept := now.Sub(previous).Seconds() > 2 // skipped a tick
 		previous = now
 		if slept {
-			fynedesk.Instance().TriggerScreenSaver()
+			fynedesk.Instance().TriggerScreenSaver(false) // no delay on lock prompt after sleep
 		} else if info.MsSinceUserInput <= 1500 {
 			fynedesk.Instance().DelayScreenSaver()
 		}

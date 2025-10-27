@@ -30,7 +30,7 @@ type Desktop interface {
 	ShowSettings()
 
 	DelayScreenSaver()
-	TriggerScreenSaver()
+	TriggerScreenSaver(bool)
 }
 
 var instance Desktop

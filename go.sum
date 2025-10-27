@@ -26,6 +26,8 @@ github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864 h1:4ngcVkRRfx+I/OroCN
 github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864/go.mod h1:YgozzG7CgidZTeohsrb6ayuLP803tRfmPNZ7cUXwdHI=
 github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b h1:jYMu7OX+TAUjjQFTlwxwG0i/wdiVCslWPDXH+O4vkvU=
 github.com/FyshOS/saver v0.0.0-20250701135623-b55a67b1030b/go.mod h1:+aEJkNRwWJeHMbESN/4LEzVkePYbkaZZs0MbwDj3OWM=
+github.com/FyshOS/saver v0.0.0-20251027184143-a4dc95439ebc h1:2KQN89Ify6zLDFpzHH5BDmZhKrYHkE0WpKtetN+guoY=
+github.com/FyshOS/saver v0.0.0-20251027184143-a4dc95439ebc/go.mod h1:+aEJkNRwWJeHMbESN/4LEzVkePYbkaZZs0MbwDj3OWM=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/creack/pty v1.1.21 h1:1/QdRyBaHHJP61QkWMXlOIBfsgdDeeKfK8SYVUWJKf0=

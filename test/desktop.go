@@ -136,5 +136,5 @@ func (td *Desktop) WindowManager() fynedesk.WindowManager {
 // DelayScreenSaver is called each time the user interacts with the system.
 func (td *Desktop) DelayScreenSaver() {}
 
-// TriggerScreenSaver can be called to immediately show the screensaver.
-func (td *Desktop) TriggerScreenSaver() {}
+// TriggerScreenSaver can be called to immediately) show the screensaver (or with a delay).
+func (td *Desktop) TriggerScreenSaver(bool) {}

@@ -378,7 +378,9 @@ func (l *desktop) registerShortcuts() {
 	l.AddShortcut(fynedesk.NewShortcut("Calculator", fynedesk.KeyCalculator, 0),
 		l.calculator)
 	l.AddShortcut(fynedesk.NewShortcut("Lock screen", fyne.KeyL, fynedesk.UserModifier),
-		l.TriggerScreenSaver)
+		func() {
+			l.TriggerScreenSaver(false)
+		})
 }
 
 // Screens returns the screens provider of the current desktop environment for access to screen functionality.
