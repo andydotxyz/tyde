@@ -782,7 +782,7 @@ func updateOpacity(conn *xgb.Conn, fallback float32, c *client) error {
 	opacity, err := getOpacity(conn, c.win)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			fyne.LogError("could not fetch opacity property for"+c.title, err)
+			fyne.LogError("could not fetch opacity property for "+c.title, err)
 		}
 		if fallback < 1.0 {
 			opacity = uint32(fallback * float32(opaque))
