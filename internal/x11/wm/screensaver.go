@@ -80,6 +80,30 @@ func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 		screenSaverActive = false
 	}
 
+	if path, err := exec.LookPath("fyshsaver"); err == nil {
+		var params []string
+		if s.Lock {
+			params = append(params, "-lock")
+			if !s.LockImmediately {
+				params = append(params, "-lock-delay")
+			}
+		}
+		if s.Label != "" {
+			params = append(params, "-label", s.Label)
+		}
+
+		go func() {
+			time.Sleep(time.Millisecond * 100)
+
+			err = exec.Command(path, params...).Run()
+			if err != nil {
+				fyne.LogError("Failed to activate fyne screensaver", err)
+			}
+			s.OnUnlocked()
+		}()
+		return
+	}
+
 	go func() {
 		time.Sleep(time.Millisecond * 100)
 		fyne.Do(s.ShowWindows)

@@ -10,7 +10,7 @@ require (
 	github.com/FyshOS/appie v0.0.0-20251008162342-3c7a0dee54b1
 	github.com/FyshOS/backgrounds v0.0.0-20251013144618-20210a43c572
 	github.com/FyshOS/fyles v0.0.0-20250930163235-d8b608ed9864
-	github.com/FyshOS/saver v0.0.0-20251027184143-a4dc95439ebc
+	github.com/FyshOS/saver v0.0.0-20251027185742-e01e024320f3
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
