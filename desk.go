@@ -10,6 +10,7 @@ import (
 type Desktop interface {
 	Run()
 	RunApp(appie.AppData) error
+	RunAppAction(data appie.AppData, id int) error
 	RecentApps() []appie.AppData
 	Settings() DeskSettings
 	ContentBoundsPixels(*Screen) (x, y, w, h uint32)
@@ -22,9 +23,14 @@ type Desktop interface {
 
 	AddShortcut(shortcut *Shortcut, handler func())
 	ShowMenuAt(menu *fyne.Menu, pos fyne.Position)
+	Root() fyne.Window
 
 	Desktop() int
 	SetDesktop(int)
+	ShowSettings()
+
+	DelayScreenSaver()
+	TriggerScreenSaver(bool)
 }
 
 var instance Desktop

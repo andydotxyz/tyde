@@ -17,13 +17,13 @@ import (
 
 const (
 	delay     = time.Second / 25
-	termTitle = "Quake Terminal " + ui.SkipTaskbarHint
+	termTitle = "Terminal Overlay " + ui.SkipTaskbarHint
 	height    = 240
 	step      = 40
 )
 
 var termMeta = fynedesk.ModuleMetadata{
-	Name:        "\"Quake\" (hover) terminal",
+	Name:        "Terminal Overlay",
 	NewInstance: newTerm,
 }
 
@@ -42,7 +42,7 @@ func (t *term) Metadata() fynedesk.ModuleMetadata {
 
 func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
 	return map[*fynedesk.Shortcut]func(){
-		&fynedesk.Shortcut{Name: "Open Quake Terminal", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
+		&fynedesk.Shortcut{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
 			t.toggle()
 		}}
 }
@@ -77,7 +77,7 @@ func (t *term) createTerm() {
 func (t *term) getHandle() fynedesk.Window {
 	// TODO a better way to capture window frame without showing it and waiting...
 	//t.ui.Resize(fyne.NewSize(0, 0))
-	t.ui.Show()
+	fyne.Do(t.ui.Show)
 
 	i := 0
 	for {
@@ -137,10 +137,16 @@ func (t *term) toggle() {
 	}
 
 	if !t.shown {
-		t.win = t.getHandle()
+		go func() {
+			t.win = t.getHandle()
 
-		t.win.Pin()
-		t.show()
+			if t.win != nil {
+				fyne.Do(func() {
+					t.win.Pin()
+					t.show()
+				})
+			}
+		}()
 	} else {
 		t.hide()
 		t.win = nil
@@ -148,18 +154,12 @@ func (t *term) toggle() {
 }
 
 func matchTheme(bg, over *canvas.Rectangle) {
-	ch := make(chan fyne.Settings)
-	go func() {
-		for {
-			<-ch
-
-			bg.FillColor = theme.Color(theme.ColorNameBackground)
-			bg.Refresh()
-			over.FillColor = wmTheme.WidgetPanelBackground()
-			over.Refresh()
-		}
-	}()
-	fyne.CurrentApp().Settings().AddChangeListener(ch)
+	fyne.CurrentApp().Settings().AddListener(func(_ fyne.Settings) {
+		bg.FillColor = theme.Color(theme.ColorNameBackground)
+		bg.Refresh()
+		over.FillColor = wmTheme.WidgetPanelBackground()
+		over.Refresh()
+	})
 }
 
 func newTerm() fynedesk.Module {

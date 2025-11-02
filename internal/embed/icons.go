@@ -28,6 +28,9 @@ func (e *icons) AvailableThemes() []string {
 	return nil
 }
 
+func (e *icons) ClearCache() {
+}
+
 func (e *icons) FindAppFromName(appName string) appie.AppData {
 	if appName == "FyneTerm" {
 		return e.apps[1]

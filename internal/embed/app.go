@@ -18,12 +18,23 @@ type app struct {
 	makeContent func() fyne.CanvasObject
 }
 
+func (a *app) Actions() []appie.Action {
+	return nil
+}
+
 func (a *app) Name() string {
 	return a.name
 }
 
 func (a *app) Run(_ []string) error {
 	w := container.NewInnerWindow(a.name, a.makeContent())
+	w.OnMaximized = func() {
+		//head := fynedesk.Instance().Screens().ScreenForWindow(w)
+		head := fynedesk.Instance().Screens().Primary()
+		maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(head)
+		w.Move(fyne.NewPos(float32(maxX), float32(maxY)))
+		w.Resize(fyne.NewSize(float32(maxWidth), float32(maxHeight)))
+	}
 
 	buttonAlign := widget.ButtonAlignLeading
 	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {

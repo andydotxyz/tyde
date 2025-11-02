@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	exprRegex = regexp.MustCompile(`^[0-9.+\-*/()]+$`)
+	exprRegex = regexp.MustCompile(`^[0-9.+\-*/()<^>:%]+$`)
 	numRegex  = regexp.MustCompile(`^[0-9.]+$`)
 )
 
@@ -84,6 +84,5 @@ func (i *calcItem) Title() string {
 }
 
 func (i *calcItem) Launch() {
-	// TODO remove once we are back on develop branch (after thread changes)
-	fyne.CurrentApp().Driver().AllWindows()[0].Clipboard().SetContent(i.result)
+	fyne.CurrentApp().Clipboard().SetContent(i.result)
 }

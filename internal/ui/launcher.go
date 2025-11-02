@@ -39,7 +39,7 @@ func (e *appEntry) TypedKey(ev *fyne.KeyEvent) {
 type picker struct {
 	win      fyne.Window
 	desk     fynedesk.Desktop
-	callback func(data appie.AppData)
+	callback func(data appie.AppData, actionID int)
 	showMods bool
 
 	entry       *appEntry
@@ -96,13 +96,25 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 		}
 		appData := data // capture for goroutine below
 		app := widget.NewButtonWithIcon(appData.Name(), wmTheme.BrokenImageIcon, func() {
-			l.callback(appData)
+			l.callback(appData, -1)
 			l.win.Close()
 		})
 		app.Alignment = widget.ButtonAlignLeading
 
 		appList = append(appList, app)
 		iconList = append(iconList, data)
+
+		for id, action := range appData.Actions() {
+			actionID := id // capture for goroutine below
+			app := widget.NewButtonWithIcon(data.Name()+" : "+action.Name(), wmTheme.BrokenImageIcon, func() {
+				l.callback(appData, actionID)
+				l.win.Close()
+			})
+			app.Alignment = widget.ButtonAlignLeading
+
+			appList = append(appList, app)
+			iconList = append(iconList, data)
+		}
 	}
 	go l.loadIcons(iconList, appList)
 
@@ -151,7 +163,7 @@ func (l *picker) Show() {
 	l.win.Show()
 }
 
-func newAppPicker(title string, callback func(appie.AppData)) *picker {
+func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
 	var win fyne.Window
 	if d, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
 		win = d.CreateSplashWindow()
@@ -189,11 +201,13 @@ func newAppPicker(title string, callback func(appie.AppData)) *picker {
 		win.Close()
 	})
 
-	win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
-	win.Resize(fyne.NewSize(300,
-		cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
-	win.CenterOnScreen()
-	win.Canvas().Focus(entry)
+	fyne.Do(func() {
+		win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
+		win.Resize(fyne.NewSize(300,
+			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
+		win.CenterOnScreen()
+		win.Canvas().Focus(entry)
+	})
 	return l
 }
 
@@ -204,8 +218,13 @@ func ShowAppLauncher() {
 		return
 	}
 
-	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app appie.AppData) {
-		err := fynedesk.Instance().RunApp(app)
+	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app appie.AppData, actionID int) {
+		var err error
+		if actionID == -1 {
+			err = fynedesk.Instance().RunApp(app)
+		} else {
+			err = fynedesk.Instance().RunAppAction(app, actionID)
+		}
 		if err != nil {
 			fyne.LogError("Failed to start app", err)
 			return

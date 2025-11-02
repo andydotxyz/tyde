@@ -64,6 +64,9 @@ func (*Desktop) Desktop() int {
 func (*Desktop) SetDesktop(int) {
 }
 
+// ShowSettings does nothing for the test package
+func (*Desktop) ShowSettings() {}
+
 // IconProvider returns the icon provider, by default it uses a simple in-memory implementation
 func (td *Desktop) IconProvider() appie.Provider {
 	return td.icons
@@ -98,6 +101,15 @@ func (*Desktop) RunApp(app appie.AppData) error {
 	return app.Run([]string{}) // no added env
 }
 
+// RunAppAction launches the passed application's action with appropriate environment setup
+func (*Desktop) RunAppAction(app appie.AppData, id int) error {
+	if app.Actions() == nil || len(app.Actions())-1 < id {
+		return nil
+	}
+
+	return app.Actions()[id].Run([]string{}) // no added env
+}
+
 // Screens returns the list of screens this desktop runs on, by default a simple 2000x1000 value
 func (td *Desktop) Screens() fynedesk.ScreenList {
 	return td.screens
@@ -120,3 +132,9 @@ func (td *Desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 func (td *Desktop) WindowManager() fynedesk.WindowManager {
 	return td.wm
 }
+
+// DelayScreenSaver is called each time the user interacts with the system.
+func (td *Desktop) DelayScreenSaver() {}
+
+// TriggerScreenSaver can be called to immediately) show the screensaver (or with a delay).
+func (td *Desktop) TriggerScreenSaver(bool) {}

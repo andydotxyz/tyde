@@ -84,7 +84,13 @@ func (c *Border) Hide() {
 	c.InnerWindow.Hide()
 }
 
-func (c *Border) showMenu(from fyne.CanvasObject) {
+// SetIcon updates the icon used in the window border.
+func (c *Border) SetIcon(icon fyne.Resource) {
+	c.Icon = icon
+	c.Refresh()
+}
+
+func (c *Border) showMenu(_ fyne.CanvasObject) {
 	name := c.win.Properties().Title()
 	if len(name) > 25 {
 		name = name[:25] + "..."
@@ -103,7 +109,7 @@ func (c *Border) showMenu(from fyne.CanvasObject) {
 	}
 
 	pos := c.win.Position()
-	menuPos := pos.Add(from.Position())
+	menuPos := pos.AddXY(c.win.Size().Width-32, 0)
 	menu := fyne.NewMenu("",
 		title,
 		fyne.NewMenuItemSeparator(),
@@ -145,7 +151,7 @@ func (c *Border) makeDesktopMenu(pos fyne.Position) *fyne.MenuItem {
 	}
 	desks = append(desks, pin)
 
-	ret := fyne.NewMenuItem("Move to Desktop", func() {
+	ret := fyne.NewMenuItem("Move to Desktop...", func() {
 		fynedesk.Instance().ShowMenuAt(fyne.NewMenu("", desks...),
 			pos.Add(fyne.NewSize(40, 120)))
 

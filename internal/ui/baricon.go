@@ -170,7 +170,7 @@ func (bi *barIcon) CreateRenderer() fyne.WidgetRenderer {
 	return render
 }
 
-func cloneRepo(src *appie.AppSource, path string) error {
+func cloneRepo(src *appie.AppSource, path string, done func()) (err error) {
 	spin := widget.NewActivity()
 	prop := canvas.NewRectangle(color.Transparent)
 	prop.SetMinSize(fyne.NewSquareSize(56))
@@ -187,13 +187,31 @@ func cloneRepo(src *appie.AppSource, path string) error {
 		spin.Stop()
 	}()
 
-	cmd := exec.Command("git", "clone", src.Repo, path)
-	return cmd.Run()
+	go func() {
+		cmd := exec.Command("git", "clone", src.Repo, path)
+		err = cmd.Run()
+		if err == nil {
+			return
+		}
+
+		fyne.Do(done)
+	}()
+
+	return err
 }
 
 func editApp(app appie.AppData, editor string) {
 	root := sourceRoot()
 	srcDir := filepath.Join(root, app.Name())
+
+	open := func() {
+		cmd := exec.Command(editor, srcDir)
+		err := cmd.Start()
+
+		if err != nil {
+			fyne.LogError("Failed to start app editor: "+editor, err)
+		}
+	}
 
 	if !exists(srcDir) {
 		if !exists(root) {
@@ -204,19 +222,14 @@ func editApp(app appie.AppData, editor string) {
 			}
 		}
 
-		err := cloneRepo(app.Source(), srcDir)
+		err := cloneRepo(app.Source(), srcDir, open)
 		if err != nil {
 			fyne.LogError("Error cloning the app source", err)
 			return
 		}
 	}
 
-	cmd := exec.Command(editor, srcDir)
-	err := cmd.Start()
-
-	if err != nil {
-		fyne.LogError("Failed to start app editor: "+editor, err)
-	}
+	open()
 }
 
 func newBarIcon(res fyne.Resource, appData appie.AppData, winData *appWindow) *barIcon {
@@ -230,6 +243,11 @@ func editorPath() string {
 	fysion, err := exec.LookPath("fysion")
 	if err == nil && fysion != "" {
 		return fysion
+	}
+
+	apptrix, err := exec.LookPath("apptrix")
+	if err == nil && apptrix != "" {
+		return apptrix
 	}
 
 	return ""
@@ -246,5 +264,5 @@ func sourceRoot() string {
 		return ""
 	}
 
-	return filepath.Join(u.HomeDir, "FysionApps")
+	return filepath.Join(u.HomeDir, "ApptrixApps")
 }

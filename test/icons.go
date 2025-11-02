@@ -21,6 +21,10 @@ func NewAppData(name string) appie.AppData {
 	return &testAppData{name: name}
 }
 
+func (tad *testAppData) Actions() []appie.Action {
+	return nil
+}
+
 func (tad *testAppData) Name() string {
 	return tad.name
 }
@@ -79,6 +83,9 @@ func (tap *testAppProvider) AvailableApps() []appie.AppData {
 
 func (tap *testAppProvider) AvailableThemes() []string {
 	return nil
+}
+
+func (tap *testAppProvider) ClearCache() {
 }
 
 func (tap *testAppProvider) FindAppFromName(appName string) appie.AppData {
