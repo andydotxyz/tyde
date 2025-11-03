@@ -282,6 +282,10 @@ func adjustedNow() time.Time {
 }
 
 func getOffset() int {
+	if _, err := exec.LookPath("date"); err != nil {
+		return 0
+	}
+
 	ret, err := exec.Command("date", "+%z").Output()
 	if err != nil {
 		fyne.LogError("Failed to load date offset", err)

@@ -15,6 +15,10 @@ func (esp *embeddedScreensProvider) AddChangeListener(func()) {
 }
 
 func (esp *embeddedScreensProvider) Screens() []*fynedesk.Screen {
+	s := esp.screens[0]
+	w := fynedesk.Instance().Root()
+	s.Width = int(w.Content().Size().Width)
+	s.Height = int(w.Content().Size().Height)
 	return esp.screens
 }
 
@@ -23,6 +27,7 @@ func (esp *embeddedScreensProvider) SetActive(s *fynedesk.Screen) {
 }
 
 func (esp *embeddedScreensProvider) Active() *fynedesk.Screen {
+	esp.Screens() // refresh
 	return esp.active
 }
 

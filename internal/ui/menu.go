@@ -100,7 +100,13 @@ func (w *widgetPanel) askLogout() {
 }
 
 func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
-	w2 := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
+	var w2 fyne.Window
+	if desk, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
+		w2 = desk.CreateSplashWindow()
+	} else { // web or mobile
+		w2 = fyne.CurrentApp().NewWindow("")
+	}
+
 	w2.SetPadded(true)
 	w2.Canvas().SetOnTypedKey(func(k *fyne.KeyEvent) {
 		if k.Name == fyne.KeyEscape {

@@ -1,5 +1,4 @@
-//go:build !linux && !darwin && !freebsd && !openbsd && !netbsd
-// +build !linux,!darwin,!freebsd,!openbsd,!netbsd
+//go:build !linux && !darwin && !freebsd && !openbsd && !netbsd && !no_native_icons && !web && !wasm && !js
 
 package main
 
@@ -8,7 +7,6 @@ import (
 	"runtime"
 
 	"fyne.io/fyne/v2"
-	"fyshos.com/fynedesk"
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal"

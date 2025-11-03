@@ -29,7 +29,6 @@ func (a *app) Name() string {
 func (a *app) Run(_ []string) error {
 	w := container.NewInnerWindow(a.name, a.makeContent())
 	w.OnMaximized = func() {
-		//head := fynedesk.Instance().Screens().ScreenForWindow(w)
 		head := fynedesk.Instance().Screens().Primary()
 		maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(head)
 		w.Move(fyne.NewPos(float32(maxX), float32(maxY)))

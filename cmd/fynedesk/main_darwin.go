@@ -10,6 +10,7 @@ import (
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
+	_ "fyshos.com/fynedesk/modules/quaketerm"
 )
 
 func setupDesktop(a fyne.App) fynedesk.Desktop {

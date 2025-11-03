@@ -410,15 +410,18 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 // An ApplicationProvider is used to lookup application icons from the operating system.
 // If run during CI for testing it will return an in-memory window using the
 // fyne/test package.
-func NewEmbeddedDesktop(app fyne.App, _ appie.Provider) fynedesk.Desktop {
+func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	multi := container.NewMultipleWindows()
-	icons := embed.NewIcons(multi)
+	if icons == nil {
+		icons = embed.NewIcons(multi)
+	}
 	wm := &embededWM{multi: multi}
 	desk := newDesktop(app, wm, icons)
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
 
 	desk.root = desk.newDesktopWindowEmbed()
+	wm.setWindow(desk.root)
 	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), multi))
 	return desk
 }

@@ -1,5 +1,4 @@
-//go:build linux || openbsd || freebsd || netbsd
-// +build linux openbsd freebsd netbsd
+//go:build (linux || openbsd || freebsd || netbsd) && !no_native_icons
 
 package main
 
@@ -13,6 +12,8 @@ import (
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
 	"fyshos.com/fynedesk/internal/x11/wm"
+	_ "fyshos.com/fynedesk/modules/quaketerm"
+	_ "fyshos.com/fynedesk/modules/systray"
 )
 
 func setupDesktop(a fyne.App) fynedesk.Desktop {
