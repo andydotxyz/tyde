@@ -1,6 +1,8 @@
 package embed
 
 import (
+	"strings"
+
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2/container"
@@ -32,15 +34,24 @@ func (e *icons) ClearCache() {
 }
 
 func (e *icons) FindAppFromName(appName string) appie.AppData {
-	if appName == "FyneTerm" {
-		return e.apps[1]
+	for _, a := range e.apps {
+		if a.Name() == appName {
+			return a
+		}
 	}
-	return e.apps[0] // TODO search
+	return nil
 }
 
 func (e *icons) FindAppsMatching(pattern string) []appie.AppData {
-	// TODO search
-	return nil
+	var apps []appie.AppData
+
+	for _, a := range e.apps {
+		if strings.Contains(strings.ToLower(a.Name()), strings.ToLower(pattern)) {
+			apps = append(apps, a)
+		}
+	}
+
+	return apps
 }
 
 func (e *icons) DefaultApps() []appie.AppData {

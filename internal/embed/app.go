@@ -16,6 +16,10 @@ type app struct {
 	categories  []string
 	icon        fyne.Resource
 	makeContent func() fyne.CanvasObject
+
+	maximized, minimized bool
+	prevPos              fyne.Position
+	prevSize             fyne.Size
 }
 
 func (a *app) Actions() []appie.Action {
@@ -29,10 +33,31 @@ func (a *app) Name() string {
 func (a *app) Run(_ []string) error {
 	w := container.NewInnerWindow(a.name, a.makeContent())
 	w.OnMaximized = func() {
+		if a.maximized {
+			a.maximized = false
+			w.Resize(a.prevSize)
+			w.Move(a.prevPos)
+			return
+		}
+
+		a.prevSize = w.Size()
+		a.prevPos = w.Position()
+		a.maximized = true
+
 		head := fynedesk.Instance().Screens().Primary()
 		maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(head)
 		w.Move(fyne.NewPos(float32(maxX), float32(maxY)))
 		w.Resize(fyne.NewSize(float32(maxWidth), float32(maxHeight)))
+	}
+	w.OnMinimized = func() {
+		if a.minimized {
+			a.minimized = false
+			w.Show()
+			return
+		}
+
+		a.minimized = true
+		w.Hide()
 	}
 
 	buttonAlign := widget.ButtonAlignLeading
