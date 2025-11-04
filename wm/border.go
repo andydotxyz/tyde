@@ -151,11 +151,9 @@ func (c *Border) makeDesktopMenu(pos fyne.Position) *fyne.MenuItem {
 	}
 	desks = append(desks, pin)
 
-	ret := fyne.NewMenuItem("Move to Desktop...", func() {
+	return fyne.NewMenuItem("Move to Desktop...", func() {
 		fynedesk.Instance().ShowMenuAt(fyne.NewMenu("", desks...),
 			pos.Add(fyne.NewSize(40, 120)))
 
 	})
-	ret.ChildMenu = fyne.NewMenu("") // No-op to add the arrow...
-	return ret
 }
