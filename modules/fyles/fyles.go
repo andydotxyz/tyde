@@ -33,11 +33,24 @@ func (f *fyles) Destroy() {
 }
 
 func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
-	icons := lib.NewFylesPanel(f.tapped, fynedesk.Instance().Root())
-	icons.HideParent = true
-	icons.Filter = filterHidden()
-	f.setDesktopDir(icons)
-	f.icons = icons
+	holder := container.NewPadded()
+	win := fynedesk.Instance().Root()
+	go func() {
+		for win == nil {
+			time.Sleep(10 * time.Millisecond)
+			win = fynedesk.Instance().Root()
+		}
+		icons := lib.NewFylesPanel(f.tapped, win)
+		icons.HideParent = true
+		icons.Filter = filterHidden()
+		f.setDesktopDir(icons)
+		f.icons = icons
+
+		fyne.Do(func() {
+			holder.Objects = []fyne.CanvasObject{icons}
+			holder.Refresh()
+		})
+	}()
 
 	desk := fynedesk.Instance()
 	var barPad fyne.CanvasObject
@@ -54,7 +67,7 @@ func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 	widgetPad := canvas.NewRectangle(color.Transparent)
 	widgetPad.SetMinSize(fyne.NewSize(rightIndent, 1))
 
-	return container.NewBorder(nil, nil, barPad, widgetPad, container.NewPadded(icons))
+	return container.NewBorder(nil, nil, barPad, widgetPad, holder)
 }
 
 func (f *fyles) Metadata() fynedesk.ModuleMetadata {
