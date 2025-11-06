@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"time"
+
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -202,11 +204,26 @@ func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
 	})
 
 	fyne.Do(func() {
+		ideal := fyne.NewSize(300,
+			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height)
 		win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
-		win.Resize(fyne.NewSize(300,
-			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
+		win.Resize(ideal)
 		win.CenterOnScreen()
 		win.Canvas().Focus(entry)
+
+		// TODO consider if there is a bug upstream in the window handling here or in Fyne
+		go func() {
+			retries := 3
+			for retries > 0 {
+				time.Sleep(time.Millisecond * 20)
+				fyne.Do(func() {
+					win.Resize(ideal)
+					win.CenterOnScreen()
+				})
+
+				retries--
+			}
+		}()
 	})
 	return l
 }
