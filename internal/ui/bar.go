@@ -341,11 +341,10 @@ func (b *barRenderer) Refresh() {
 	}
 	if b.appBar.separator != nil {
 		b.appBar.separator.FillColor = theme.Color(theme.ColorNameForeground)
+		b.appBar.separator.Refresh()
 	}
 	b.objects = b.appBar.children
 	b.Layout(b.appBar.Size())
-
-	canvas.Refresh(b.appBar.separator)
 }
 
 // Destroy tidies up resources
