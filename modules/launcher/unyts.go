@@ -2,7 +2,6 @@ package launcher
 
 import (
 	_ "embed" // embed icon
-	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -45,7 +44,6 @@ func (u *unyts) Metadata() fynedesk.ModuleMetadata {
 
 func (u *unyts) isConversion(input string) bool {
 	parts := strings.Split(input, " ")
-	log.Println("count", len(parts))
 	if len(parts) != 3 {
 		return false
 	}
