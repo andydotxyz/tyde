@@ -367,7 +367,7 @@ func (c *client) QueueMoveResizeGeometry(x int, y int, width uint, height uint) 
 	c.frame.queueGeometry(int16(x), int16(y), uint16(width), uint16(height), true)
 }
 
-func (c *client) RaiseAbove(win fynedesk.Window) {
+func (c *client) raiseAbove(win fynedesk.Window) {
 	topID := c.wm.RootID()
 	if win != nil {
 		topID = win.(*client).id
@@ -383,7 +383,8 @@ func (c *client) RaiseAbove(win fynedesk.Window) {
 }
 
 func (c *client) RaiseToTop() {
-	c.wm.RaiseToTop(c)
+	top := c.wm.TopWindow()
+	c.raiseAbove(top)
 }
 
 func (c *client) Refresh() {

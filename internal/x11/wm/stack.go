@@ -36,7 +36,7 @@ func (s *stack) RaiseToTop(win fynedesk.Window) {
 		return
 	}
 	if len(s.clients) > 1 {
-		win.RaiseAbove(s.TopWindow())
+		win.RaiseToTop()
 	}
 
 	if s.indexForWin(win) == -1 {

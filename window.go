@@ -21,7 +21,6 @@ type Window interface {
 	Fullscreen()          // Request to fullscreen this window
 	Iconify()             // Request to iconify this window
 	Maximize()            // Request to resize this window to it's largest possible size
-	RaiseAbove(Window)    // Raise this window above a given other window
 	RaiseToTop()          // Raise this window to the top of the stack
 	Unfullscreen()        // Request to unfullscreen this window
 	Uniconify()           // Request to restore this window and possibly children of this window from being minimized

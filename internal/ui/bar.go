@@ -133,7 +133,7 @@ func (b *bar) taskbarIconTapped(win fynedesk.Window) {
 	if win.Iconic() {
 		win.Uniconify()
 	}
-	win.RaiseToTop()
+	b.desk.WindowManager().RaiseToTop(win)
 	win.Focus()
 }
 
