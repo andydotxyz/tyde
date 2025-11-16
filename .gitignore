@@ -3,6 +3,7 @@ cmd/fynedesk/fynedesk
 cmd/fynedesk_runner/fynedesk_runner
 fynedesk
 fynedesk_runner
+wasm
 
 .idea
 .DS_Store
