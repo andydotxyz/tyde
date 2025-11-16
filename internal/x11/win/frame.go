@@ -703,7 +703,7 @@ func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
 		return
 	}
 	if !f.client.Focused() {
-		f.client.RaiseToTop()
+		fynedesk.Instance().WindowManager().RaiseToTop(f.client)
 		f.client.Focus()
 		return
 	}
@@ -893,7 +893,7 @@ func (f *frame) show() {
 		xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeSync,
 		0, xproto.CursorNone, xproto.ButtonIndex5, userMod)
 
-	c.RaiseToTop()
+	fynedesk.Instance().WindowManager().RaiseToTop(c)
 	c.Focus()
 }
 

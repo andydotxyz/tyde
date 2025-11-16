@@ -116,7 +116,7 @@ func (t *term) show() {
 	screen := fynedesk.Instance().Screens().Primary()
 	t.win.Resize(fyne.NewSize(float32(screen.Width)/screen.Scale, height))
 	//	t.ui.Show()
-	t.win.RaiseToTop()
+	fynedesk.Instance().WindowManager().RaiseToTop(t.win)
 
 	left := float32(screen.X) / screen.Scale
 	y := float32(screen.Y)/screen.Scale - height

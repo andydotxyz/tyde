@@ -188,7 +188,7 @@ func (s *Switcher) raise(win fynedesk.Window) {
 	if win.Iconic() {
 		win.Uniconify()
 	}
-	win.RaiseToTop()
+	fynedesk.Instance().WindowManager().RaiseToTop(win)
 }
 
 func (s *Switcher) loadUI(title string) {

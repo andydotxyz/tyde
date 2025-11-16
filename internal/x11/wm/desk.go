@@ -241,6 +241,7 @@ func (x *x11WM) ShowOverlay(content fyne.CanvasObject, closed func(), s fyne.Siz
 	var w fyne.Window
 	if desk, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
 		w = desk.CreateSplashWindow()
+		w.SetTitle(windowNameMenu)
 	} else {
 		w = fyne.CurrentApp().NewWindow(windowNameMenu)
 		w.SetPadded(false)
@@ -781,7 +782,7 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 	fyne.Do(func() {
 		x.AddWindow(c)
 	})
-	c.RaiseToTop()
+	fynedesk.Instance().WindowManager().RaiseToTop(c)
 	c.Focus()
 	windowClientListUpdate(x)
 	windowClientListStackingUpdate(x)
