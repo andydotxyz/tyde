@@ -21,7 +21,7 @@ import (
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
-func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window) {
+func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, closer func()) {
 	accList := acc.Items
 	cats := w.desk.IconProvider().CategorizedApps()
 	var catNames []string
@@ -45,7 +45,7 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 			if app.Hidden() {
 				continue
 			}
-			btn := w.newAppButton(app, win)
+			btn := w.newAppButton(app, closer)
 			items = append(items, btn)
 			defer w.loadIcon(app, btn)
 		}
@@ -53,8 +53,10 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 			container.NewVBox(items...)))
 	}
 
-	acc.Items = accList
-	acc.Refresh()
+	fyne.Do(func() {
+		acc.Items = accList
+		acc.Refresh()
+	})
 }
 
 func (w *widgetPanel) askLogout() {
@@ -100,27 +102,15 @@ func (w *widgetPanel) askLogout() {
 }
 
 func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
-	var w2 fyne.Window
-	if desk, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
-		w2 = desk.CreateSplashWindow()
-	} else { // web or mobile
-		w2 = fyne.CurrentApp().NewWindow("")
-	}
-
-	w2.SetPadded(true)
-	w2.Canvas().SetOnTypedKey(func(k *fyne.KeyEvent) {
-		if k.Name == fyne.KeyEscape {
-			w2.Close()
-		}
-	})
+	var closer func()
 	items1 := []fyne.CanvasObject{
 		&widget.Button{Icon: theme.LogoutIcon(), Importance: widget.DangerImportance, OnTapped: func() {
 			w.askLogout()
-			w2.Close()
+			closer()
 		}}}
 	isEmbed := w.desk.(*desktop).root.Title() != RootWindowName
 	items1 = append(items1, &widget.Button{Icon: wmtheme.LockIcon, Importance: widget.LowImportance, OnTapped: func() {
-		w2.Close()
+		closer()
 		w.desk.TriggerScreenSaver(false)
 	}})
 	if !isEmbed {
@@ -134,21 +124,23 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	items2 := []fyne.CanvasObject{
 		&widget.Button{Icon: theme.QuestionIcon(), Importance: widget.LowImportance, OnTapped: func() {
 			w.showAbout()
-			w2.Close()
+			closer()
 		}},
 		&widget.Button{Icon: theme.SettingsIcon(), Importance: widget.LowImportance, OnTapped: func() {
 			w.showSettings()
-			w2.Close()
+			closer()
 		}}}
 	items := container.NewBorder(nil, nil, container.NewHBox(items1...), container.NewHBox(items2...),
 		&widget.Button{Icon: theme.SearchIcon(), Text: "Search", Importance: widget.LowImportance, OnTapped: func() {
 			ShowAppLauncher()
-			w2.Close()
+			closer()
 		}})
 
 	var recent []fyne.CanvasObject
 	for _, app := range w.desk.RecentApps() {
-		btn := w.newAppButton(app, w2)
+		btn := w.newAppButton(app, func() {
+			closer() // not initialised on creation
+		})
 		recent = append(recent, btn)
 
 		btn.Icon = app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
@@ -158,19 +150,19 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 		container.NewVBox(recent...)))
 	acc.MultiOpen = true
 	acc.Open(0)
-	go w.appendAppCategories(acc, w2)
 
-	w2.SetContent(container.NewBorder(
+	content := container.NewPadded(container.NewBorder(
 		items, nil, nil, nil,
 		container.NewScroll(acc)))
 	winSize := w.desk.(*desktop).root.Canvas().Size()
 	pos := fyne.NewPos(winSize.Width-300, winSize.Height-360)
-	w.desk.WindowManager().ShowOverlay(w2, fyne.NewSize(300, 360), pos)
+	_, closer = w.desk.WindowManager().ShowOverlay(content, nil, fyne.NewSize(300, 360), pos)
+	go w.appendAppCategories(acc, closer)
 }
 
-func (w *widgetPanel) newAppButton(app appie.AppData, w2 fyne.Window) *widget.Button {
+func (w *widgetPanel) newAppButton(app appie.AppData, closer func()) *widget.Button {
 	b := widget.NewButtonWithIcon(app.Name(), wmtheme.BrokenImageIcon, func() {
-		w2.Close()
+		closer()
 		_ = w.desk.RunApp(app)
 	})
 	b.Alignment = widget.ButtonAlignLeading

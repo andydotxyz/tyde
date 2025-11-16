@@ -17,7 +17,10 @@ func (esp *embeddedScreensProvider) AddChangeListener(func()) {
 func (esp *embeddedScreensProvider) Screens() []*fynedesk.Screen {
 	s := esp.screens[0]
 	w := fynedesk.Instance().Root()
-	if w.Content() != nil {
+	if w.Content() == nil { // during setup
+		s.Width = 800
+		s.Height = 600
+	} else {
 		s.Width = int(w.Content().Size().Width)
 		s.Height = int(w.Content().Size().Height)
 	}
@@ -34,7 +37,11 @@ func (esp *embeddedScreensProvider) Active() *fynedesk.Screen {
 }
 
 func (esp *embeddedScreensProvider) Primary() *fynedesk.Screen {
-	return esp.Screens()[0]
+	screens := esp.Screens()
+	if len(screens) == 0 {
+		return nil
+	}
+	return screens[0]
 }
 
 func (esp *embeddedScreensProvider) ScreenForWindow(win fynedesk.Window) *fynedesk.Screen {

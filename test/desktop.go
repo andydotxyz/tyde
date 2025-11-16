@@ -2,10 +2,12 @@ package test
 
 import (
 	"image"
+	"image/color"
 
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 
@@ -89,7 +91,7 @@ func (*Desktop) Modules() []fynedesk.Module {
 
 // Root returns the root window, this is an in-memory test Fyne window
 func (*Desktop) Root() fyne.Window {
-	return test.NewWindow(nil)
+	return test.NewWindow(canvas.NewRectangle(color.Black))
 }
 
 // Run will run the desktop mainloop - no-op for testing

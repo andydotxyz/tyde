@@ -17,9 +17,11 @@ type WindowManager interface {
 	Capture() image.Image // Capture the contents of the whole desktop to an image
 	Close()
 	Run()
-	ShowOverlay(fyne.Window, fyne.Size, fyne.Position)
+
+	ShowOverlay(fyne.CanvasObject, func(), fyne.Size, fyne.Position) (fyne.Canvas, func())
 	ShowMenuOverlay(*fyne.Menu, fyne.Size, fyne.Position)
-	ShowModal(fyne.Window, fyne.Size)
+	ShowModal(fyne.CanvasObject, func(), fyne.Size) (fyne.Canvas, func())
+	ShowWindow(fyne.CanvasObject, string, func(), fyne.Size) (fyne.Canvas, func())
 
 	ShowScreensaver(saver *saver.ScreenSaver)
 }

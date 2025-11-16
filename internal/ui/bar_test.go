@@ -4,6 +4,8 @@ import (
 	"image/color"
 	"testing"
 
+	"fyne.io/fyne/v2/container"
+	"fyshos.com/fynedesk/internal/embed"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -61,7 +63,7 @@ func (d *dummyIcon) Source() *appie.AppSource {
 }
 
 func testBar(icons []string) *bar {
-	testBar := newBar(wmTest.NewDesktopWithWM(&embededWM{}))
+	testBar := newBar(wmTest.NewDesktopWithWM(embed.NewWM(nil, container.NewWithoutLayout())))
 	testBar.children = []fyne.CanvasObject{} // remove divider, then we add it again later
 	for _, name := range icons {
 		icon := testBar.createIcon(&dummyIcon{name: name}, nil)

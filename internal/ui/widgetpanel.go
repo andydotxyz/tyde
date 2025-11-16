@@ -70,8 +70,7 @@ func (w *widgetRenderer) Destroy() {
 type widgetPanel struct {
 	widget.BaseWidget
 
-	desk            fynedesk.Desktop
-	about, settings fyne.Window
+	desk fynedesk.Desktop
 
 	account         *widget.Button
 	clock, vClock   *canvas.Text

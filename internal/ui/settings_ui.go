@@ -223,10 +223,10 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 	d.populateOrderList(orderList, addItem)
 
 	addButton.OnTapped = func() {
-		newAppPicker("Choose Application", func(data appie.AppData, _ int) {
+		newAppPicker(func(data appie.AppData, _ int) {
 			d.launcherIcons = append(d.launcherIcons, data.Name())
 			d.populateOrderList(orderList, addItem)
-		}).Show()
+		}, nil).Show()
 	}
 
 	bar := container.NewHScroll(orderList)
@@ -482,32 +482,17 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 }
 
 func (w *widgetPanel) showSettings() {
-	if w.settings != nil {
-		w.settings.CenterOnScreen()
-		w.settings.Show()
-
-		for _, win := range w.desk.WindowManager().Windows() {
-			if win.Properties().Title() == w.settings.Title() {
-				w.desk.WindowManager().RaiseToTop(win)
-				break
-			}
-		}
-		return
-	}
-
 	deskSettings := w.desk.Settings().(*deskSettings)
 	ui := &settingsUI{
 		settings:      deskSettings,
 		launcherIcons: deskSettings.LauncherIcons(),
 	}
 
-	win := fyne.CurrentApp().NewWindow("FyneDesk Settings")
-	ui.win = win
 	fyneSettings := settings.NewSettings()
 
 	tabs := container.NewAppTabs(
 		&container.TabItem{Text: "Fyne Settings", Icon: wmtheme.FyneLogo,
-			Content: fyneSettings.LoadAppearanceScreen(win)},
+			Content: fyneSettings.LoadAppearanceScreen(w.desk.Root())}, // TODO check if this is always right?
 		&container.TabItem{Text: "Appearance", Icon: fyneSettings.AppearanceIcon(),
 			Content: ui.loadAppearanceScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
@@ -517,14 +502,8 @@ func (w *widgetPanel) showSettings() {
 			Content: ui.loadAdvancedScreen()},
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
-	win.SetContent(tabs)
-	win.Resize(fyne.NewSize(480, 320))
 
-	win.SetCloseIntercept(func() {
-		win.Hide()
-	})
-	w.settings = win
-	win.Show()
+	w.desk.WindowManager().ShowWindow(tabs, "FyneDesk Settings", nil, fyne.NewSize(480, 320))
 }
 
 func modifierToString(mods fyne.KeyModifier, userMod fyne.KeyModifier) string {

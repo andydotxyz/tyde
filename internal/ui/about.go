@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"fyshos.com/fynedesk"
 	theme2 "fyshos.com/fynedesk/theme"
 
 	"fyne.io/fyne/v2"
@@ -30,21 +31,6 @@ func newURLButton(label, link string) *widget.Hyperlink {
 // the [fyne_demo](https://github.com/fyne-io/fyne/tree/develop/cmd/fyne_demo)
 // welcome panel.
 func (w *widgetPanel) showAbout() {
-	if w.about != nil {
-		w.about.CenterOnScreen()
-		w.about.Show()
-
-		for _, win := range w.desk.WindowManager().Windows() {
-			if win.Properties().Title() == w.about.Title() {
-				win.SetDesktop(w.desk.Desktop())
-				w.desk.WindowManager().RaiseToTop(win)
-				break
-			}
-		}
-		return
-	}
-	win := fyne.CurrentApp().NewWindow("About FyneDesk")
-
 	logo := canvas.NewImageFromResource(theme2.FyshOSLogo)
 	logo.FillMode = canvas.ImageFillContain
 	logo.SetMinSize(fyne.NewSize(256, 256))
@@ -98,17 +84,12 @@ func (w *widgetPanel) showAbout() {
 
 	bgClip := container.NewScroll(slideBG)
 	bgClip.Direction = container.ScrollNone
-	win.SetContent(container.NewStack(container.New(unpad{top: true}, bgClip, bg),
+	win := container.NewStack(container.New(unpad{top: true}, bgClip, bg),
 		container.NewBorder(nil,
 			container.NewStack(footerBG, footer), nil, nil,
-			container.New(unpad{top: true, bottom: true}, scroll))))
-	win.SetCloseIntercept(func() {
-		win.Hide()
-	})
+			container.New(unpad{top: true, bottom: true}, scroll)))
 
-	w.about = win
-	win.Resize(fyne.NewSize(340, 280))
-	win.Show()
+	fynedesk.Instance().WindowManager().ShowWindow(win, "About FyneDesk", nil, fyne.NewSize(340, 280))
 }
 
 func version() string {

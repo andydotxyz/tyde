@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
-	wmtheme "fyshos.com/fynedesk/theme"
-)
+import "fyne.io/fyne/v2"
 
 func (l *desktop) newDesktopWindowEmbed() fyne.Window {
 	win := l.app.NewWindow("Embedded " + RootWindowName)
@@ -16,10 +12,4 @@ func (l *desktop) newDesktopWindowEmbed() fyne.Window {
 
 func (l *desktop) runEmbed() {
 	l.root.ShowAndRun()
-}
-
-func (l *desktop) showMenuEmbed(menu *fyne.Menu, pos fyne.Position) {
-	wid := widget.NewPopUpMenu(menu, l.root.Canvas())
-	wid.Resize(fyne.NewSize(wmtheme.WidgetPanelWidth, wid.MinSize().Height))
-	wid.ShowAtPosition(pos)
 }

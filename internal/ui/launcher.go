@@ -1,13 +1,10 @@
 package ui
 
 import (
-	"time"
-
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -39,10 +36,11 @@ func (e *appEntry) TypedKey(ev *fyne.KeyEvent) {
 }
 
 type picker struct {
-	win      fyne.Window
-	desk     fynedesk.Desktop
-	callback func(data appie.AppData, actionID int)
-	showMods bool
+	closer, onClosed func()
+	content          fyne.CanvasObject
+	desk             fynedesk.Desktop
+	callback         func(data appie.AppData, actionID int)
+	showMods         bool
 
 	entry       *appEntry
 	appList     *fyne.Container
@@ -51,7 +49,7 @@ type picker struct {
 }
 
 func (l *picker) close() {
-	l.win.Close()
+	l.closer()
 }
 
 func (l *picker) pickSelected() {
@@ -99,7 +97,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 		appData := data // capture for goroutine below
 		app := widget.NewButtonWithIcon(appData.Name(), wmTheme.BrokenImageIcon, func() {
 			l.callback(appData, -1)
-			l.win.Close()
+			l.closer()
 		})
 		app.Alignment = widget.ButtonAlignLeading
 
@@ -110,7 +108,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 			actionID := id // capture for goroutine below
 			app := widget.NewButtonWithIcon(data.Name()+" : "+action.Name(), wmTheme.BrokenImageIcon, func() {
 				l.callback(appData, actionID)
-				l.win.Close()
+				l.closer()
 			})
 			app.Alignment = widget.ButtonAlignLeading
 
@@ -150,7 +148,7 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 		for _, item := range suggest.LaunchSuggestions(input) {
 			launchData := item // capture for goroutine below
 			button := widget.NewButtonWithIcon(item.Title(), item.Icon(), func() {
-				l.win.Close()
+				l.closer()
 				launchData.Launch()
 			})
 
@@ -162,29 +160,23 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 }
 
 func (l *picker) Show() {
-	l.win.Show()
-}
-
-func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
-	var win fyne.Window
-	if d, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
-		win = d.CreateSplashWindow()
-		win.SetPadded(true)
-		win.SetTitle(title)
-	} else {
-		win = fyne.CurrentApp().NewWindow(title)
-	}
-
-	win.Canvas().SetOnTypedKey(func(ev *fyne.KeyEvent) {
-		if ev.Name == fyne.KeyEscape {
-			win.Close()
-			return
+	fyne.Do(func() {
+		canv, doClose := fynedesk.Instance().WindowManager().ShowOverlay(appExec.content, appExec.closer, appExec.content.Size(), fyne.Position{})
+		canv.Focus(appExec.entry)
+		appExec.closer = func() {
+			doClose()
+			if fn := appExec.onClosed; fn != nil {
+				fn()
+			}
 		}
 	})
+}
 
+func newAppPicker(callback func(appie.AppData, int), onClosed func()) *picker {
 	appList := container.NewVBox()
 	appScroller := container.NewScroll(appList)
-	l := &picker{win: win, desk: fynedesk.Instance(), appList: appList, appScroll: appScroller, callback: callback}
+	l := &picker{desk: fynedesk.Instance(), appList: appList, appScroll: appScroller,
+		callback: callback, onClosed: onClosed}
 
 	entry := &appEntry{pick: l}
 	entry.ExtendBaseWidget(entry)
@@ -200,31 +192,14 @@ func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
 	l.entry = entry
 
 	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
-		win.Close()
+		l.closer()
 	})
 
-	fyne.Do(func() {
-		ideal := fyne.NewSize(300,
-			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height)
-		win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
-		win.Resize(ideal)
-		win.CenterOnScreen()
-		win.Canvas().Focus(entry)
+	content := container.NewPadded(container.NewBorder(entry, cancel, nil, nil, appScroller))
+	content.Resize(fyne.NewSize(300,
+		cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height))
 
-		// TODO consider if there is a bug upstream in the window handling here or in Fyne
-		go func() {
-			retries := 3
-			for retries > 0 {
-				time.Sleep(time.Millisecond * 20)
-				fyne.Do(func() {
-					win.Resize(ideal)
-					win.CenterOnScreen()
-				})
-
-				retries--
-			}
-		}()
-	})
+	l.content = content
 	return l
 }
 
@@ -235,7 +210,7 @@ func ShowAppLauncher() {
 		return
 	}
 
-	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app appie.AppData, actionID int) {
+	appExec = newAppPicker(func(app appie.AppData, actionID int) {
 		var err error
 		if actionID == -1 {
 			err = fynedesk.Instance().RunApp(app)
@@ -246,10 +221,10 @@ func ShowAppLauncher() {
 			fyne.LogError("Failed to start app", err)
 			return
 		}
-	})
-	appExec.showMods = true
-	appExec.win.SetOnClosed(func() {
+	}, func() {
 		appExec = nil
 	})
+	appExec.showMods = true
+
 	appExec.Show()
 }

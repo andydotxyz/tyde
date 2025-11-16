@@ -18,7 +18,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -32,7 +31,7 @@ type subj struct {
 }
 
 type auth struct {
-	windows map[string]fyne.Window
+	windows map[string]func()
 }
 
 func (a *auth) register() {
@@ -91,8 +90,12 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		widget.NewFormItem("Ident", widget.NewLabel(username)),
 		widget.NewFormItem("Password", pass),
 	)
-	w := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
-	a.windows[cookie] = w
+	var closer func()
+	a.windows[cookie] = func() {
+		if fn := closer; fn != nil { // closer may come and go
+			fn()
+		}
+	}
 
 	var auth *widget.Button
 	auth = widget.NewButton("Authorize", func() {
@@ -111,13 +114,13 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		if err3 != nil {
 			log.Println("Auth err", err3)
 		} else {
-			w.Close()
+			closer()
 		}
 		auth.Enable()
 	})
 	auth.Importance = widget.HighImportance
 	cancel := widget.NewButton("Cancel", func() {
-		w.Close()
+		closer()
 	})
 	pass.OnSubmitted = func(string) {
 		auth.OnTapped()
@@ -143,29 +146,29 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	iconBox := container.NewWithoutLayout(icon)
 	icon.Resize(fyne.NewSize(92, 92))
 	icon.Move(fyne.NewPos(300-92-theme.Padding(), theme.Padding()))
-	w.SetContent(container.NewStack(
+	win := container.NewStack(
 		iconBox, bg,
-		container.NewPadded(content)))
+		container.NewPadded(content))
 
-	w.SetOnClosed(func() {
+	onClosed := func() {
 		delete(a.windows, cookie)
 		wg.Done()
-	})
-	fynedesk.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
+	}
+	_, closer = fynedesk.Instance().WindowManager().ShowModal(win, onClosed, fyne.NewSize(300, 210))
 
 	wg.Wait()
 	return nil
 }
 
 func (a *auth) CancelAuthentication(cookie string, sender dbus.Sender) (err *dbus.Error) {
-	if w, ok := a.windows[cookie]; ok {
-		w.Close() // OnClose will tidy the session
+	if closer, ok := a.windows[cookie]; ok {
+		closer() // OnClose will tidy the session
 	}
 	return nil
 }
 
 // StartAuthAgent asks our policy kit agent to start listening for auth requests.
 func StartAuthAgent() {
-	a := &auth{windows: make(map[string]fyne.Window)}
+	a := &auth{windows: make(map[string]func())}
 	go a.register()
 }

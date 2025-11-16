@@ -237,35 +237,92 @@ func (x *x11WM) Run() {
 	go x.runLoop()
 }
 
-func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
-	w.SetTitle(windowNameMenu)
+func (x *x11WM) ShowOverlay(content fyne.CanvasObject, closed func(), s fyne.Size, p fyne.Position) (fyne.Canvas, func()) {
+	var w fyne.Window
+	if desk, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
+		w = desk.CreateSplashWindow()
+	} else {
+		w = fyne.CurrentApp().NewWindow(windowNameMenu)
+		w.SetPadded(false)
+	}
+	w.SetContent(content)
+	w.SetOnClosed(closed)
+
+	w.Canvas().SetOnTypedKey(func(ev *fyne.KeyEvent) {
+		if ev.Name == fyne.KeyEscape {
+			w.Close()
+			return
+		}
+	})
+
+	if pop, ok := content.(*widget.PopUpMenu); ok {
+		pop.SetCanvas(w.Canvas())
+	}
+
 	w.SetFixedSize(true)
 	w.Resize(s)
+	if p.IsZero() {
+		w.CenterOnScreen()
+
+		rootSize := fynedesk.Instance().Root().Canvas().Size()
+		p = fyne.NewPos((rootSize.Width-s.Width)/2, (rootSize.Height-s.Height)/2)
+	}
 
 	x.menuSize = s
 	x.menuPos = p
 	w.Show()
+
+	// TODO consider if there is a bug upstream in the window handling here or in Fyne
+	go func() {
+		retries := 3
+		for retries > 0 {
+			time.Sleep(time.Millisecond * 20)
+			fyne.Do(func() {
+				w.Resize(s)
+				if p.IsZero() {
+					w.CenterOnScreen()
+				}
+			})
+
+			retries--
+		}
+	}()
+
+	return w.Canvas(), w.Close
 }
 
 func (x *x11WM) ShowMenuOverlay(m *fyne.Menu, s fyne.Size, p fyne.Position) {
-	win := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
+	var closer func()
 	for _, item := range m.Items {
 		action := item.Action
 		item.Action = func() {
 			action()
-			win.Close()
+			closer()
 		}
 	}
 
-	pop := widget.NewPopUpMenu(m, win.Canvas())
-	pop.OnDismiss = win.Close
+	pop := widget.NewPopUpMenu(m, fynedesk.Instance().Root().Canvas()) // correct canvas is set in ShowOverlay
 	pop.Show()
-	pop.Resize(s)
-	x.ShowOverlay(win, s, p)
+	if !s.IsZero() {
+		pop.Resize(s)
+	} else {
+		s = pop.MinSize()
+	}
+	_, closer = x.ShowOverlay(pop, nil, s, p)
+	pop.OnDismiss = closer
 }
 
-func (x *x11WM) ShowModal(w fyne.Window, s fyne.Size) {
-	w.SetTitle(windowNameMenu)
+func (x *x11WM) ShowModal(content fyne.CanvasObject, closed func(), s fyne.Size) (fyne.Canvas, func()) {
+	var w fyne.Window
+	if desk, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
+		w = desk.CreateSplashWindow()
+	} else {
+		w = fyne.CurrentApp().NewWindow("")
+	}
+	w.SetContent(content)
+	w.SetOnClosed(closed)
+
+	w.SetTitle("")
 	w.SetFixedSize(true)
 	w.Resize(s)
 	w.CenterOnScreen()
@@ -278,6 +335,17 @@ func (x *x11WM) ShowModal(w fyne.Window, s fyne.Size) {
 	p := fyne.NewPos((float32(root.Width)/scale-s.Width)/2, (float32(root.Height)/scale-s.Height)/2)
 
 	x.menuPos = p
+	return w.Canvas(), w.Close
+}
+
+func (x *x11WM) ShowWindow(content fyne.CanvasObject, title string, closed func(), s fyne.Size) (fyne.Canvas, func()) {
+	win := fyne.CurrentApp().NewWindow(title)
+	win.SetContent(content)
+	win.SetOnClosed(closed)
+	win.Resize(s)
+
+	win.Show()
+	return win.Canvas(), win.Close
 }
 
 func (x *x11WM) X() *xgbutil.XUtil {

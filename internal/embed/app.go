@@ -1,12 +1,13 @@
 package embed
 
 import (
+	"fmt"
+
 	"fyshos.com/fynedesk"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
 type app struct {
@@ -16,10 +17,6 @@ type app struct {
 	categories  []string
 	icon        fyne.Resource
 	makeContent func() fyne.CanvasObject
-
-	maximized, minimized bool
-	prevPos              fyne.Position
-	prevSize             fyne.Size
 }
 
 func (a *app) Actions() []appie.Action {
@@ -32,40 +29,11 @@ func (a *app) Name() string {
 
 func (a *app) Run(_ []string) error {
 	w := container.NewInnerWindow(a.name, a.makeContent())
-	w.OnMaximized = func() {
-		if a.maximized {
-			a.maximized = false
-			w.Resize(a.prevSize)
-			w.Move(a.prevPos)
-			return
-		}
+	embed := &embedWindow{inner: w}
+	w.Icon = a.icon
 
-		a.prevSize = w.Size()
-		a.prevPos = w.Position()
-		a.maximized = true
-
-		head := fynedesk.Instance().Screens().Primary()
-		maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(head)
-		w.Move(fyne.NewPos(float32(maxX), float32(maxY)))
-		w.Resize(fyne.NewSize(float32(maxWidth), float32(maxHeight)))
-	}
-	w.OnMinimized = func() {
-		if a.minimized {
-			a.minimized = false
-			w.Show()
-			return
-		}
-
-		a.minimized = true
-		w.Hide()
-	}
-
-	buttonAlign := widget.ButtonAlignLeading
-	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
-		buttonAlign = widget.ButtonAlignTrailing
-	}
-	w.Alignment = buttonAlign
-
+	setupInnerWindow(w, embed)
+	fynedesk.Instance().WindowManager().AddWindow(embed)
 	a.m.Add(w)
 	return nil
 }
@@ -92,4 +60,71 @@ func (a *app) MimeTypes() []string {
 
 func (a *app) Source() *appie.AppSource {
 	return nil
+}
+
+// TODO de-duplicate from border once menu overlay bug fixed
+func showMenu(w fynedesk.Window, _ fyne.CanvasObject) {
+	name := w.Properties().Title()
+	if len(name) > 25 {
+		name = name[:25] + "..."
+	}
+	title := fyne.NewMenuItem(name, func() {})
+	title.Disabled = true
+	max := fyne.NewMenuItem("Maximize", func() {
+		if w.Maximized() {
+			w.Unmaximize()
+		} else {
+			w.Maximize()
+		}
+	})
+	if w.Maximized() {
+		max.Checked = true
+	}
+
+	pos := w.Position()
+	menuPos := pos.AddXY(w.Size().Width-32, 0)
+	menu := fyne.NewMenu("",
+		title,
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Minimize", func() {
+			w.Iconify()
+		}),
+		max,
+		fyne.NewMenuItemSeparator(),
+		makeDesktopMenu(w),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Close", func() {
+			w.Close()
+		}))
+
+	fynedesk.Instance().ShowMenuAt(menu, menuPos)
+}
+
+func makeDesktopMenu(w fynedesk.Window) *fyne.MenuItem {
+	desks := make([]*fyne.MenuItem, 4)
+	for i := 0; i < 4; i++ {
+		deskID := i
+		desks[i] = fyne.NewMenuItem(fmt.Sprintf("Desktop %d", i+1), func() {
+			if w.Pinned() {
+				w.Unpin()
+			}
+
+			w.SetDesktop(deskID)
+		})
+	}
+	pin := fyne.NewMenuItem("All Desktops", func() {
+		if w.Pinned() {
+			return
+		}
+
+		w.Pin()
+	})
+	if w.Pinned() {
+		pin.Checked = true
+	}
+	desks = append(desks, pin)
+
+	m := fyne.NewMenuItem("Move to Desktop...", nil)
+	m.ChildMenu = fyne.NewMenu("", desks...)
+	return m
 }

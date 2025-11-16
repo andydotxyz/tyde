@@ -36,7 +36,6 @@ type desktop struct {
 	settings fynedesk.DeskSettings
 
 	run         func()
-	showMenu    func(*fyne.Menu, fyne.Position)
 	moduleCache []fynedesk.Module
 
 	bar     *bar
@@ -120,7 +119,7 @@ func (l *desktop) Root() fyne.Window {
 }
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
-	l.showMenu(menu, pos)
+	l.wm.ShowMenuOverlay(menu, fyne.Size{}, pos)
 }
 
 func (l *desktop) updateBackgrounds(path string) {
@@ -415,20 +414,19 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	if icons == nil {
 		icons = embed.NewIcons(multi)
 	}
-	wm := &embededWM{multi: multi}
+	over := container.NewWithoutLayout()
+	wm := embed.NewWM(multi, over)
 	desk := newDesktop(app, wm, icons)
 	desk.run = desk.runEmbed
-	desk.showMenu = desk.showMenuEmbed
 
 	desk.root = desk.newDesktopWindowEmbed()
-	wm.setWindow(desk.root)
-	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), multi))
+	wm.SetRootWindow(desk.root)
+	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), multi, over))
 	return desk
 }
 
 func newDesktop(app fyne.App, wm fynedesk.WindowManager, icons appie.Provider) *desktop {
 	desk := &desktop{app: app, wm: wm, icons: icons, screens: newEmbeddedScreensProvider()}
-	desk.showMenu = desk.showMenuFull
 
 	fynedesk.SetInstance(desk)
 	desk.settings = newDeskSettings()

@@ -228,7 +228,8 @@ func (t *tray) parseMenu(parent int32, pos *fyne.Position, closer func()) fyne.C
 	return widget.NewMenu(m)
 }
 
-func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos *fyne.Position, off int, closer func()) *fyne.MenuItem {
+func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos *fyne.Position, off int, childCloser func()) *fyne.MenuItem {
+	var closer func()
 	data := in.(map[string]dbus.Variant)
 	ret := &fyne.MenuItem{}
 	if ty, ok := data["type"]; ok {
@@ -270,10 +271,10 @@ func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos 
 			w.SetOnClosed(closer)
 			childPos := &fyne.Position{}
 
-			w.SetContent(t.parseMenu(id, childPos, func() {
+			content := t.parseMenu(id, childPos, func() {
 				w.Close()
 				closer()
-			}))
+			})
 
 			size := w.Content().MinSize()
 			w.Resize(size)
@@ -284,7 +285,11 @@ func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos 
 			}
 			childPos.X, childPos.Y = sub.X, sub.Y
 
-			fynedesk.Instance().WindowManager().ShowOverlay(w, size, *childPos)
+			_, doClose := fynedesk.Instance().WindowManager().ShowOverlay(content, nil, size, *childPos)
+			closer = func() {
+				doClose()
+				childCloser()
+			}
 		}
 
 		ret.ChildMenu = fyne.NewMenu("")
@@ -296,9 +301,10 @@ func (t *tray) showMenu(sender string, name dbus.ObjectPath, from fyne.CanvasObj
 	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(from)
 	w := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
 	t.menu = menu.NewDbusmenu(t.conn.Object(sender, name))
-	w.SetContent(t.parseMenu(0, &pos, func() {
-		w.Close()
-	}))
+	var closer func()
+	content := t.parseMenu(0, &pos, func() {
+		closer()
+	})
 
 	size := w.Content().MinSize()
 	w.Resize(size)
@@ -308,7 +314,7 @@ func (t *tray) showMenu(sender string, name dbus.ObjectPath, from fyne.CanvasObj
 	if pos.Y+size.Height > float32(screen.Height)/screen.CanvasScale() {
 		pos.Y = float32(screen.Height)/screen.CanvasScale() - size.Height
 	}
-	fynedesk.Instance().WindowManager().ShowOverlay(w, size, pos)
+	_, closer = fynedesk.Instance().WindowManager().ShowOverlay(content, nil, size, pos)
 }
 
 func (t *tray) updateIcon(i *node) {

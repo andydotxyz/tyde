@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	codeberg.org/sdassow/unyts v0.4.0
-	fyne.io/fyne/v2 v2.7.1-0.20251105193630-e5ef0983771f
+	fyne.io/fyne/v2 v2.7.1
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
@@ -12,7 +12,7 @@ require (
 	github.com/FyshOS/backgrounds v0.1.0
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/FyshOS/fyles v0.1.0
-	github.com/FyshOS/saver v0.1.0
+	github.com/FyshOS/saver v0.1.1-0.20251116173753-0b701f25e147
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/examples v0.0.0-20251103120730-9ee2ca338fb5
@@ -66,3 +66,5 @@ require (
 )
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20191220152344-7d838166824d
+
+replace fyne.io/fyne/v2 => github.com/andydotxyz/fyne/v2 v2.2.0-rc1.0.20251115205909-c6731cb58960
