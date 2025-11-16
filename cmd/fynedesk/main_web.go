@@ -7,6 +7,8 @@ import (
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
+	_ "fyshos.com/fynedesk/modules/desktops"
+	_ "fyshos.com/fynedesk/modules/launcher"
 )
 
 func setupDesktop(a fyne.App) fynedesk.Desktop {

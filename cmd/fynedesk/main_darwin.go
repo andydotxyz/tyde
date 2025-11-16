@@ -10,7 +10,11 @@ import (
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
+	_ "fyshos.com/fynedesk/modules/desktops"
+	_ "fyshos.com/fynedesk/modules/fyles"
+	_ "fyshos.com/fynedesk/modules/launcher"
 	_ "fyshos.com/fynedesk/modules/quaketerm"
+	_ "fyshos.com/fynedesk/modules/status"
 )
 
 func setupDesktop(a fyne.App) fynedesk.Desktop {
