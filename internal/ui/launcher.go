@@ -161,11 +161,11 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 
 func (l *picker) Show() {
 	fyne.Do(func() {
-		canv, doClose := fynedesk.Instance().WindowManager().ShowOverlay(appExec.content, appExec.closer, appExec.content.Size(), fyne.Position{})
-		canv.Focus(appExec.entry)
-		appExec.closer = func() {
+		canv, doClose := fynedesk.Instance().WindowManager().ShowOverlay(l.content, l.closer, l.content.Size(), fyne.Position{})
+		canv.Focus(l.entry)
+		l.closer = func() {
 			doClose()
-			if fn := appExec.onClosed; fn != nil {
+			if fn := l.onClosed; fn != nil {
 				fn()
 			}
 		}
