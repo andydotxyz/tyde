@@ -51,7 +51,13 @@ func (u *unyts) isConversion(input string) bool {
 	}
 
 	pivot := strings.ToLower(parts[1])
-	return pivot == "in" || pivot == "as" || pivot == "to"
+	if pivot != "in" && pivot != "as" && pivot != "to" {
+		return false
+	}
+
+	// a matching string, is it a valid conversion
+	_, unit, err := units.ParseAmountAndUnit(parts[0])
+	return err == nil && unit != nil
 }
 
 // newURLs creates a new module that will show URLs in the launcher suggestions
