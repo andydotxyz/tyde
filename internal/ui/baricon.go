@@ -137,14 +137,12 @@ func (bi *barIcon) TappedSecondary(ev *fyne.PointEvent) {
 		return
 	}
 
-	var menu *widget.PopUpMenu
 	addRemove := fyne.NewMenuItem("Remove "+app.Name(), func() {
 		if bi.windowData != nil {
 			addToBar(app)
 		} else {
 			removeFromBar(app)
 		}
-		menu.Hide()
 	})
 
 	if bi.windowData != nil {
