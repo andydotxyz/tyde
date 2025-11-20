@@ -249,7 +249,9 @@ func (f *frame) checkScale() {
 func (f *frame) configureLoop() {
 	var lastGeometry *configureGeometry
 	var change = false
-	for {
+
+	blanks := 0
+	for f.pendingGeometry != nil {
 		select {
 		case g, ok := <-f.pendingGeometry:
 			if g == nil || !ok {
@@ -262,6 +264,11 @@ func (f *frame) configureLoop() {
 			if change && lastGeometry != nil {
 				f.updateGeometry(lastGeometry.x, lastGeometry.y, lastGeometry.width, lastGeometry.height, lastGeometry.force)
 				change = false
+			} else {
+				blanks++
+				if blanks > 1000 { // if 1000 ticks pass no resize pending
+					f.endConfigureLoop()
+				}
 			}
 		}
 	}
