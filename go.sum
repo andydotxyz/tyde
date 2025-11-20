@@ -2,6 +2,8 @@ codeberg.org/sdassow/unyts v0.4.0 h1:4S/3wCbT8FkymOaC6hloeVlgPJ7SxNThnhXUY4Ei+5Y
 codeberg.org/sdassow/unyts v0.4.0/go.mod h1:VlI7KnjFURzz7TQNla4308PgEUt4VVrfYbf0AGiqyoI=
 fyne.io/fyne/v2 v2.7.1-0.20251105193630-e5ef0983771f h1:auI30rQbwHL8s4tLhre/RwUWw/OT2+oTuhEp+GBl6LU=
 fyne.io/fyne/v2 v2.7.1-0.20251105193630-e5ef0983771f/go.mod h1:xo+SRRY+GLd0bNX/g8/FdXZ5Xlltobi1BA4VSNiEzpE=
+fyne.io/fyne/v2 v2.7.2-0.20251119154138-3a4ac7d7e74e h1:f2xY1QRtJyPCKxiL1q9c5umMJ92WMb6w6yBfsgwkB8E=
+fyne.io/fyne/v2 v2.7.2-0.20251119154138-3a4ac7d7e74e/go.mod h1:xo+SRRY+GLd0bNX/g8/FdXZ5Xlltobi1BA4VSNiEzpE=
 fyne.io/systray v1.11.1-0.20250603113521-ca66a66d8b58 h1:eA5/u2XRd8OUkoMqEv3IBlFYSruNlXD8bRHDiqm0VNI=
 fyne.io/systray v1.11.1-0.20250603113521-ca66a66d8b58/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
@@ -26,6 +28,8 @@ github.com/FyshOS/fyles v0.1.0 h1:ezJIxIEcQtoyN8c52vadLZRr1m8ZUIusz8yBfjed/pk=
 github.com/FyshOS/fyles v0.1.0/go.mod h1:YgozzG7CgidZTeohsrb6ayuLP803tRfmPNZ7cUXwdHI=
 github.com/FyshOS/saver v0.1.0 h1:qdjTYshjWpM1B1ULHSW8Ul1m8lKI2S6Y2/iJB8cfJoM=
 github.com/FyshOS/saver v0.1.0/go.mod h1:JcOOSSIERdmAxLzhkMvGtDE3nkWfAvZRu/fvd/A7b0k=
+github.com/FyshOS/saver v0.1.1-0.20251120144431-462ea4fb7064 h1:WKB5GYE2m9iyb1hj6uc9+e2ncUsQ/LZ+ivLhymJn434=
+github.com/FyshOS/saver v0.1.1-0.20251120144431-462ea4fb7064/go.mod h1:JcOOSSIERdmAxLzhkMvGtDE3nkWfAvZRu/fvd/A7b0k=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/creack/pty v1.1.21 h1:1/QdRyBaHHJP61QkWMXlOIBfsgdDeeKfK8SYVUWJKf0=
