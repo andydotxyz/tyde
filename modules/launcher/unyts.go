@@ -2,7 +2,6 @@ package launcher
 
 import (
 	_ "embed" // embed icon
-	"log"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -45,7 +44,6 @@ func (u *unyts) Metadata() fynedesk.ModuleMetadata {
 
 func (u *unyts) isConversion(input string) bool {
 	parts := strings.Split(input, " ")
-	log.Println("count", len(parts))
 	if len(parts) != 3 {
 		return false
 	}
@@ -56,8 +54,8 @@ func (u *unyts) isConversion(input string) bool {
 	}
 
 	// a matching string, is it a valid conversion
-	_, unit, err := units.ParseAmountAndUnit(parts[0])
-	return err == nil && unit != nil
+	_, _, err := units.ParseAmountAndUnit(parts[0])
+	return err == nil
 }
 
 // newURLs creates a new module that will show URLs in the launcher suggestions
