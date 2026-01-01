@@ -21,6 +21,7 @@ import (
 	"github.com/BurntSushi/xgb/shape"
 	"github.com/BurntSushi/xgb/xfixes"
 	"github.com/BurntSushi/xgb/xproto"
+	"github.com/BurntSushi/xgbutil"
 )
 
 type opaqueType string
@@ -170,10 +171,12 @@ func setup(conn *xgb.Conn) error {
 
 //gocyclo:ignore
 func run(done chan struct{}) error {
-	conn, err := xgb.NewConn()
+	c, err := xgbutil.NewConn()
 	if err != nil {
 		return err
 	}
+
+	conn := c.Conn()
 	defer conn.Close()
 	err = setup(conn)
 	if err != nil {

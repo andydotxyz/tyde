@@ -64,4 +64,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20191220152344-7d838166824d
+replace github.com/BurntSushi/xgb => github.com/fyne-io/xgb v0.0.0-20260101193816-5f7669354be2
+
+replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20260101194047-3bb9400654c0
