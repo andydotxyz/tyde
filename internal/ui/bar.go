@@ -259,6 +259,20 @@ func (b *bar) appendLauncherIcons() {
 	search := newBarIcon(theme.SearchIcon(), nil, nil)
 	search.onTapped = ShowAppLauncher
 	b.append(search)
+
+	hasWidgets := false
+	for _, m := range fynedesk.Instance().Modules() {
+		if m.Metadata().Name == "Desktop Widgets" {
+			hasWidgets = true
+			break
+		}
+	}
+	if hasWidgets {
+		widgets := newBarIcon(wmTheme.WidgetsIcon, nil, nil)
+		widgets.onTapped = showWidgets
+		b.append(widgets)
+	}
+
 	for _, name := range b.desk.Settings().LauncherIcons() {
 		app := b.desk.IconProvider().FindAppFromName(name)
 		if app == nil {
@@ -297,7 +311,6 @@ func newBar(desk fynedesk.Desktop) *bar {
 		wm.AddStackListener(bar)
 	}
 	bar.appendLauncherIcons()
-
 	return bar
 }
 

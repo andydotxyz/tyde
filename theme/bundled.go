@@ -148,6 +148,13 @@ var resourceSoundSvg = &fyne.StaticResource{
 	StaticContent: resourceSoundSvgData,
 }
 
+//go:embed assets/widgets.svg
+var resourceWidgetsSvgData []byte
+var resourceWidgetsSvg = &fyne.StaticResource{
+	StaticName:    "assets/widgets.svg",
+	StaticContent: resourceWidgetsSvgData,
+}
+
 //go:embed assets/wifi.svg
 var resourceWifiSvgData []byte
 var resourceWifiSvg = &fyne.StaticResource{

@@ -253,3 +253,19 @@ func ShowAppLauncher() {
 	})
 	appExec.Show()
 }
+
+var storedDesk int
+
+func showWidgets() {
+	desk := fynedesk.Instance()
+	showWidgets := storedDesk == 0
+	if showWidgets {
+		storedDesk = desk.Desktop() + 1
+
+		desk.SetDesktop(-1)
+		return
+	}
+
+	desk.SetDesktop(storedDesk - 1)
+	storedDesk = 0
+}

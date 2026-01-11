@@ -72,8 +72,6 @@ func (p *pager) refresh() {
 
 func (p *pager) refreshFrom(oldID int) {
 	desk := fynedesk.Instance()
-	wins := fynedesk.Instance().WindowManager().Windows()
-
 	var rects []fyne.CanvasObject
 	for i, b := range p.buttons.Objects {
 		l := p.labels.Objects[i]
@@ -88,6 +86,11 @@ func (p *pager) refreshFrom(oldID int) {
 		b.Refresh()
 		l.Refresh()
 	}
+
+	if oldID == -1 {
+		return //oldID = 0
+	}
+	wins := fynedesk.Instance().WindowManager().Windows()
 	pivot := p.buttons.Objects[oldID]
 
 	for j := len(wins) - 1; j >= 0; j-- {

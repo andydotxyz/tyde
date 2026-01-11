@@ -60,6 +60,8 @@ var (
 	SoundIcon = theme.NewThemedResource(resourceSoundSvg)
 	// MuteIcon is the material design icon for mute in light and dark theme
 	MuteIcon = theme.NewThemedResource(resourceMuteSvg)
+	// WidgetsIcon is the material design icon for widget collections
+	WidgetsIcon = theme.NewThemedResource(resourceWidgetsSvg)
 
 	// BorderWidth is the width of window frames
 	BorderWidth = float32(4)
