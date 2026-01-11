@@ -5,6 +5,7 @@ import (
 
 	_ "fyshos.com/fynedesk/modules/composit"
 	_ "fyshos.com/fynedesk/modules/desktops"
+	_ "fyshos.com/fynedesk/modules/deskwidgets"
 	_ "fyshos.com/fynedesk/modules/fyles"
 	_ "fyshos.com/fynedesk/modules/launcher"
 	_ "fyshos.com/fynedesk/modules/quaketerm"

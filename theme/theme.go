@@ -44,6 +44,8 @@ var (
 	// UserIcon is the material design icon for a user in light and dark theme
 	UserIcon = theme.NewThemedResource(resourcePersonSvg)
 
+	// BorderResizeIcon is the material design icon for a window overlay resizing a window border
+	BorderResizeIcon = theme.NewThemedResource(resourceResizeBottomRightSvg)
 	// BrokenImageIcon is the material design icon for a broken image
 	BrokenImageIcon = theme.NewThemedResource(resourceBrokenimageSvg)
 	// MaximizeIcon is the material design icon for maximizing a window

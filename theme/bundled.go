@@ -5,7 +5,6 @@ package theme
 
 import (
 	_ "embed"
-
 	"fyne.io/fyne/v2"
 )
 
@@ -133,6 +132,13 @@ var resourcePowerSvgData []byte
 var resourcePowerSvg = &fyne.StaticResource{
 	StaticName:    "assets/power.svg",
 	StaticContent: resourcePowerSvgData,
+}
+
+//go:embed assets/resize-bottom-right.svg
+var resourceResizeBottomRightSvgData []byte
+var resourceResizeBottomRightSvg = &fyne.StaticResource{
+	StaticName:    "assets/resize-bottom-right.svg",
+	StaticContent: resourceResizeBottomRightSvgData,
 }
 
 //go:embed assets/sound.svg
