@@ -180,14 +180,14 @@ func cloneRepo(src *appie.AppSource, path string, done func()) (err error) {
 	spin.Start()
 	w.Show()
 
-	defer func() {
-		w.Hide()
-		spin.Stop()
-	}()
-
 	go func() {
 		cmd := exec.Command("git", "clone", src.Repo, path)
 		err = cmd.Run()
+
+		fyne.Do(func() {
+			w.Hide()
+			spin.Stop()
+		})
 		if err == nil {
 			return
 		}
