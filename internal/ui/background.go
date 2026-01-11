@@ -26,8 +26,14 @@ func (b *background) CreateRenderer() fyne.WidgetRenderer {
 func (b *background) loadModules() []fyne.CanvasObject {
 	objects := []fyne.CanvasObject{b.wallpaper}
 
+	var widgetMod fynedesk.ScreenAreaModule
 	for _, m := range fynedesk.Instance().Modules() {
 		if deskMod, ok := m.(fynedesk.ScreenAreaModule); ok {
+			if deskMod.Metadata().Name == "Desktop Widgets" {
+				widgetMod = deskMod
+				continue
+			}
+
 			wid := deskMod.ScreenAreaWidget()
 			if wid == nil {
 				continue
@@ -37,6 +43,9 @@ func (b *background) loadModules() []fyne.CanvasObject {
 		}
 	}
 
+	if widgetMod != nil {
+		objects = append(objects, widgetMod.ScreenAreaWidget())
+	}
 	return objects
 }
 
