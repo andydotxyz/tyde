@@ -14,10 +14,28 @@ import (
 	wmTheme "fyshos.com/fynedesk/theme"
 )
 
+type DeskWidgets interface {
+	EditAll(bool)
+	Add()
+}
+
 type widgets struct {
+	widgets []*deskWidget
+}
+
+func (w *widgets) Add() {
+	dialog := fyne.CurrentApp().NewWindow("Add Widget")
+	dialog.SetContent(widget.NewLabel("Here will be a selection of supported widgets"))
+	dialog.Show()
 }
 
 func (w *widgets) Destroy() {
+}
+
+func (w *widgets) EditAll(edit bool) {
+	for _, i := range w.widgets {
+		i.edit(edit)
+	}
 }
 
 func (w *widgets) Metadata() fynedesk.ModuleMetadata {
@@ -33,9 +51,12 @@ func (w *widgets) ScreenAreaWidget() fyne.CanvasObject {
 		}),
 	}
 
+	w.widgets = nil
 	for i, item := range items {
 		item.Move(fyne.NewPos(50+10*float32(i), 120+10*float32(i)))
 		item.Resize(item.MinSize())
+
+		w.widgets = append(w.widgets, item.(*deskWidget))
 	}
 
 	return container.NewWithoutLayout(items...)
@@ -47,20 +68,20 @@ func newDesktopWidgets() fynedesk.Module {
 	return w
 }
 
-type dragResize struct {
+type deskWidget struct {
 	widget.BaseWidget
 
 	content, frame            fyne.CanvasObject
 	dragging, editing, resize bool
 }
 
-func newDeskWidget(content fyne.CanvasObject) fyne.CanvasObject {
-	d := &dragResize{content: content}
+func newDeskWidget(content fyne.CanvasObject) *deskWidget {
+	d := &deskWidget{content: content}
 	d.ExtendBaseWidget(d)
 	return d
 }
 
-func (d *dragResize) CreateRenderer() fyne.WidgetRenderer {
+func (d *deskWidget) CreateRenderer() fyne.WidgetRenderer {
 	frame := canvas.NewRectangle(color.Transparent)
 	frame.StrokeWidth = 3
 	frame.StrokeColor = theme.ForegroundColor()
@@ -83,7 +104,7 @@ func (d *dragResize) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(container.NewStack(d.content, d.frame))
 }
 
-func (d *dragResize) Dragged(ev *fyne.DragEvent) {
+func (d *deskWidget) Dragged(ev *fyne.DragEvent) {
 	if !d.editing {
 		return
 	}
@@ -100,18 +121,20 @@ func (d *dragResize) Dragged(ev *fyne.DragEvent) {
 	}
 }
 
-func (d *dragResize) DragEnd() {
+func (d *deskWidget) DragEnd() {
 	d.dragging = false
 }
 
-func (d *dragResize) TappedSecondary(_ *fyne.PointEvent) {
-	if d.editing {
-		d.editing = false
-		d.frame.Hide()
-		return
-	}
+func (d *deskWidget) TappedSecondary(_ *fyne.PointEvent) {
+	d.edit(!d.editing)
+}
 
-	d.editing = true
-	d.frame.Show()
+func (d *deskWidget) edit(edit bool) {
+	d.editing = edit
+	if d.editing {
+		d.frame.Show()
+	} else {
+		d.frame.Hide()
+	}
 	d.Refresh()
 }

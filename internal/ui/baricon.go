@@ -95,6 +95,7 @@ type barIcon struct {
 	resource   fyne.Resource // The image data of the image that the icon uses
 	appData    appie.AppData // The application data corresponding to this icon.(if it is a launcher)
 	windowData *appWindow    // The window data associated with this icon (if it is a task window)
+	menu       *fyne.Menu
 }
 
 // Tapped means barIcon has been clicked
@@ -129,6 +130,11 @@ func removeFromBar(icon appie.AppData) {
 
 // TappedSecondary means barIcon has been clicked by a secondary binding
 func (bi *barIcon) TappedSecondary(ev *fyne.PointEvent) {
+	if bi.menu != nil {
+		fynedesk.Instance().ShowMenuAt(bi.menu, ev.AbsolutePosition)
+
+		return
+	}
 	app := bi.appData
 	if app == nil && bi.windowData != nil {
 		app = bi.windowData.findApp()

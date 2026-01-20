@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 
+	"fyshos.com/fynedesk/modules/deskwidgets"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -260,16 +261,34 @@ func (b *bar) appendLauncherIcons() {
 	search.onTapped = ShowAppLauncher
 	b.append(search)
 
-	hasWidgets := false
+	var widgetModule deskwidgets.DeskWidgets
 	for _, m := range fynedesk.Instance().Modules() {
 		if m.Metadata().Name == "Desktop Widgets" {
-			hasWidgets = true
+			widgetModule = m.(deskwidgets.DeskWidgets)
 			break
 		}
 	}
-	if hasWidgets {
+	if widgetModule != nil {
 		widgets := newBarIcon(wmTheme.WidgetsIcon, nil, nil)
 		widgets.onTapped = showWidgets
+
+		var edit *fyne.MenuItem
+		editing := false
+		edit = fyne.NewMenuItem("Edit Widgets", func() {
+			if !editing {
+				editing = true
+				edit.Label = "Stop Editing"
+			} else {
+				editing = false
+				edit.Label = "Edit Widgets"
+			}
+			widgetModule.EditAll(editing)
+		})
+		widgets.menu = fyne.NewMenu("",
+			fyne.NewMenuItem("Add Widget", func() {
+				widgetModule.Add()
+			}), edit,
+		)
 		b.append(widgets)
 	}
 
