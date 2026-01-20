@@ -87,10 +87,22 @@ func (n *network) isEthernetConnected() (bool, error) {
 			log.Println("Error running ifconfig tool", err)
 			return false, err
 		}
-		re := regexp.MustCompile(`^[^\t:]+:([^\n]|\n\t)*status: active`)
+		re, err := regexp.Compile(`^[^\t:]+:([^\n]|\n\t)*status: active`)
+		if err != nil {
+			log.Println("Error compiling regular expression", err)
+			return false, err
+		}
 		m := re.FindSubmatch(out)
-		if len(m) < 2 || !strings.Contains(string(m[1]), "broadcast") {
+		if len(m) < 1 {
 			return false, nil
+		}
+		// IPv4
+		if strings.Contains(string(m[0]), "broadcast") {
+			return true, nil
+		}
+		// IPv6, non-link-local only
+		if found, _ := regexp.MatchString(`\s+inet6\s+[[:xdigit:]:]+\s+prefixlen\s+`, m[0]); found {
+			return true, nil
 		}
 	}
 	return true, nil
