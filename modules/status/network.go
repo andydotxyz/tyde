@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -81,13 +82,27 @@ func (n *network) isEthernetConnected() (bool, error) {
 			return false, nil
 		}
 	} else {
-		out, err := exec.Command("bash", []string{"-c", "ifconfig | pcregrep -M -o '^[^\\t:]+:([^\\n]|\\n\\t)*status: active'"}...).Output()
+		out, err := exec.Command("ifconfig").Output()
 		if err != nil {
 			log.Println("Error running ifconfig tool", err)
 			return false, err
 		}
-		if !strings.Contains(string(out), "broadcast") {
+		re, err := regexp.Compile(`^[^\t:]+:([^\n]|\n\t)*status: active`)
+		if err != nil {
+			log.Println("Error compiling regular expression", err)
+			return false, err
+		}
+		m := re.FindSubmatch(out)
+		if len(m) < 1 {
 			return false, nil
+		}
+		// IPv4
+		if strings.Contains(string(m[0]), "broadcast") {
+			return true, nil
+		}
+		// IPv6, non-link-local only
+		if found, _ := regexp.MatchString(`\s+inet6\s+[[:xdigit:]:]+\s+prefixlen\s+`, m[0]); found {
+			return true, nil
 		}
 	}
 	return true, nil
