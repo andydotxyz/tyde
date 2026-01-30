@@ -3,13 +3,10 @@ package status
 import (
 	"errors"
 	"log"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -29,6 +26,8 @@ const networkNameEthernet = "Ethernet"
 type network struct {
 	name *widget.Label
 	icon *widget.Button
+
+	wasBlocked bool
 }
 
 func (n *network) Destroy() {
@@ -60,6 +59,35 @@ func (n *network) wirelessName() (string, error) {
 		net = string(out)
 	}
 	return strings.TrimSpace(net), nil
+}
+
+func (n *network) isBlocked() (bool, error) {
+	if ip, _ := exec.LookPath("rfkill"); ip != "" {
+		out, err := exec.Command("bash", []string{"-c", "rfkill | grep \"wlan\""}...).Output()
+		if err != nil {
+			log.Println("Error running rfkill tool", err)
+			return false, err
+		}
+		if strings.Contains(string(out), " blocked") {
+			return true, nil
+		}
+
+		return false, nil
+	}
+	if ip, _ := exec.LookPath("networksetup"); ip != "" {
+		out, err := exec.Command("bash", []string{"-c", "networksetup -setairportpower en0"}...).Output()
+		if err != nil {
+			log.Println("Error running networksetup tool", err)
+			return false, err
+		}
+		if strings.TrimSpace(string(out)) == "Off" {
+			return true, nil
+		}
+
+		return false, nil
+	}
+
+	return false, nil
 }
 
 func (n *network) isEthernetConnected() (bool, error) {
@@ -125,34 +153,47 @@ func (n *network) tick() {
 	tick := time.NewTicker(time.Second * 10)
 	go func() {
 		for {
-			val := n.networkName()
-			if val != n.name.Text {
-				fyne.Do(func() {
-					n.name.SetText(val)
-
-					if val == "" {
-						n.icon.SetIcon(wmtheme.WifiOffIcon)
-					} else if val == networkNameEthernet {
-						n.icon.SetIcon(wmtheme.EthernetIcon)
-					} else {
-						n.icon.SetIcon(wmtheme.WifiIcon)
-					}
-				})
-			}
+			fyne.Do(n.refreshContent)
 			<-tick.C
 		}
 	}()
 }
 
+func (n *network) refreshContent() {
+	val := n.networkName()
+	blocked, _ := n.isBlocked()
+
+	if val != n.name.Text || blocked != n.wasBlocked {
+		n.wasBlocked = blocked
+		n.name.SetText(val)
+
+		if blocked {
+			n.icon.SetIcon(wmtheme.AirplaneIcon)
+		} else if val == "" {
+			n.icon.SetIcon(wmtheme.WifiOffIcon)
+		} else if val == networkNameEthernet {
+			n.icon.SetIcon(wmtheme.EthernetIcon)
+		} else {
+			n.icon.SetIcon(wmtheme.WifiIcon)
+		}
+	}
+}
+
 func (n *network) StatusAreaWidget() fyne.CanvasObject {
+	blocked := false
 	if _, err := n.wirelessName(); err != nil {
-		if _, err = n.isEthernetConnected(); err != nil {
+		if blocked, err = n.isBlocked(); blocked || err != nil {
+		}
+		if _, err = n.isEthernetConnected(); err != nil && !blocked {
 			return nil
 		}
 	}
 
 	n.name = widget.NewLabel("")
-	n.icon = &widget.Button{Icon: wmtheme.WifiOffIcon, Importance: widget.LowImportance, OnTapped: n.showSettings}
+	n.icon = &widget.Button{Icon: wmtheme.WifiOffIcon, Importance: widget.LowImportance, OnTapped: n.toggleFlightMode}
+	if blocked {
+		n.icon.Icon = wmtheme.AirplaneIcon
+	}
 	n.tick()
 
 	return container.New(&handleNarrow{}, n.icon, n.name)
@@ -162,60 +203,66 @@ func (n *network) Metadata() fynedesk.ModuleMetadata {
 	return networkMeta
 }
 
-func (n *network) showSettings() {
-	gui := &networkApp{}
+func (n *network) setFlightMode(block bool) error {
+	if ip, _ := exec.LookPath("rfkill"); ip != "" {
+		out, err := exec.Command("bash", []string{"-c", "rfkill | grep \"wlan\""}...).Output()
+		if err != nil {
+			log.Println("Error running rfkill tool", err)
+			return err
+		}
+		if len(out) < 3 {
+			return errors.New("rfkill tool: rfkill output is too short")
+		}
 
-	if err := fynedesk.Instance().RunApp(gui); err != nil {
-		fyne.LogError("Failed to find WiFi settings tool connman-gtk", err)
+		id := strings.Split(strings.TrimSpace(string(out)), " ")[0]
+
+		if id != "" {
+			mode := "block"
+			if !block {
+				mode = "unblock"
+			}
+			err = exec.Command("bash", []string{"-c", "pkexec rfkill " + mode + " " + id}...).Run()
+			if err != nil {
+				log.Println("Error running rfkill tool", err)
+				return err
+			}
+
+			n.refreshContent()
+		}
+
+		return nil
+	}
+
+	if ip, _ := exec.LookPath("networksetup"); ip != "" {
+		mode := "off"
+		if !block {
+			mode = "on"
+		}
+		err := exec.Command("bash", []string{"-c", "networksetup -setairportpower en0 " + mode + " "}...).Run()
+		if err != nil {
+			log.Println("Error running networksetup tool", err)
+			return err
+		}
+
+		n.refreshContent()
+	}
+
+	return nil
+}
+
+func (n *network) toggleFlightMode() {
+	blocked, err := n.isBlocked()
+	if err != nil {
+		fyne.LogError("blocking not supported", err)
 		return
+	}
+	err = n.setFlightMode(!blocked)
+	if err != nil {
+		fyne.LogError("setting flight mode", err)
 	}
 }
 
 // NewNetwork creates a new module that will show network information in the status area
 func NewNetwork() fynedesk.Module {
 	return &network{}
-}
-
-type networkApp struct {
-}
-
-func (n *networkApp) Actions() []appie.Action {
-	return nil
-}
-
-func (n *networkApp) Name() string {
-	return "Network Settings"
-}
-
-func (n *networkApp) Run(env []string) error {
-	vars := os.Environ()
-	vars = append(vars, env...)
-
-	cmd := exec.Command("connman-gtk")
-	cmd.Env = vars
-	return cmd.Start()
-}
-
-func (n *networkApp) RunWithParameters(_, env []string) error {
-	return n.Run(env)
-}
-
-func (n *networkApp) Categories() []string {
-	return []string{"Settings"}
-}
-
-func (n *networkApp) Hidden() bool {
-	return true
-}
-
-func (n *networkApp) Icon(theme string, size int) fyne.Resource {
-	return wmtheme.WifiIcon
-}
-
-func (n *networkApp) MimeTypes() []string {
-	return []string{}
-}
-
-func (n *networkApp) Source() *appie.AppSource {
-	return nil
 }

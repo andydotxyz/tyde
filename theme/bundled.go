@@ -9,6 +9,13 @@ import (
 	"fyne.io/fyne/v2"
 )
 
+//go:embed assets/airplane.svg
+var resourceAirplaneSvgData []byte
+var resourceAirplaneSvg = &fyne.StaticResource{
+	StaticName:    "assets/airplane.svg",
+	StaticContent: resourceAirplaneSvgData,
+}
+
 //go:embed assets/battery.svg
 var resourceBatterySvgData []byte
 var resourceBatterySvg = &fyne.StaticResource{

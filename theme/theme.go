@@ -39,6 +39,8 @@ var (
 	WifiIcon = theme.NewThemedResource(resourceWifiSvg)
 	// WifiOffIcon is the material design icon for a wireless device without a connection
 	WifiOffIcon = theme.NewThemedResource(resourceWifioffSvg)
+	// AirplaneIcon is the material design icon for a wireless device in airplane mode
+	AirplaneIcon = theme.NewThemedResource(resourceAirplaneSvg)
 	// PowerIcon is the material design icon for a power connection in light and dark theme
 	PowerIcon = theme.NewThemedResource(resourcePowerSvg)
 	// UserIcon is the material design icon for a user in light and dark theme
