@@ -301,6 +301,9 @@ func (t *tray) showMenu(sender string, name dbus.ObjectPath, from fyne.CanvasObj
 	}))
 
 	size := w.Content().MinSize()
+	if size.IsZero() { // empty menu - weird but don't crash
+		size = fyne.NewSquareSize(1)
+	}
 	w.Resize(size)
 
 	pos.X -= size.Width

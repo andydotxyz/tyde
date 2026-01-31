@@ -592,11 +592,11 @@ func (f *frame) mouseDrag(x, y int16) {
 		}
 
 		// avoid uint underflow
-		if width < 0 {
-			width = 0
+		if width < 1 {
+			width = 1
 		}
-		if height < 0 {
-			height = 0
+		if height < 1 {
+			height = 1
 		}
 		f.queueGeometry(f.moveX, f.moveY, uint16(width), uint16(height), false)
 	}
