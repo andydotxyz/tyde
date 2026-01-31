@@ -14,8 +14,8 @@ import (
 )
 
 type stack struct {
-	clients      []fynedesk.Window
-	mappingOrder []fynedesk.Window
+	clients, deleted []fynedesk.Window
+	mappingOrder     []fynedesk.Window
 
 	listeners []fynedesk.StackListener
 }
@@ -44,6 +44,13 @@ func (s *stack) RaiseToTop(win fynedesk.Window) {
 	}
 	s.removeFromStack(win)
 	s.addToStack(win)
+	// "undelete"
+	for i, w := range s.deleted {
+		if w == win {
+			s.deleted = append(s.deleted[:i], s.deleted[i+1:]...)
+			break
+		}
+	}
 
 	wm := fynedesk.Instance().WindowManager().(*x11WM)
 	windowClientListStackingUpdate(wm)
@@ -133,7 +140,9 @@ func (s *stack) removeFromStack(win fynedesk.Window) {
 	if pos == -1 {
 		return
 	}
+	c := s.clients[pos]
 	s.clients = append(s.clients[:pos], s.clients[pos+1:]...)
+	s.deleted = append(s.deleted, c)
 
 	pos = -1
 	for i, w := range s.mappingOrder {

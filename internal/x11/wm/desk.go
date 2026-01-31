@@ -568,6 +568,17 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 
 func (x *x11WM) destroyWindow(win xproto.Window) {
 	c := x.clientForWin(win)
+	if c == nil {
+		// check if it was recently closed
+		for i, w := range x.stack.deleted {
+			if w.(x11.XWin).FrameID() == win || w.(x11.XWin).ChildID() == win {
+				c = w.(x11.XWin)
+
+				x.stack.deleted = append(x.stack.deleted[:i], x.stack.deleted[i+1:]...)
+				break
+			}
+		}
+	}
 	if c == nil || win == c.FrameID() {
 		return
 	}
