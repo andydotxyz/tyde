@@ -221,13 +221,17 @@ func (n *network) setFlightMode(block bool) error {
 			if !block {
 				mode = "unblock"
 			}
-			err = exec.Command("bash", []string{"-c", "pkexec rfkill " + mode + " " + id}...).Run()
+			cmd := exec.Command("bash", []string{"-c", "pkexec rfkill " + mode + " " + id}...)
+			err = cmd.Start()
 			if err != nil {
 				log.Println("Error running rfkill tool", err)
 				return err
 			}
 
-			n.refreshContent()
+			go func() {
+				cmd.Wait()
+				fyne.Do(n.refreshContent)
+			}()
 		}
 
 		return nil
