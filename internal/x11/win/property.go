@@ -73,7 +73,6 @@ func windowCommand(x *xgbutil.XUtil, win xproto.Window) string {
 func windowIcon(x *xgbutil.XUtil, win xproto.Window, width int, height int) *bytes.Buffer {
 	img, err := xgraphics.FindIcon(x, win, width, height)
 	if err != nil {
-		fyne.LogError("ICON: Could not get window icon", err)
 		return nil
 	}
 
@@ -163,7 +162,6 @@ func windowSizeMin(x *xgbutil.XUtil, win xproto.Window) (uint, uint) {
 func windowSizeWithIncrement(x *xgbutil.XUtil, win xproto.Window, width uint16, height uint16) (uint16, uint16) {
 	nh, err := icccm.WmNormalHintsGet(x, win)
 	if err != nil {
-		fyne.LogError("Could not apply requested increment", err)
 		return width, height
 	}
 	if (nh.Flags & icccm.SizeHintPResizeInc) == 0 {

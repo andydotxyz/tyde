@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"log"
 	"runtime/debug"
 
 	"fyne.io/fyne/v2"
@@ -25,6 +26,7 @@ func (l *desktop) runFull() {
 
 	defer func() {
 		if r := recover(); r != nil {
+			log.Println("FyneDesk panic cause", r)
 			debug.PrintStack()
 			l.wm.Close() // attempt to close cleanly to leave X server running
 		}
