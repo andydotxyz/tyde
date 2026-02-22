@@ -1,9 +1,7 @@
 package status
 
 import (
-	"errors"
 	"image/color"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -12,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/FyshOS/dryvers"
 
 	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
@@ -32,51 +31,16 @@ const (
 
 // Brightness is a progress bar module to modify screen brightness
 type brightness struct {
-	bar *widget.ProgressBar
+	bright *dryvers.Brightness
 
-	mode brightType
+	bar *widget.ProgressBar
 }
 
 func (b *brightness) Destroy() {
 }
 
-func (b *brightness) value() (float64, error) {
-	switch b.mode {
-	case brightnessctl:
-		out, err := exec.Command("brightnessctl", "get").Output()
-		if err != nil {
-			fyne.LogError("Error running brightnessctl", err)
-			return 0, err
-		}
-		maxOut, _ := exec.Command("brightnessctl", "max").Output()
-		val, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
-		if err != nil {
-			fyne.LogError("Error parsing brightnessctl info", err)
-			return 0, err
-		}
-		max, _ := strconv.ParseFloat(strings.TrimSpace(string(maxOut)), 64)
-		return val / max, nil
-	default:
-		out, err := exec.Command("xbacklight").Output()
-		if err != nil {
-			fyne.LogError("Error running xbacklight", err)
-			return 0, err
-		}
-
-		if strings.TrimSpace(string(out)) == "" {
-			return 0, errors.New("no back-lit screens found")
-		}
-		ret, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
-		if err != nil {
-			fyne.LogError("Error parsing xbacklight info", err)
-			return 0, err
-		}
-		return ret / 100, nil
-	}
-}
-
 func (b *brightness) offsetValue(diff int) {
-	floatVal, _ := b.value()
+	floatVal, _ := b.bright.Get()
 	if floatVal <= 0.01 { // don't start doing 6, 11 etc just because we were on 1 (min)
 		floatVal = 0
 	}
@@ -92,27 +56,14 @@ func (b *brightness) setValue(value int) {
 		value = 100
 	}
 
-	switch b.mode {
-	case brightnessctl:
-		err := exec.Command("brightnessctl", "set", strconv.Itoa(value)+"%").Run()
-		if err != nil {
-			fyne.LogError("Error running brightnessctl", err)
-			return
-		}
-	default:
-		err := exec.Command("xbacklight", "-set", strconv.Itoa(value)).Run()
-		if err != nil {
-			fyne.LogError("Error running xbacklight", err)
-			return
-		}
-	}
+	_ = b.bright.Set(float64(value) / 100)
 
-	newVal, _ := b.value()
+	newVal, _ := b.bright.Get()
 	b.bar.SetValue(newVal)
 }
 
 func (b *brightness) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
-	if b.mode == noBacklight {
+	if val, err := b.bright.Get(); err != nil || val == 0 {
 		return nil // don't load if not present
 	}
 
@@ -165,7 +116,7 @@ func (b *brightness) Shortcuts() map[*fynedesk.Shortcut]func() {
 }
 
 func (b *brightness) StatusAreaWidget() fyne.CanvasObject {
-	if b.mode == noBacklight {
+	if val, err := b.bright.Get(); err != nil || val == 0 {
 		return nil
 	}
 
@@ -191,19 +142,7 @@ func (b *brightness) StatusAreaWidget() fyne.CanvasObject {
 
 // newBrightness creates a new module that will show screen brightness in the status area
 func newBrightness() fynedesk.Module {
-	mode := xbacklight
-	cmd := exec.Command("xbacklight")
-	err := cmd.Run()
-	if err != nil || cmd.ProcessState.ExitCode() != 0 {
-		err = exec.Command("brightnessctl").Run()
-		if err != nil {
-			fyne.LogError("Could not launch xbacklight or brightnessctl", err)
-			mode = noBacklight
-		} else {
-			mode = brightnessctl
-		}
-	}
-	return &brightness{mode: mode}
+	return &brightness{bright: dryvers.NewBrightness()}
 }
 
 type brightItem struct {

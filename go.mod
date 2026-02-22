@@ -33,6 +33,7 @@ require (
 require github.com/creack/pty v1.1.21 // indirect
 
 require (
+	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.22.0
