@@ -288,7 +288,8 @@ func (d *settingsUI) loadAdvancedScreen() fyne.CanvasObject {
 		modules = append(modules, check)
 	}
 	content := container.NewHBox(d.loadScreensGroup(),
-		widget.NewCard("Modules", "", container.NewVBox(modules...)))
+		widget.NewCard("Modules", "",
+			container.NewVScroll(container.NewVBox(modules...))))
 
 	applyButton := container.NewHBox(layout.NewSpacer(),
 		&widget.Button{Text: "Apply", Importance: widget.HighImportance, OnTapped: func() {
