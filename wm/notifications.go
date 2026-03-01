@@ -13,13 +13,23 @@ var (
 type Notification struct {
 	ID          uint32
 	Title, Body string
+	Icon        fyne.Resource
 }
 
 // NewNotification creates a new message that can be passed to SendNotification
-func NewNotification(title, body string) *Notification {
+func NewNotification(title, body, icon string) *Notification {
 	lastNotificationID++
 
-	item := &Notification{ID: lastNotificationID, Title: title, Body: body}
+	var res fyne.Resource
+	if icon != "" {
+		r, err := fyne.LoadResourceFromPath(icon)
+		if err != nil {
+			fyne.LogError("Failed to read notification icon: "+icon, err)
+		} else {
+			res = r
+		}
+	}
+	item := &Notification{ID: lastNotificationID, Title: title, Body: body, Icon: res}
 
 	return item
 }
@@ -49,7 +59,7 @@ type notifications struct {
 
 func (n *notifications) Notify(appName string, replacesID uint32, appIcon, summary, body string,
 	actions []string, hints map[string]interface{}, timeout int32) (uint32, error) {
-	item := NewNotification(summary, body)
+	item := NewNotification(summary, body, appIcon)
 
 	SendNotification(item)
 	return item.ID, nil

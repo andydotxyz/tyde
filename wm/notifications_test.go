@@ -21,8 +21,8 @@ func TestSendNotification(t *testing.T) {
 }
 
 func TestNewNotification(t *testing.T) {
-	n1 := NewNotification("test", "body")
-	n2 := NewNotification("test", "body")
+	n1 := NewNotification("test", "body", "")
+	n2 := NewNotification("test", "body", "")
 
 	assert.NotZero(t, n1.ID)
 	assert.NotEqual(t, n1.ID, n2.ID)
