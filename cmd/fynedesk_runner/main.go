@@ -13,6 +13,7 @@ func main() {
 	_ = os.Remove(logPath()) // remove old logs
 	_ = os.Remove(runnerLogPath())
 	log.SetOutput(openRunnerLogWriter())
+	launchEnv := os.Environ()
 
 	for {
 		logFile := logPath()
@@ -25,7 +26,7 @@ func main() {
 		}
 
 		exe := exec.Command(runCmd)
-		exe.Env = append(os.Environ(), "FYNE_DESK_RUNNER=1")
+		exe.Env = append(launchEnv, "FYNE_DESK_RUNNER=1")
 		// logger will be closed at the end of this for loop
 		logger := openLogWriter()
 		exe.Stdout, exe.Stderr = logger, logger
