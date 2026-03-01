@@ -254,15 +254,18 @@ func run(done chan struct{}) error {
 						}
 						exposeRects = nil
 					}
+				} else {
+					repaint = true
 				}
 			case xproto.PropertyNotifyEvent:
-				for _, prop := range []string{"_XROOTPMAP_ID", "_XSETROOT_ID"} {
+				for _, prop := range []string{"_XROOTPMAP_ID", "ESETROOT_PMAP_ID"} {
 					atom, err := xproto.InternAtom(conn, false, uint16(len(prop)), prop).Reply()
 					if err == nil && e.Atom == atom.Atom {
 						if rootTile != 0 {
 							render.FreePicture(conn, rootTile)
 							rootTile = 0
 						}
+						repaint = true
 						break
 					}
 				}
@@ -416,11 +419,41 @@ func createRootTile(conn *xgb.Conn) (render.Picture, error) {
 	return picture, nil
 }
 
+func getBackgroundTile(conn *xgb.Conn) (render.Picture, error) {
+	for _, propName := range []string{"_XROOTPMAP_ID", "ESETROOT_PMAP_ID"} {
+		atom, err := xproto.InternAtom(conn, false, uint16(len(propName)), propName).Reply()
+		if err != nil {
+			continue
+		}
+		reply, err := xproto.GetProperty(conn, false, rootWindow, atom.Atom, xproto.GetPropertyTypeAny, 0, 1).Reply()
+		if err != nil || reply.Format != 32 || len(reply.Value) < 4 {
+			continue
+		}
+		pixmapID := xproto.Pixmap(xgb.Get32(reply.Value))
+		if pixmapID == 0 {
+			continue
+		}
+		picture, err := render.NewPictureId(conn)
+		if err != nil {
+			continue
+		}
+		err = render.CreatePictureChecked(conn, picture, xproto.Drawable(pixmapID), rootVisualFormat.Id, render.CpRepeat, []uint32{1}).Check()
+		if err != nil {
+			continue
+		}
+		return picture, nil
+	}
+	return render.PictureNone, fmt.Errorf("no background pixmap found")
+}
+
 func paintRoot(conn *xgb.Conn) error {
 	if rootTile == render.PictureNone {
-		tile, err := createRootTile(conn)
+		tile, err := getBackgroundTile(conn)
 		if err != nil {
-			return err
+			tile, err = createRootTile(conn)
+			if err != nil {
+				return err
+			}
 		}
 		rootTile = tile
 	}
