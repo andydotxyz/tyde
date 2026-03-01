@@ -129,7 +129,7 @@ func (n *network) isEthernetConnected() (bool, error) {
 			return true, nil
 		}
 		// IPv6, non-link-local only
-		if found, _ := regexp.MatchString(`\s+inet6\s+[[:xdigit:]:]+\s+prefixlen\s+`, m[0]); found {
+		if found, _ := regexp.MatchString(`\s+inet6\s+[[:xdigit:]:]+\s+prefixlen\s+`, string(m[0])); found {
 			return true, nil
 		}
 	}
