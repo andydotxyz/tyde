@@ -111,8 +111,10 @@ func (x *x11WM) handleClientMessage(ev xproto.ClientMessageEvent) {
 		x.handleActiveWin(ev)
 		x.setActiveScreenFromWindow(c)
 	case "_NET_WM_FULLSCREEN_MONITORS":
-		// TODO WHEN WE SUPPORT MULTI-MONITORS - THIS TELLS WHICH/HOW MANY MONITORS
-		// TO FULLSCREEN ACROSS
+		if c == nil {
+			return
+		}
+		x.HandleFullScreenMonitors(ev, c)
 	case "_NET_WM_MOVERESIZE":
 		if c == nil {
 			return
@@ -158,6 +160,33 @@ func (x *x11WM) handleFocus(win xproto.Window) {
 		return
 	}
 	fyne.Do(c.Refresh)
+}
+
+func (x *x11WM) HandleFullScreenMonitors(ev xproto.ClientMessageEvent, c x11.XWin) {
+	screens := fynedesk.Instance().Screens().Screens()
+	topIdx := int(ev.Data.Data32[0])
+	bottomIdx := int(ev.Data.Data32[1])
+	leftIdx := int(ev.Data.Data32[2])
+	rightIdx := int(ev.Data.Data32[3])
+	if topIdx >= len(screens) || bottomIdx >= len(screens) ||
+		leftIdx >= len(screens) || rightIdx >= len(screens) {
+		return
+	}
+	top := screens[topIdx]
+	bottom := screens[bottomIdx]
+	left := screens[leftIdx]
+	right := screens[rightIdx]
+	targetX := left.X
+	targetY := top.Y
+	targetW := right.X + right.Width - left.X
+	targetH := bottom.Y + bottom.Height - top.Y
+	if c.Fullscreened() {
+		c.NotifyGeometry(targetX, targetY, uint(targetW), uint(targetH))
+	} else {
+		// Move window onto the target screen so fullscreen will land there.
+		_, _, w, h := c.Geometry()
+		c.NotifyGeometry(targetX, targetY, w, h)
+	}
 }
 
 func (x *x11WM) handleInitialHints(ev xproto.ClientMessageEvent, hint string) {
