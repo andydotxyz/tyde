@@ -60,7 +60,7 @@ type tray struct {
 }
 
 type node struct {
-	ico *widget.Button
+	ico *multiButton
 	ni  *notifier.StatusNotifierItem
 }
 
@@ -168,17 +168,17 @@ func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) (e
 
 	item, ok := t.nodes[sender]
 	if !ok {
-		var ico *widget.Button
-		ico = widget.NewButton("", func() {
+		var ico *multiButton
+		ico = newMultiButton(func() {
+			_ = ni.Activate(t.conn.Context(), 5, 5)
+		}, func() {
 			if m, err := ni.GetMenu(t.conn.Context()); err == nil {
 				t.showMenu(string(sender), m, ico)
 				return
 			}
 
-			err := ni.Activate(t.conn.Context(), 5, 5)
-			if err != nil { // try secondary if primary not known
-				_ = ni.SecondaryActivate(t.conn.Context(), 5, 5)
-			}
+			// try secondary if primary not known
+			_ = ni.ContextMenu(t.conn.Context(), 5, 5)
 		})
 		ico.Importance = widget.LowImportance
 		item = &node{ico, ni}
