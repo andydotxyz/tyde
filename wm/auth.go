@@ -2,6 +2,7 @@ package wm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"image/color"
 	"log"
@@ -31,6 +32,9 @@ type subj struct {
 
 type auth struct {
 	windows map[string]fyne.Window
+
+	rememberPass string
+	encoder      *base64.Encoding
 }
 
 func (a *auth) register() {
@@ -63,31 +67,29 @@ type ident struct {
 }
 
 func (a *auth) BeginAuthentication(actionID, message, iconName string, details map[string]string, cookie string, ids []ident, sender dbus.Sender) (err *dbus.Error) {
+	username, err2 := a.resolveUser(ids)
+	if err2 != nil {
+		fyne.LogError("Failed to look up user", err)
+	}
+	if a.rememberPass != "" {
+		err2 = a.reply(username, cookie, a.decode(a.rememberPass))
+		if err2 == nil {
+			return nil
+		}
+
+		// fall through to asking again
+		a.rememberPass = ""
+	}
+
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	pass := widget.NewPasswordEntry()
-
-	username := ""
-	uid := ""
-	_, err2 := fmt.Sscanf(ids[0].Details["uid"].String(), "@u %s", &uid)
-	if err2 != nil {
-		currentUser, err2 := user.Current()
-		if err2 == nil {
-			username = currentUser.Username
-		} else {
-			fyne.LogError("Failed to look up fallback user", err2)
-		}
-	} else {
-		usr, err2 := user.LookupId(uid)
-		if err2 == nil {
-			username = usr.Username
-		} else {
-			fyne.LogError("Failed to look up user "+uid, err2)
-		}
-	}
+	remember := widget.NewCheck("", func(bool) {})
+	remember.Checked = true
 	f := widget.NewForm(
 		widget.NewFormItem("Ident", widget.NewLabel(username)),
 		widget.NewFormItem("Password", pass),
+		widget.NewFormItem("Remember", remember),
 	)
 	w := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
 	a.windows[cookie] = w
@@ -95,20 +97,14 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	var auth *widget.Button
 	auth = widget.NewButton("Authorize", func() {
 		auth.Disable()
-		cmd := exec.Command("/usr/lib/polkit-1/polkit-agent-helper-1", username)
-
-		buffer := bytes.Buffer{}
-		buffer.Write([]byte(cookie + "\n"))
-		buffer.Write([]byte(pass.Text + "\n"))
-		cmd.Stdin = &buffer
-
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		err3 := cmd.Run()
+		err3 := a.reply(username, cookie, pass.Text)
 
 		if err3 != nil {
 			log.Println("Auth err", err3)
 		} else {
+			if remember.Checked {
+				a.rememberPass = a.encode(pass.Text)
+			}
 			w.Close()
 		}
 		auth.Enable()
@@ -155,6 +151,38 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	return nil
 }
 
+func (a *auth) resolveUser(ids []ident) (string, error) {
+	uid := ""
+	_, err := fmt.Sscanf(ids[0].Details["uid"].String(), "@u %s", &uid)
+	if err != nil {
+		currentUser, err2 := user.Current()
+		if err2 != nil {
+			return "", err2
+		}
+
+		return currentUser.Username, nil
+	}
+
+	usr, err2 := user.LookupId(uid)
+	if err2 != nil {
+		return "", err2
+	}
+	return usr.Username, nil
+}
+
+func (a *auth) reply(username string, cookie string, pass string) error {
+	cmd := exec.Command("/usr/lib/polkit-1/polkit-agent-helper-1", username)
+
+	buffer := bytes.Buffer{}
+	buffer.Write([]byte(cookie + "\n"))
+	buffer.Write([]byte(pass + "\n"))
+	cmd.Stdin = &buffer
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 func (a *auth) CancelAuthentication(cookie string, sender dbus.Sender) (err *dbus.Error) {
 	if w, ok := a.windows[cookie]; ok {
 		w.Close() // OnClose will tidy the session
@@ -162,8 +190,21 @@ func (a *auth) CancelAuthentication(cookie string, sender dbus.Sender) (err *dbu
 	return nil
 }
 
+func (a *auth) decode(in string) string {
+	out, err := a.encoder.DecodeString(in)
+	if err != nil {
+		fyne.LogError("Codinging remembered password err", err)
+		return ""
+	}
+	return string(out)
+}
+
+func (a *auth) encode(in string) string {
+	return a.encoder.EncodeToString([]byte(in))
+}
+
 // StartAuthAgent asks our policy kit agent to start listening for auth requests.
 func StartAuthAgent() {
-	a := &auth{windows: make(map[string]fyne.Window)}
+	a := &auth{windows: make(map[string]fyne.Window), encoder: base64.StdEncoding}
 	go a.register()
 }
