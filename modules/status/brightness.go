@@ -21,14 +21,6 @@ var brightnessMeta = fynedesk.ModuleMetadata{
 	NewInstance: newBrightness,
 }
 
-type brightType int
-
-const (
-	noBacklight brightType = iota
-	xbacklight
-	brightnessctl
-)
-
 // Brightness is a progress bar module to modify screen brightness
 type brightness struct {
 	bright *dryvers.Brightness
