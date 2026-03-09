@@ -603,7 +603,7 @@ func (x *x11WM) exposeWindow(win xproto.Window) {
 
 	border := x.clientForWin(win)
 	if border != nil {
-		border.Expose()
+		fyne.Do(border.Expose)
 	}
 }
 
@@ -624,7 +624,7 @@ func (x *x11WM) frameExisting() {
 			fyne.LogError("Get Window Attributes Error", err)
 			continue
 		}
-		if attrs.MapState == xproto.MapStateUnmapped {
+		if attrs.MapState == xproto.MapStateUnmapped || attrs.OverrideRedirect {
 			continue
 		}
 		x.setupWindow(child)
