@@ -14,7 +14,7 @@ import (
 func TestIconResources(t *testing.T) {
 	assert.NotNil(t, BatteryIcon.Name())
 	assert.NotNil(t, BrightnessIcon.Name())
-	assert.NotNil(t, SoundIcon.Name())
+	assert.NotNil(t, SoundHighIcon.Name())
 	assert.NotNil(t, MuteIcon.Name())
 }
 
