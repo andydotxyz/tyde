@@ -121,7 +121,11 @@ func (b *brightness) StatusAreaWidget() fyne.CanvasObject {
 	}
 
 	b.bar = widget.NewProgressBar()
-	brightnessIcon := widget.NewIcon(wmtheme.BrightnessIcon)
+	brightnessIcon := newScrollIcon(wmtheme.BrightnessIcon)
+	brightnessIcon.scroll = func(f float32) {
+		b.offsetValue(int(f / 10))
+	}
+
 	prop := canvas.NewRectangle(color.Transparent)
 	prop.SetMinSize(brightnessIcon.MinSize().Add(fyne.NewSize(theme.Padding()*4, 0)))
 	icon := container.NewCenter(prop, brightnessIcon)

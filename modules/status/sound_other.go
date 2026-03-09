@@ -7,8 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 
 	"github.com/mafik/pulseaudio"
-
-	wmtheme "fyshos.com/fynedesk/theme"
 )
 
 // Destroy tidies up resources
@@ -48,6 +46,7 @@ func (b *sound) setValue(vol int) {
 		return
 	}
 
+	b.updateIcon(vol, b.muted())
 	b.bar.SetValue(float64(vol))
 }
 
@@ -58,10 +57,6 @@ func (b *sound) toggleMute() {
 		return
 	}
 
-	if toggle {
-		b.mute.SetIcon(wmtheme.MuteIcon)
-	} else {
-		b.mute.SetIcon(wmtheme.SoundIcon)
-	}
-
+	val, _ := b.value()
+	b.updateIcon(val, toggle)
 }

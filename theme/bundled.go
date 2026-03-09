@@ -5,7 +5,6 @@ package theme
 
 import (
 	_ "embed"
-
 	"fyne.io/fyne/v2"
 )
 
@@ -142,11 +141,25 @@ var resourcePowerSvg = &fyne.StaticResource{
 	StaticContent: resourcePowerSvgData,
 }
 
-//go:embed assets/sound.svg
-var resourceSoundSvgData []byte
-var resourceSoundSvg = &fyne.StaticResource{
-	StaticName:    "assets/sound.svg",
-	StaticContent: resourceSoundSvgData,
+//go:embed assets/sound-high.svg
+var resourceSoundHighSvgData []byte
+var resourceSoundHighSvg = &fyne.StaticResource{
+	StaticName:    "assets/sound-high.svg",
+	StaticContent: resourceSoundHighSvgData,
+}
+
+//go:embed assets/sound-low.svg
+var resourceSoundLowSvgData []byte
+var resourceSoundLowSvg = &fyne.StaticResource{
+	StaticName:    "assets/sound-low.svg",
+	StaticContent: resourceSoundLowSvgData,
+}
+
+//go:embed assets/sound-mid.svg
+var resourceSoundMidSvgData []byte
+var resourceSoundMidSvg = &fyne.StaticResource{
+	StaticName:    "assets/sound-mid.svg",
+	StaticContent: resourceSoundMidSvgData,
 }
 
 //go:embed assets/wifi.svg

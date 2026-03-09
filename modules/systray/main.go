@@ -180,6 +180,14 @@ func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) (e
 			// try secondary if primary not known
 			_ = ni.ContextMenu(t.conn.Context(), 5, 5)
 		})
+		ico.scroll = func(delta float32, horizontal bool) {
+			if horizontal {
+				_ = ni.Scroll(t.conn.Context(), int32(delta), "horizontal")
+			} else {
+				_ = ni.Scroll(t.conn.Context(), int32(delta), "vertical")
+			}
+		}
+
 		ico.Importance = widget.LowImportance
 		item = &node{ico, ni}
 		t.nodes[sender] = item

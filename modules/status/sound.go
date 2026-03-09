@@ -23,7 +23,7 @@ var soundMeta = fynedesk.ModuleMetadata{
 type sound struct {
 	bar    *widget.ProgressBar
 	client *pulseaudio.Client
-	mute   *widget.Button
+	mute   *scrollButton
 }
 
 func newSound() fynedesk.Module {
@@ -85,7 +85,16 @@ func (b *sound) StatusAreaWidget() fyne.CanvasObject {
 	}
 
 	b.bar = &widget.ProgressBar{Max: 100}
-	b.mute = &widget.Button{Icon: wmtheme.SoundIcon, Importance: widget.LowImportance, OnTapped: b.toggleMute}
+	b.mute = newScrollButton(wmtheme.SoundHighIcon)
+	b.mute.scroll = func(f float32) {
+		if b.muted() {
+			return
+		}
+
+		b.offsetValue(int(f / 10))
+	}
+	b.mute.Importance = widget.LowImportance
+	b.mute.OnTapped = b.toggleMute
 	if b.muted() {
 		b.mute.SetIcon(wmtheme.MuteIcon)
 	}
@@ -126,13 +135,27 @@ func (b *sound) offsetValue(diff int) {
 	b.setValue(value)
 }
 
+func (b *sound) updateIcon(vol int, mute bool) {
+	if mute {
+		b.mute.SetIcon(wmtheme.MuteIcon)
+	} else {
+		if vol <= 20 {
+			b.mute.SetIcon(wmtheme.SoundLowIcon)
+		} else if vol <= 60 {
+			b.mute.SetIcon(wmtheme.SoundMidIcon)
+		} else {
+			b.mute.SetIcon(wmtheme.SoundHighIcon)
+		}
+	}
+}
+
 type volItem struct {
 	input string
 	s     *sound
 }
 
 func (i *volItem) Icon() fyne.Resource {
-	return wmtheme.SoundIcon
+	return wmtheme.SoundHighIcon
 }
 
 func (i *volItem) Title() string {

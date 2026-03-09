@@ -9,8 +9,6 @@ import (
 	"strconv"
 
 	"fyne.io/fyne/v2"
-
-	wmtheme "fyshos.com/fynedesk/theme"
 )
 
 var (
@@ -62,12 +60,7 @@ func (b *sound) setValue(vol int) {
 	}
 
 	b.bar.SetValue(float64(vol))
-	if vol == 0 {
-		b.mute.SetIcon(wmtheme.MuteIcon)
-	} else {
-		volume = vol
-		b.mute.SetIcon(wmtheme.SoundIcon)
-	}
+	b.updateIcon(vol, muted)
 }
 
 func (b *sound) toggleMute() {
