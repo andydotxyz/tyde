@@ -105,7 +105,7 @@ func WindowExtendedHintsRemove(x *xgbutil.XUtil, win xproto.Window, hint string)
 
 // WindowName gets the name of an X window
 func WindowName(x *xgbutil.XUtil, win xproto.Window) string {
-	//Spec says _NET_WM_NAME is preferred to WM_NAME
+	// Spec says _NET_WM_NAME is preferred to WM_NAME
 	name, err := ewmh.WmNameGet(x, win)
 	if err != nil {
 		name, err = icccm.WmNameGet(x, win)

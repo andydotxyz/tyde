@@ -24,8 +24,7 @@ var resourceUnyts = &fyne.StaticResource{
 	StaticContent: resourceUnytsPngData,
 }
 
-type unyts struct {
-}
+type unyts struct{}
 
 func (u *unyts) Destroy() {
 }

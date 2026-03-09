@@ -8,8 +8,8 @@ import (
 // PositionForNewWindow returns the suggested position for a new window of the given geometry.
 // The screen list hints at available space, but normally list.Active() is the best.
 func PositionForNewWindow(win fynedesk.Window, x, y int, w, h uint, decorated bool,
-	screens fynedesk.ScreenList) (int, int, uint, uint) {
-
+	screens fynedesk.ScreenList,
+) (int, int, uint, uint) {
 	target := screens.Active()
 	var offX, offY int
 	parent := win.Parent()

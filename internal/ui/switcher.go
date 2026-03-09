@@ -53,8 +53,10 @@ func (s *switchIcon) CreateRenderer() fyne.WidgetRenderer {
 	}
 	text := widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{})
 	text.Truncation = fyne.TextTruncateEllipsis
-	return &switchIconRenderer{icon: s, bg: bg,
-		img: img, text: text, objects: []fyne.CanvasObject{bg, img, text}}
+	return &switchIconRenderer{
+		icon: s, bg: bg,
+		img: img, text: text, objects: []fyne.CanvasObject{bg, img, text},
+	}
 }
 
 // FocusGained is called when this icon gets focus - it becomes the candidate for window raising

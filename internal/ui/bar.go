@@ -197,7 +197,7 @@ func (b *bar) updateTaskbar() {
 }
 
 func (b *bar) updateIconOrder() {
-	var index = 0
+	index := 0
 	for i, obj := range b.children {
 		if _, ok := obj.(*canvas.Rectangle); ok {
 			index = i

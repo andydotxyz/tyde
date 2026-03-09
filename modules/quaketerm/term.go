@@ -42,9 +42,10 @@ func (t *term) Metadata() fynedesk.ModuleMetadata {
 
 func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
 	return map[*fynedesk.Shortcut]func(){
-		&fynedesk.Shortcut{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
+		{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
 			t.toggle()
-		}}
+		},
+	}
 }
 
 func (t *term) createTerm() {
@@ -76,7 +77,7 @@ func (t *term) createTerm() {
 
 func (t *term) getHandle() fynedesk.Window {
 	// TODO a better way to capture window frame without showing it and waiting...
-	//t.ui.Resize(fyne.NewSize(0, 0))
+	// t.ui.Resize(fyne.NewSize(0, 0))
 	fyne.Do(t.ui.Show)
 
 	i := 0

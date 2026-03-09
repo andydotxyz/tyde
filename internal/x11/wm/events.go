@@ -429,42 +429,42 @@ func (x *x11WM) moveResize(moveX, moveY int16, c x11.XWin) {
 
 	switch x.moveResizingType {
 	case moveResizeTopLeft:
-		//Move both X,Y coords and resize both W,H
+		// Move both X,Y coords and resize both W,H
 		x.moveResizingX += int(deltaW)
 		x.moveResizingY += int(deltaH)
 
 		w = int16(x.moveResizingStartWidth) - deltaX
 		h = int16(x.moveResizingStartHeight) - deltaY
 	case moveResizeTop:
-		//Move Y coord and resize H
+		// Move Y coord and resize H
 		x.moveResizingY += int(deltaH)
 		h = int16(x.moveResizingStartHeight) - deltaY
 	case moveResizeTopRight:
-		//Move Y coord and resize both W,H
+		// Move Y coord and resize both W,H
 		x.moveResizingY += int(deltaH)
 		w = int16(x.moveResizingStartWidth) + deltaX
 		h = int16(x.moveResizingStartHeight) - deltaY
 	case moveResizeRight:
-		//Keep X coord and resize W
+		// Keep X coord and resize W
 		w = int16(x.moveResizingStartWidth) + deltaX
 	case moveResizeBottomRight, moveResizeKeyboard:
-		//Keep both X,Y coords and resize both W,H
+		// Keep both X,Y coords and resize both W,H
 		w = int16(x.moveResizingStartWidth) + deltaX
 		h = int16(x.moveResizingStartHeight) + deltaY
 	case moveResizeBottom:
-		//Keep Y coord and resize H
+		// Keep Y coord and resize H
 		h = int16(x.moveResizingStartHeight) + deltaY
 	case moveResizeBottomLeft:
-		//Move X coord and resize both W,H
+		// Move X coord and resize both W,H
 		x.moveResizingX += int(deltaW)
 		w = int16(x.moveResizingStartWidth) - deltaX
 		h = int16(x.moveResizingStartHeight) + deltaY
 	case moveResizeLeft:
-		//Move X coord and resize W
+		// Move X coord and resize W
 		x.moveResizingX += int(deltaW)
 		w = int16(x.moveResizingStartWidth) - deltaX
 	case moveResizeMove, moveResizeMoveKeyboard:
-		//Move both X,Y coords and no resize
+		// Move both X,Y coords and no resize
 		x.moveResizingX += int(deltaW)
 		x.moveResizingY += int(deltaH)
 	case moveResizeCancel:

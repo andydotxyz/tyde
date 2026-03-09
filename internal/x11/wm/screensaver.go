@@ -23,7 +23,7 @@ func (x *x11WM) initScreensaver() {
 		return
 	}
 
-	//screensaver.SelectInput(conn.Conn(), xproto.Drawable(conn.Screen().Root),
+	// screensaver.SelectInput(conn.Conn(), xproto.Drawable(conn.Screen().Root),
 	//	screensaver.EventNotifyMask)
 	go x.watchScreensaver()
 }

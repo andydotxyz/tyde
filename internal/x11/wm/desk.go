@@ -486,9 +486,11 @@ func (x *x11WM) configureRoots() {
 				continue
 			}
 
-			notifyEv := xproto.ConfigureNotifyEvent{Event: x.rootID, Window: x.rootID, AboveSibling: 0,
+			notifyEv := xproto.ConfigureNotifyEvent{
+				Event: x.rootID, Window: x.rootID, AboveSibling: 0,
 				X: int16(screen.X), Y: int16(screen.Y), Width: uint16(screen.Width), Height: uint16(screen.Height),
-				BorderWidth: 0, OverrideRedirect: false}
+				BorderWidth: 0, OverrideRedirect: false,
+			}
 			xproto.SendEvent(x.x.Conn(), false, x.rootID, xproto.EventMaskStructureNotify, string(notifyEv.Bytes()))
 
 			// we need to trigger a move so that the correct scale is picked up
@@ -763,8 +765,10 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 		w, h := x.menuSize.Width*screen.CanvasScale(), x.menuSize.Height*screen.CanvasScale()
 		mx, my := screen.X+int(x.menuPos.X*screen.CanvasScale()), screen.Y+int(x.menuPos.Y*screen.CanvasScale())
 		xproto.ConfigureWindow(x.Conn(), win, xproto.ConfigWindowX|xproto.ConfigWindowY|
-			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight, []uint32{uint32(mx), uint32(my),
-			uint32(w), uint32(h)})
+			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight, []uint32{
+			uint32(mx), uint32(my),
+			uint32(w), uint32(h),
+		})
 
 		x.bindShortcuts(win)
 		xproto.MapWindow(x.Conn(), win)

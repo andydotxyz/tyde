@@ -34,7 +34,8 @@ func (l *desktop) screenshotWindow() {
 func (l *desktop) showCaptureSave(img image.Image) {
 	w := fyne.CurrentApp().NewWindow("Screenshot")
 
-	save := &widget.Button{Text: "Save...",
+	save := &widget.Button{
+		Text:       "Save...",
 		Importance: widget.HighImportance,
 		OnTapped: func() {
 			saveImage(img, w)

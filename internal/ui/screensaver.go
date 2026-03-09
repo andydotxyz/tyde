@@ -59,7 +59,6 @@ func (l *desktop) watchScreenActivity() {
 
 	for range to.C {
 		if inhibitCount == 0 && lastActivity.Add(time.Minute*5).Before(time.Now()) {
-
 			if !idle {
 				idle = true
 
@@ -110,8 +109,7 @@ func watchDBus() {
 	}
 }
 
-type screenSaverWatcher struct {
-}
+type screenSaverWatcher struct{}
 
 func (s *screenSaverWatcher) Inhibit(_ dbus.Sender, who, why string) (uint, *dbus.Error) {
 	id := rand.Uint32()

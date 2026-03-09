@@ -148,6 +148,5 @@ func (c *Border) makeDesktopMenu(pos fyne.Position) *fyne.MenuItem {
 	return fyne.NewMenuItem("Move to Desktop...", func() {
 		fynedesk.Instance().ShowMenuAt(fyne.NewMenu("", desks...),
 			pos.Add(fyne.NewSize(40, 120)))
-
 	})
 }

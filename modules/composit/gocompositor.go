@@ -79,7 +79,8 @@ type cookieReply[R any] interface {
 }
 
 func initExtension[S any, T cookieReply[S]](conn *xgb.Conn, initFunc func(conn *xgb.Conn) error,
-	verFunc func(*xgb.Conn, uint32, uint32) T, major, minor uint32) error {
+	verFunc func(*xgb.Conn, uint32, uint32) T, major, minor uint32,
+) error {
 	if err := initFunc(conn); err != nil {
 		return err
 	}

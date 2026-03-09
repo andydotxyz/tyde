@@ -89,7 +89,7 @@ func (l *picker) updateAppListMatching(input string) {
 
 func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 	var appList []fyne.CanvasObject
-	var iconList = []appie.AppData{}
+	iconList := []appie.AppData{}
 
 	dataRange := l.desk.IconProvider().FindAppsMatching(input)
 	for _, data := range dataRange {

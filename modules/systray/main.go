@@ -403,6 +403,7 @@ func pixelsToImage(in struct {
 	V0 int32
 	V1 int32
 	V2 []byte
-}) image.Image {
+},
+) image.Image {
 	return &img{int(in.V0), int(in.V1), in.V2}
 }

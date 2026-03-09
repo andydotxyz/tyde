@@ -507,15 +507,21 @@ func (w *widgetPanel) showSettings() {
 	fyneSettings := settings.NewSettings()
 
 	tabs := container.NewAppTabs(
-		&container.TabItem{Text: "Fyne Settings", Icon: wmtheme.FyneLogo,
-			Content: fyneSettings.LoadAppearanceScreen(win)},
-		&container.TabItem{Text: "Appearance", Icon: fyneSettings.AppearanceIcon(),
-			Content: ui.loadAppearanceScreen()},
+		&container.TabItem{
+			Text: "Fyne Settings", Icon: wmtheme.FyneLogo,
+			Content: fyneSettings.LoadAppearanceScreen(win),
+		},
+		&container.TabItem{
+			Text: "Appearance", Icon: fyneSettings.AppearanceIcon(),
+			Content: ui.loadAppearanceScreen(),
+		},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
 		&container.TabItem{Text: "App Bar", Icon: wmtheme.IconifyIcon, Content: ui.loadBarScreen()},
 		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},
-		&container.TabItem{Text: "Advanced", Icon: theme.SettingsIcon(),
-			Content: ui.loadAdvancedScreen()},
+		&container.TabItem{
+			Text: "Advanced", Icon: theme.SettingsIcon(),
+			Content: ui.loadAdvancedScreen(),
+		},
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 	win.SetContent(tabs)

@@ -205,7 +205,6 @@ func editApp(app appie.AppData, editor string) {
 	open := func() {
 		cmd := exec.Command(editor, srcDir)
 		err := cmd.Start()
-
 		if err != nil {
 			fyne.LogError("Failed to start app editor: "+editor, err)
 		}
@@ -213,7 +212,7 @@ func editApp(app appie.AppData, editor string) {
 
 	if !exists(srcDir) {
 		if !exists(root) {
-			err := os.MkdirAll(root, 0755)
+			err := os.MkdirAll(root, 0o755)
 			if err != nil {
 				fyne.LogError("Failed to make source root", err)
 				return

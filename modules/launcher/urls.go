@@ -15,8 +15,7 @@ var urlMeta = fynedesk.ModuleMetadata{
 	NewInstance: newURLs,
 }
 
-type urls struct {
-}
+type urls struct{}
 
 func (u *urls) Destroy() {
 }

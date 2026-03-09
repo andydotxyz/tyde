@@ -199,7 +199,8 @@ func (w *widgetPanel) CreateRenderer() fyne.WidgetRenderer {
 		canvas.NewRectangle(color.Transparent), // clear top edge for clocks
 		w.clocks,
 		w.date,
-		w.notifications}
+		w.notifications,
+	}
 
 	w.modules = container.NewVBox()
 	objects = append(objects, layout.NewSpacer(), w.modules, w.account)

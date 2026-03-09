@@ -151,7 +151,6 @@ func (c *client) SetDesktop(id int) {
 		if mover, ok := fynedesk.Instance().WindowManager().(moveNotifier); ok {
 			mover.NotifyWindowMoved(c)
 		}
-
 	}).Start()
 }
 
@@ -499,8 +498,10 @@ func (c *client) positionNewWindow() {
 	}
 
 	xproto.ConfigureWindow(c.wm.Conn(), c.win, xproto.ConfigWindowX|xproto.ConfigWindowY|
-		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight, []uint32{uint32(x), uint32(y),
-		uint32(w), uint32(h)})
+		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight, []uint32{
+		uint32(x), uint32(y),
+		uint32(w), uint32(h),
+	})
 }
 
 func (c *client) stateMessage(state int) {

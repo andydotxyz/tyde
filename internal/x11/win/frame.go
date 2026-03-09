@@ -153,7 +153,8 @@ func newFrame(c *client) *frame {
 		err = ewmh.FrameExtentsSet(c.wm.X(), c.win, &ewmh.FrameExtents{
 			Left:  int(borderWidth),
 			Right: int(borderWidth),
-			Top:   int(titleHeight), Bottom: int(borderWidth)})
+			Top:   int(titleHeight), Bottom: int(borderWidth),
+		})
 		if err != nil {
 			fyne.LogError("", err)
 		}
@@ -248,7 +249,7 @@ func (f *frame) checkScale() {
 
 func (f *frame) configureLoop() {
 	var lastGeometry *configureGeometry
-	var change = false
+	change := false
 
 	blanks := 0
 	for f.pendingGeometry != nil {
@@ -372,8 +373,8 @@ func (f *frame) decorate(force bool) {
 	xproto.PolyFillRectangleChecked(f.client.wm.Conn(), xproto.Drawable(f.client.id), f.rectGC, []xproto.Rectangle{rect})
 
 	rightWidthPix := f.topRightPixelWidth()
-	//minWidth := f.canvas.Content().MinSize().Width
-	widthPix := f.width //uint16(minWidth*f.canvas.Scale()) - rightWidthPix
+	// minWidth := f.canvas.Content().MinSize().Width
+	widthPix := f.width // uint16(minWidth*f.canvas.Scale()) - rightWidthPix
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTop), xproto.Drawable(f.client.id), f.borderTopGC,
 		0, 0, 0, 0, widthPix, heightPix)
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTopRight), xproto.Drawable(f.client.id), f.borderTopRightGC,
@@ -846,9 +847,11 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 // This should be used sparingly as it can impact performance on the child window.
 func (f *frame) notifyInnerGeometry() {
 	innerX, innerY, innerW, innerH := f.getInnerWindowCoordinates(f.width, f.height)
-	ev := xproto.ConfigureNotifyEvent{Event: f.client.win, Window: f.client.win, AboveSibling: 0,
+	ev := xproto.ConfigureNotifyEvent{
+		Event: f.client.win, Window: f.client.win, AboveSibling: 0,
 		X: f.x + int16(innerX), Y: f.y + int16(innerY), Width: uint16(innerW), Height: uint16(innerH),
-		BorderWidth: x11.BorderWidth(x11.XWin(f.client)), OverrideRedirect: false}
+		BorderWidth: x11.BorderWidth(x11.XWin(f.client)), OverrideRedirect: false,
+	}
 	xproto.SendEvent(f.client.wm.Conn(), false, f.client.win, xproto.EventMaskStructureNotify, string(ev.Bytes()))
 }
 

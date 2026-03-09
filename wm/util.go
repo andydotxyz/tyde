@@ -22,7 +22,8 @@ func FindObjectAtPixelPositionMatching(x, y int, c fyne.Canvas, fn func(fyne.Can
 // some internal Fyne functions that we find very useful as we have to drive the frame UI
 
 func findObjectAtPositionMatching(mouse fyne.Position, matches func(object fyne.CanvasObject) bool,
-	overlay fyne.CanvasObject, roots ...fyne.CanvasObject) (fyne.CanvasObject, fyne.Position) {
+	overlay fyne.CanvasObject, roots ...fyne.CanvasObject,
+) (fyne.CanvasObject, fyne.Position) {
 	var found fyne.CanvasObject
 	var foundPos fyne.Position
 

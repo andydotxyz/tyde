@@ -124,12 +124,13 @@ func (xsp *x11ScreensProvider) insertInOrder(tmpScreens []*fynedesk.Screen, outp
 			insertIndex = i
 			break
 		}
-
 	}
 
-	newScreen := &fynedesk.Screen{Name: string(outputInfo.Name),
-		X: int(crtcInfo.X), Y: int(crtcInfo.Y), Width: int(crtcInfo.Width), Height: int(crtcInfo.Height),
-		Scale: getScale(crtcInfo.Width, uint16(outputInfo.MmWidth))}
+	newScreen := &fynedesk.Screen{
+		Name: string(outputInfo.Name),
+		X:    int(crtcInfo.X), Y: int(crtcInfo.Y), Width: int(crtcInfo.Width), Height: int(crtcInfo.Height),
+		Scale: getScale(crtcInfo.Width, uint16(outputInfo.MmWidth)),
+	}
 	if insertIndex == -1 {
 		tmpScreens = append(tmpScreens, newScreen)
 		insertIndex = len(tmpScreens) - 1
@@ -190,10 +191,12 @@ func (xsp *x11ScreensProvider) setupScreens() {
 
 func (xsp *x11ScreensProvider) setupSingleScreen() {
 	xsp.single = true
-	xsp.screens = []*fynedesk.Screen{{Name: "Screen0",
-		X: xwindow.RootGeometry(xsp.x.x).X(), Y: xwindow.RootGeometry(xsp.x.x).Y(),
+	xsp.screens = []*fynedesk.Screen{{
+		Name: "Screen0",
+		X:    xwindow.RootGeometry(xsp.x.x).X(), Y: xwindow.RootGeometry(xsp.x.x).Y(),
 		Width: xwindow.RootGeometry(xsp.x.x).Width(), Height: xwindow.RootGeometry(xsp.x.x).Height(),
-		Scale: 1.0}}
+		Scale: 1.0,
+	}}
 	xsp.primary = xsp.screens[0]
 	xsp.active = xsp.screens[0]
 }

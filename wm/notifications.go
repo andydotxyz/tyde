@@ -58,7 +58,8 @@ type notifications struct {
 }
 
 func (n *notifications) Notify(appName string, replacesID uint32, appIcon, summary, body string,
-	actions []string, hints map[string]interface{}, timeout int32) (uint32, error) {
+	actions []string, hints map[string]interface{}, timeout int32,
+) (uint32, error) {
 	item := NewNotification(summary, body, appIcon)
 
 	SendNotification(item)

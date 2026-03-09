@@ -18,8 +18,10 @@ import (
 )
 
 func TestDeskLayout_Layout(t *testing.T) {
-	l := &desktop{screens: wmTest.NewScreensProvider(&fynedesk.Screen{Name: "Screen0", X: 0, Y: 0,
-		Width: 2000, Height: 1000, Scale: 1.0}), settings: wmTest.NewSettings()}
+	l := &desktop{screens: wmTest.NewScreensProvider(&fynedesk.Screen{
+		Name: "Screen0", X: 0, Y: 0,
+		Width: 2000, Height: 1000, Scale: 1.0,
+	}), settings: wmTest.NewSettings()}
 	l.bar = testBar([]string{})
 	l.widgets = newWidgetPanel(l)
 	bg := &background{wallpaper: container.NewStack(canvas.NewImageFromResource(wmTheme.AppIcon))}
@@ -61,8 +63,10 @@ func TestScaleVars_Down(t *testing.T) {
 
 func TestBackgroundChange(t *testing.T) {
 	l := NewEmbeddedDesktop(test.NewApp(), wmTest.NewAppProvider()).(*desktop)
-	l.screens = wmTest.NewScreensProvider(&fynedesk.Screen{Name: "Screen0", X: 0, Y: 0,
-		Width: 2000, Height: 1000, Scale: 1.0})
+	l.screens = wmTest.NewScreensProvider(&fynedesk.Screen{
+		Name: "Screen0", X: 0, Y: 0,
+		Width: 2000, Height: 1000, Scale: 1.0,
+	})
 	l.settings = wmTest.NewSettings()
 	l.setupRoot()
 

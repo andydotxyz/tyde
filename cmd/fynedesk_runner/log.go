@@ -21,7 +21,7 @@ func crashLogPathRelativeTo(parent string) string {
 
 func logDir(parent string) string {
 	cacheDir := filepath.Join(parent, "fyne", "com.fyshos.fynedesk")
-	err := os.MkdirAll(cacheDir, 0700)
+	err := os.MkdirAll(cacheDir, 0o700)
 	if err != nil {
 		fyne.LogError("Could not create log directory", err)
 	}
