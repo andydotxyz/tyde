@@ -8,6 +8,7 @@ import (
 	"image"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/xgb/shape"
@@ -53,6 +54,7 @@ type frame struct {
 	cancelFunc context.CancelFunc
 
 	pendingGeometry chan *configureGeometry
+	pendingMu       sync.Mutex
 	transparency    int
 
 	canvas test.WindowlessCanvas
@@ -256,19 +258,26 @@ func (f *frame) checkScale() {
 }
 
 func (f *frame) configureLoop() {
+	f.pendingMu.Lock()
+	ch := f.pendingGeometry
+	f.pendingMu.Unlock()
+	if ch == nil {
+		return
+	}
+
 	var lastGeometry *configureGeometry
 	change := false
 
 	blanks := 0
-	for f.pendingGeometry != nil {
+	for {
 		select {
-		case g, ok := <-f.pendingGeometry:
+		case g, ok := <-ch:
 			if g == nil || !ok {
-				f.pendingGeometry = nil
 				return
 			}
 			lastGeometry = g
 			change = true
+			blanks = 0
 		default:
 			if change && lastGeometry != nil {
 				f.updateGeometry(lastGeometry.x, lastGeometry.y, lastGeometry.width, lastGeometry.height, lastGeometry.force)
@@ -277,6 +286,7 @@ func (f *frame) configureLoop() {
 				blanks++
 				if blanks > 1000 { // if 1000 ticks pass no resize pending
 					f.endConfigureLoop()
+					return
 				}
 			}
 		}
@@ -284,9 +294,12 @@ func (f *frame) configureLoop() {
 }
 
 func (f *frame) endConfigureLoop() {
+	f.pendingMu.Lock()
 	if f.pendingGeometry != nil {
 		close(f.pendingGeometry)
+		f.pendingGeometry = nil
 	}
+	f.pendingMu.Unlock()
 
 	// Sync the actual X11 window position to match the visual after drag
 	f.updateGeometry(f.x, f.y, f.width, f.height, true)
@@ -959,11 +972,14 @@ func (f *frame) unmaximizeApply() {
 }
 
 func (f *frame) queueGeometry(x int16, y int16, width uint16, height uint16, force bool) {
+	f.pendingMu.Lock()
 	if f.pendingGeometry == nil {
 		f.pendingGeometry = make(chan *configureGeometry, 50)
 		go f.configureLoop()
 	}
-	f.pendingGeometry <- &configureGeometry{x, y, width, height, force}
+	ch := f.pendingGeometry
+	f.pendingMu.Unlock()
+	ch <- &configureGeometry{x, y, width, height, force}
 }
 
 func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {

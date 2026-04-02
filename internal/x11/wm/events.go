@@ -83,6 +83,7 @@ func (x *x11WM) handleButtonRelease(ev xproto.ButtonReleaseEvent) {
 				c.(x11.XWin).NotifyMouseRelease(ev.RootX, ev.RootY, ev.Detail)
 			}
 			x.moveResizeEnd(c.(x11.XWin))
+			x.NotifyWindowMoved(c)
 		}
 	}
 }

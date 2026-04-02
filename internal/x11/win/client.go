@@ -139,20 +139,26 @@ func (c *client) SetDesktop(id int) {
 	display := d.Screens().ScreenForWindow(c)
 	off := offPix / display.Scale
 
+	type moveNotifier interface {
+		NotifyWindowMoved(fynedesk.Window)
+	}
+
 	start := c.Position()
 	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
 		newY := start.Y - off*f
 		pos := fyne.NewPos(start.X, newY)
 		if f >= 1.0 {
 			c.Move(pos) // final frame: sync X11
-			type moveNotifier interface {
-				NotifyWindowMoved(fynedesk.Window)
-			}
-			if mn, ok := c.wm.(moveNotifier); ok {
-				mn.NotifyWindowMoved(c)
-			}
 		} else {
+			// Update frame position so Position() returns the
+			// intermediate value for pager preview updates.
+			screen := d.Screens().ScreenForWindow(c)
+			c.frame.x = int16(pos.X * screen.CanvasScale())
+			c.frame.y = int16(pos.Y * screen.CanvasScale())
 			c.MoveVisual(pos)
+		}
+		if mn, ok := c.wm.(moveNotifier); ok {
+			mn.NotifyWindowMoved(c)
 		}
 	}).Start()
 }
