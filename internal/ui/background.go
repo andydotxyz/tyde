@@ -14,6 +14,7 @@ import (
 
 type background struct {
 	widget.BaseWidget
+	compositor *CompositorWidget
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
@@ -24,25 +25,18 @@ func (b *background) CreateRenderer() fyne.WidgetRenderer {
 func (b *background) loadModules() []fyne.CanvasObject {
 	objects := b.screenWallpapers()
 
-	// Add non-compositor screen area modules first (e.g. files),
-	// then the compositor on top so windows are drawn over desktop content.
-	var compositorWidget fyne.CanvasObject
+	// Add screen area modules (e.g. desktop files)
 	for _, m := range fynedesk.Instance().Modules() {
 		if deskMod, ok := m.(fynedesk.ScreenAreaModule); ok {
-			wid := deskMod.ScreenAreaWidget()
-			if wid == nil {
-				continue
-			}
-
-			if m.Metadata().Name == "Compositor" {
-				compositorWidget = wid
-			} else {
+			if wid := deskMod.ScreenAreaWidget(); wid != nil {
 				objects = append(objects, wid)
 			}
 		}
 	}
-	if compositorWidget != nil {
-		objects = append(objects, compositorWidget)
+
+	// Compositor on top so windows are drawn over desktop content
+	if b.compositor != nil {
+		objects = append(objects, b.compositor)
 	}
 
 	return objects
@@ -115,8 +109,8 @@ func loadWallpaper() fyne.CanvasObject {
 	return src.Load(set.Theme(), set.ThemeVariant())
 }
 
-func newBackground() *background {
-	ret := &background{}
+func newBackground(compositor *CompositorWidget) *background {
+	ret := &background{compositor: compositor}
 	ret.ExtendBaseWidget(ret)
 	return ret
 }

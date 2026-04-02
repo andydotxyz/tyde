@@ -585,10 +585,10 @@ func (f *frame) mouseDrag(x, y int16) {
 		f.moveY += moveDeltaY
 		// Fast path: update compositor visual directly, skip X11 and queueGeometry.
 		// mouseDrag runs on the main thread (via fyne.Do) so this is safe.
-		if cb := fynedesk.Instance().VisualMoveCallback(); cb != nil {
+		if x11.VisualMoveCallback != nil {
 			f.x = f.moveX
 			f.y = f.moveY
-			cb(uint32(f.client.id), f.moveX, f.moveY, f.width, f.height)
+			x11.VisualMoveCallback(uint32(f.client.id), f.moveX, f.moveY, f.width, f.height)
 		} else {
 			f.queueGeometry(f.moveX, f.moveY, f.width, f.height, false)
 		}
@@ -989,8 +989,8 @@ func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {
 	// During drag (pendingGeometry active) and move-only (no resize),
 	// skip expensive X11 ConfigureWindow and only update the compositor visual.
 	// The actual X11 position is synced when the drag ends.
-	if cb := fynedesk.Instance().VisualMoveCallback(); f.pendingGeometry != nil && move && !resize && cb != nil {
-		cb(uint32(f.client.id), f.x, f.y, f.width, f.height)
+	if f.pendingGeometry != nil && move && !resize && x11.VisualMoveCallback != nil {
+		x11.VisualMoveCallback(uint32(f.client.id), f.x, f.y, f.width, f.height)
 		return
 	}
 

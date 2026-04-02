@@ -19,6 +19,9 @@ func (l *desktop) newDesktopWindowFull() fyne.Window {
 
 	desk.SetMaster()
 	desk.SetOnClosed(func() {
+		if l.compositorDone != nil {
+			close(l.compositorDone)
+		}
 		l.wm.Close()
 	})
 

@@ -148,9 +148,3 @@ func (td *Desktop) DelayScreenSaver() {}
 
 // TriggerScreenSaver can be called to immediately) show the screensaver (or with a delay).
 func (td *Desktop) TriggerScreenSaver(bool) {}
-
-// SetVisualMoveCallback stores a callback for visual window move updates.
-func (td *Desktop) SetVisualMoveCallback(cb func(winID uint32, x, y int16, w, h uint16)) {}
-
-// VisualMoveCallback returns the visual move callback, nil in tests.
-func (td *Desktop) VisualMoveCallback() func(uint32, int16, int16, uint16, uint16) { return nil }

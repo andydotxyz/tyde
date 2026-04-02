@@ -1,9 +1,10 @@
-package composit
+//go:build linux || openbsd || freebsd || netbsd
+// +build linux openbsd freebsd netbsd
 
-// A Fyne-based compositor that captures X11 window content and displays it
-// as canvas.Image objects in the Fyne desktop window.
-// Based on the original X RENDER compositor, which was based on
-// https://github.com/bvkgo/gcompositor and https://github.com/jmanc3/xcompmgr-simple/.
+// Package composit provides an X11 compositor that captures window content
+// and displays it as Fyne canvas images in the desktop window.
+// Based on https://github.com/bvkgo/gcompositor and https://github.com/jmanc3/xcompmgr-simple/.
+package composit
 
 import (
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,6 +29,8 @@ import (
 	"github.com/BurntSushi/xgbutil"
 
 	"fyshos.com/fynedesk"
+	"fyshos.com/fynedesk/internal/ui"
+	"fyshos.com/fynedesk/internal/x11"
 )
 
 type opaqueType string
@@ -83,11 +87,7 @@ func initExtension[S any, T cookieReply[S]](conn *xgb.Conn, initFunc func(conn *
 		return err
 	}
 	_, err := verFunc(conn, major, minor).Reply()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func setup(conn *xgb.Conn) error {
@@ -144,8 +144,13 @@ func setup(conn *xgb.Conn) error {
 	return nil
 }
 
+// Run starts the X11 compositor event loop. It captures window content and
+// renders it into the provided widgets. The normal widget shows regular windows;
+// the overlay widget shows fullscreen windows above desktop chrome.
+// Run blocks until done is closed.
+//
 //gocyclo:ignore
-func run(done chan struct{}, w *compositorWidget, overlay *compositorWidget) error {
+func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidget) error {
 	c, err := xgbutil.NewConn()
 	if err != nil {
 		return err
@@ -156,19 +161,9 @@ func run(done chan struct{}, w *compositorWidget, overlay *compositorWidget) err
 
 	ws := &widgets{normal: w, overlay: overlay}
 
-	// Set up the screen scale function for the widget
-	screenScaleFunc = func() float32 {
-		inst := fynedesk.Instance()
-		if inst == nil {
-			return 1
-		}
-		return inst.Screens().Primary().CanvasScale()
-	}
-
-	// Set up visual move callback for fast drag repositioning
-	// Visual move callback for fast drag/animation repositioning.
+	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
-	fynedesk.Instance().SetVisualMoveCallback(func(winID uint32, x, y int16, width, height uint16) {
+	x11.VisualMoveCallback = func(winID uint32, x, y int16, width, height uint16) {
 		win := xproto.Window(winID)
 
 		// Mark the client as visually moving so refreshWindows skips recapture
@@ -176,21 +171,21 @@ func run(done chan struct{}, w *compositorWidget, overlay *compositorWidget) err
 			c.visualMoving = true
 		}
 
-		for _, target := range []*compositorWidget{ws.normal, ws.overlay} {
-			wi := target.getWindow(win)
+		for _, target := range []*ui.CompositorWidget{ws.normal, ws.overlay} {
+			wi := target.GetWindow(winID)
 			if wi == nil {
 				continue
 			}
-			wi.x = x
-			wi.y = y
-			wi.w = width
-			wi.h = height
+			wi.X = x
+			wi.Y = y
+			wi.W = width
+			wi.H = height
 
-			scale := getScreenScale()
-			wi.img.Move(fyne.NewPos(float32(x)/scale, float32(y)/scale))
+			scale := screenScale()
+			wi.Img.Move(fyne.NewPos(float32(x)/scale, float32(y)/scale))
 			return
 		}
-	})
+	}
 
 	err = setup(conn)
 	if err != nil {
@@ -227,7 +222,7 @@ func run(done chan struct{}, w *compositorWidget, overlay *compositorWidget) err
 			continue
 		}
 		c.fullscreen = checkFullscreen(c)
-		ws.targetFor(c).ensureWindow(c.win)
+		ws.targetFor(c).EnsureWindow(uint32(c.win))
 	}
 	syncOrder(ws)
 	ws.refreshBoth()
@@ -364,12 +359,12 @@ func setupRoot(conn *xgb.Conn) error {
 
 // widgets pairs the normal and overlay compositor widgets.
 type widgets struct {
-	normal  *compositorWidget
-	overlay *compositorWidget
+	normal  *ui.CompositorWidget
+	overlay *ui.CompositorWidget
 }
 
 // targetFor returns the appropriate widget for a client based on fullscreen state.
-func (ws *widgets) targetFor(c *client) *compositorWidget {
+func (ws *widgets) targetFor(c *client) *ui.CompositorWidget {
 	if c.fullscreen {
 		return ws.overlay
 	}
@@ -385,8 +380,7 @@ func (ws *widgets) refreshBoth() {
 }
 
 // checkFullscreen detects fullscreen by checking if the window geometry
-// exactly matches any screen. This works because fullscreen windows cover the
-// entire screen, while maximized windows are smaller (content area only).
+// exactly matches any screen.
 func checkFullscreen(c *client) bool {
 	inst := fynedesk.Instance()
 	if inst == nil {
@@ -410,15 +404,15 @@ func updateFullscreen(ws *widgets, c *client) {
 		return
 	}
 
-	var from, to *compositorWidget
+	var from, to *ui.CompositorWidget
 	if c.fullscreen {
 		from, to = ws.normal, ws.overlay
 	} else {
 		from, to = ws.overlay, ws.normal
 	}
 
-	from.removeWindow(c.win)
-	to.ensureWindow(c.win)
+	from.RemoveWindow(uint32(c.win))
+	to.EnsureWindow(uint32(c.win))
 	c.damaged = true
 	allDamage = true
 	syncOrder(ws)
@@ -427,19 +421,26 @@ func updateFullscreen(ws *widgets, c *client) {
 
 // syncOrder rebuilds the image ordering in both widgets to match the clients list.
 func syncOrder(ws *widgets) {
-	order := make([]xproto.Window, len(clients))
+	order := make([]uint32, len(clients))
 	for i, c := range clients {
-		order[i] = c.win
+		order[i] = uint32(c.win)
 	}
-	ws.normal.reorder(order)
-	ws.overlay.reorder(order)
+	ws.normal.Reorder(order)
+	ws.overlay.Reorder(order)
+}
+
+func screenScale() float32 {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return 1
+	}
+	return inst.Screens().Primary().CanvasScale()
 }
 
 // refreshWindows captures all damaged windows and updates the Fyne widgets.
-// All captures are done first, then applied in a single fyne.Do to avoid flicker.
 func refreshWindows(conn *xgb.Conn, ws *widgets) {
 	type captured struct {
-		wi           *windowImage
+		wi           *ui.WindowImage
 		img          *image.NRGBA
 		translucency float64
 		x, y         int16
@@ -480,7 +481,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		}
 
 		target := ws.targetFor(c)
-		wi := target.getWindow(c.win)
+		wi := target.GetWindow(uint32(c.win))
 		if wi == nil {
 			continue
 		}
@@ -500,32 +501,32 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		return
 	}
 
-	scale := getScreenScale()
+	scale := screenScale()
 	fyne.Do(func() {
 		for _, u := range updates {
-			u.wi.img.Image = u.img
-			u.wi.img.Translucency = u.translucency
+			u.wi.Img.Image = u.img
+			u.wi.Img.Translucency = u.translucency
 			// Set position/size if not yet initialized (first capture).
 			// After that, position is managed by configureClient and
 			// VisualMoveCallback — don't overwrite during drag.
-			if u.wi.w == 0 {
-				u.wi.x = u.x
-				u.wi.y = u.y
-				u.wi.w = u.w
-				u.wi.h = u.h
-				u.wi.img.Move(fyne.NewPos(float32(u.x)/scale, float32(u.y)/scale))
-				u.wi.img.Resize(fyne.NewSize(float32(u.w)/scale, float32(u.h)/scale))
+			if u.wi.W == 0 {
+				u.wi.X = u.x
+				u.wi.Y = u.y
+				u.wi.W = u.w
+				u.wi.H = u.h
+				u.wi.Img.Move(fyne.NewPos(float32(u.x)/scale, float32(u.y)/scale))
+				u.wi.Img.Resize(fyne.NewSize(float32(u.w)/scale, float32(u.h)/scale))
 			}
-			canvas.Refresh(u.wi.img)
+			canvas.Refresh(u.wi.Img)
 		}
 	})
 }
 
 // refreshTranslucency updates the translucency of all visible windows
-// without recapturing their content. Called after stacking order changes.
+// without recapturing their content.
 func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 	type update struct {
-		wi           *windowImage
+		wi           *ui.WindowImage
 		translucency float64
 	}
 	var updates []update
@@ -535,12 +536,12 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 			continue
 		}
 		w := ws.targetFor(c)
-		wi := w.getWindow(c.win)
+		wi := w.GetWindow(uint32(c.win))
 		if wi == nil {
 			continue
 		}
 		translucency := computeTranslucency(conn, c)
-		if wi.img.Translucency != translucency {
+		if wi.Img.Translucency != translucency {
 			updates = append(updates, update{wi, translucency})
 		}
 	}
@@ -548,7 +549,7 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 	if len(updates) > 0 {
 		fyne.Do(func() {
 			for _, u := range updates {
-				u.wi.img.Translucency = u.translucency
+				u.wi.Img.Translucency = u.translucency
 			}
 			ws.normal.Refresh()
 			ws.overlay.Refresh()
@@ -563,7 +564,7 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 
 	// Check if this is the top visible window
 	isTop := true
-	idx := indexFunc(clients, func(cl *client) bool { return cl.win == c.win })
+	idx := slices.IndexFunc(clients, func(cl *client) bool { return cl.win == c.win })
 	if idx > 0 {
 		for j := idx - 1; j >= 0; j-- {
 			if clients[j].skipped {
@@ -594,8 +595,7 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 	return 0.0
 }
 
-// isScreensaver detects screensaver windows by checking for override-redirect
-// fullscreen windows or known screensaver title patterns.
+// isScreensaver detects screensaver windows.
 func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xproto.GetGeometryReply) bool {
 	lower := strings.ToLower(title)
 	if strings.Contains(lower, "screensaver") || strings.Contains(lower, "screen saver") ||
@@ -612,7 +612,7 @@ func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xp
 }
 
 func getClientFromWindow(window xproto.Window) *client {
-	i := indexFunc(clients, func(c *client) bool {
+	i := slices.IndexFunc(clients, func(c *client) bool {
 		return c.win == window
 	})
 	if i == -1 {
@@ -622,7 +622,6 @@ func getClientFromWindow(window xproto.Window) *client {
 }
 
 func addClient(conn *xgb.Conn, window xproto.Window) error {
-	// Skip if already tracked
 	if getClientFromWindow(window) != nil {
 		return nil
 	}
@@ -649,7 +648,6 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 	}
 
 	// Skip the Fyne Desktop root window, skip-hinted windows, and screensavers.
-	// Skipped windows are unredirected so they render directly above the compositor.
 	if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
 		isScreensaver(name, attr, geom) {
 		c.skipped = true
@@ -686,8 +684,6 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 	c.damaged = true
 	updateOpacity(conn, 1, c)
 
-	// Re-check title at map time — frame titles (e.g. "FyneDesk Screensaver")
-	// may not have been set yet when addClient ran on CreateNotify.
 	if !c.skipped {
 		name, _ := windowTitle(conn, c.win)
 		if name != c.title {
@@ -705,12 +701,11 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 		}
 	}
 
-	// Invalidate cached pixmap on map
 	freeClientPixmap(conn, c)
 
 	if ws != nil && !c.skipped {
 		c.fullscreen = checkFullscreen(c)
-		ws.targetFor(c).ensureWindow(c.win)
+		ws.targetFor(c).EnsureWindow(uint32(c.win))
 		syncOrder(ws)
 		ws.refreshBoth()
 	}
@@ -729,7 +724,7 @@ func unmapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 	freeClientPixmap(conn, c)
 
 	if ws != nil && !c.skipped {
-		ws.targetFor(c).removeWindow(c.win)
+		ws.targetFor(c).RemoveWindow(uint32(c.win))
 		ws.refreshBoth()
 	}
 
@@ -737,7 +732,7 @@ func unmapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 }
 
 func destroyWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
-	i := indexFunc(clients, func(c *client) bool {
+	i := slices.IndexFunc(clients, func(c *client) bool {
 		return c.win == window
 	})
 	if i == -1 {
@@ -752,11 +747,11 @@ func destroyWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 	}
 
 	if ws != nil && !c.skipped {
-		ws.targetFor(c).removeWindow(c.win)
+		ws.targetFor(c).RemoveWindow(uint32(c.win))
 		ws.refreshBoth()
 	}
 
-	clients = delete(clients, i, i+1)
+	clients = slices.Delete(clients, i, i+1)
 	allDamage = true
 }
 
@@ -791,45 +786,40 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 	client.geom.BorderWidth = e.BorderWidth
 	client.attributes.OverrideRedirect = e.OverrideRedirect
 
-	// Always update stacking in the clients list so syncOrder stays correct
 	restackClientOnly(e.Window, e.AboveSibling)
 
 	if client.skipped {
 		return nil
 	}
 
-	// Sync widget ordering for non-skipped windows
 	syncOrder(ws)
 	ws.refreshBoth()
 
-	// Check if fullscreen state changed due to geometry change
 	updateFullscreen(ws, client)
 
 	{
 		w := ws.targetFor(client)
-		wi := w.getWindow(client.win)
+		wi := w.GetWindow(uint32(client.win))
 		if wi != nil {
 			totalW := client.geom.Width + client.geom.BorderWidth*2
 			totalH := client.geom.Height + client.geom.BorderWidth*2
 
 			if resized {
-				// Size changed: full refresh needed (content will be recaptured)
 				fyne.Do(func() {
-					wi.x = client.geom.X
-					wi.y = client.geom.Y
-					wi.w = totalW
-					wi.h = totalH
+					wi.X = client.geom.X
+					wi.Y = client.geom.Y
+					wi.W = totalW
+					wi.H = totalH
 					w.Refresh()
 				})
 				client.damaged = true
 				allDamage = true
 			} else {
-				// Move only: just reposition the image, no recapture needed
-				wi.x = client.geom.X
-				wi.y = client.geom.Y
-				scale := getScreenScale()
+				wi.X = client.geom.X
+				wi.Y = client.geom.Y
+				scale := screenScale()
 				fyne.Do(func() {
-					wi.img.Move(fyne.NewPos(float32(client.geom.X)/scale, float32(client.geom.Y)/scale))
+					wi.Img.Move(fyne.NewPos(float32(client.geom.X)/scale, float32(client.geom.Y)/scale))
 				})
 			}
 		}
@@ -838,23 +828,22 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 	return nil
 }
 
-// restackClientOnly updates the clients list ordering without touching widgets.
 func restackClientOnly(window, target xproto.Window) {
-	i := indexFunc(clients, func(c *client) bool { return c.win == window })
+	i := slices.IndexFunc(clients, func(c *client) bool { return c.win == window })
 	if i == -1 {
 		return
 	}
 	c := clients[i]
-	clients = delete(clients, i, i+1)
+	clients = slices.Delete(clients, i, i+1)
 
 	if target == 0 {
 		clients = append(clients, c)
 	} else {
-		j := indexFunc(clients, func(c *client) bool { return c.win == target })
+		j := slices.IndexFunc(clients, func(c *client) bool { return c.win == target })
 		if j == -1 {
 			clients = append(clients, c)
 		} else {
-			clients = insert(clients, j, c)
+			clients = slices.Insert(clients, j, c)
 		}
 	}
 }
@@ -910,7 +899,6 @@ func updateOpacity(conn *xgb.Conn, fallback float32, c *client) {
 	c.opacity = opacity
 
 	c.opaqueType = solid
-	// Detect ARGB visuals by checking if the window has 32-bit depth
 	if c.geom.Depth == 32 {
 		c.opaqueType = argb
 	} else if opacity != opaque {

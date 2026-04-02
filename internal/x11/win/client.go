@@ -228,8 +228,7 @@ func (c *client) MoveVisual(pos fyne.Position) {
 	if c.frame == nil {
 		return
 	}
-	cb := fynedesk.Instance().VisualMoveCallback()
-	if cb == nil {
+	if x11.VisualMoveCallback == nil {
 		c.Move(pos)
 		return
 	}
@@ -238,7 +237,7 @@ func (c *client) MoveVisual(pos fyne.Position) {
 	targetY := int16(pos.Y * screen.CanvasScale())
 	c.frame.x = targetX
 	c.frame.y = targetY
-	cb(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
+	x11.VisualMoveCallback(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
 }
 
 func (c *client) NotifyBorderChange() {

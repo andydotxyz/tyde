@@ -12,6 +12,7 @@ import (
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/ui"
+	"fyshos.com/fynedesk/internal/x11/composit"
 	"fyshos.com/fynedesk/internal/x11/wm"
 )
 
@@ -22,6 +23,5 @@ func setupDesktop(a fyne.App) fynedesk.Desktop {
 		log.Println("Could not create window manager:", err)
 		return ui.NewEmbeddedDesktop(a, icons)
 	}
-	desk := ui.NewDesktop(a, mgr, icons, wm.NewX11ScreensProvider(mgr))
-	return desk
+	return ui.NewDesktop(a, mgr, icons, wm.NewX11ScreensProvider(mgr), composit.Run)
 }

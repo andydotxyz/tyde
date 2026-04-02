@@ -40,13 +40,15 @@ type desktop struct {
 	showMenu    func(*fyne.Menu, fyne.Position)
 	moduleCache []fynedesk.Module
 
-	bar              *bar
-	widgets          *widgetPanel
-	mouse            fyne.CanvasObject
-	overlay          *fyne.Container
-	root             fyne.Window
-	desk             int
-	visualMoveCallback func(winID uint32, x, y int16, w, h uint16)
+	bar               *bar
+	widgets           *widgetPanel
+	mouse             fyne.CanvasObject
+	overlay           *fyne.Container
+	root              fyne.Window
+	desk              int
+	compositor        *CompositorWidget
+	compositorOverlay *CompositorWidget
+	compositorDone    chan struct{}
 }
 
 func (l *desktop) Desktop() int {
@@ -160,14 +162,6 @@ func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
 
 func (l *desktop) Root() fyne.Window {
 	return l.root
-}
-
-func (l *desktop) SetVisualMoveCallback(cb func(winID uint32, x, y int16, w, h uint16)) {
-	l.visualMoveCallback = cb
-}
-
-func (l *desktop) VisualMoveCallback() func(winID uint32, x, y int16, w, h uint16) {
-	return l.visualMoveCallback
 }
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
@@ -312,16 +306,12 @@ func (l *desktop) createPrimaryContent() fyne.CanvasObject {
 	l.mouse = newMouse()
 	l.mouse.Hide()
 
-	// Order: background (wallpapers + files + compositor) -> bar -> widgets -> overlays -> mouse
-	objects := []fyne.CanvasObject{newBackground(), l.bar, l.widgets}
+	// Order: background (wallpapers + files + compositor) -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
+	objects := []fyne.CanvasObject{newBackground(l.compositor), l.bar, l.widgets}
 
-	// Add overlay widgets (e.g. fullscreen windows) above desktop chrome
-	for _, m := range l.Modules() {
-		if om, ok := m.(fynedesk.OverlayModule); ok {
-			if wid := om.OverlayWidget(); wid != nil {
-				objects = append(objects, wid)
-			}
-		}
+	// Compositor overlay for fullscreen windows above desktop chrome
+	if l.compositorOverlay != nil {
+		objects = append(objects, l.compositorOverlay)
 	}
 
 	// UI overlay for menus, dialogs, switcher, notifications
@@ -583,13 +573,33 @@ func (l *desktop) Screens() fynedesk.ScreenList {
 // NewDesktop creates a new desktop in fullscreen for main usage.
 // The WindowManager passed in will be used to manage the screen it is loaded on.
 // An ApplicationProvider is used to lookup application icons from the operating system.
-func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList) fynedesk.Desktop {
+// CompositorRunFunc is a function that runs a platform compositor using the
+// provided widgets. It blocks until done is closed.
+type CompositorRunFunc func(done chan struct{}, normal, overlay *CompositorWidget) error
+
+// NewDesktop creates the full desktop environment with window management.
+// If compositorRun is non-nil, the compositor is started in a background goroutine.
+func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList, compositorRun CompositorRunFunc) fynedesk.Desktop {
 	desk := newDesktop(app, mgr, icons)
 	desk.run = desk.runFull
+	if compositorRun != nil {
+		desk.compositor = NewCompositorWidget()
+		desk.compositorOverlay = NewCompositorWidget()
+		desk.compositorDone = make(chan struct{})
+	}
 	screenProvider.AddChangeListener(desk.setupRoot)
 	desk.screens = screenProvider
 
 	desk.setupRoot()
+
+	if compositorRun != nil {
+		go func() {
+			if err := compositorRun(desk.compositorDone, desk.compositor, desk.compositorOverlay); err != nil {
+				fyne.LogError("Compositor failed", err)
+			}
+		}()
+	}
+
 	wm.StartAuthAgent()
 	if desk.Settings().ScreenSaverType() == "XScreensaver" {
 		go desk.startXscreensaver()
