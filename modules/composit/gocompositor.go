@@ -15,6 +15,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"github.com/FyshOS/saver"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/composite"
@@ -527,6 +528,23 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 	return 0.0
 }
 
+// isScreensaver detects screensaver windows by checking for override-redirect
+// fullscreen windows or known screensaver title patterns.
+func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xproto.GetGeometryReply) bool {
+	lower := strings.ToLower(title)
+	if strings.Contains(lower, "screensaver") || strings.Contains(lower, "screen saver") ||
+		strings.Contains(lower, saver.WindowTitle) || title == "FyneDesk Screensaver" {
+		return true
+	}
+
+	// Override-redirect windows covering a full screen are likely screensavers
+	if attr.OverrideRedirect && geom.Width >= rootWidth && geom.Height >= rootHeight {
+		return true
+	}
+
+	return false
+}
+
 func getClientFromWindow(window xproto.Window) *client {
 	i := indexFunc(clients, func(c *client) bool {
 		return c.win == window
@@ -559,10 +577,11 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		damaged:    false,
 	}
 
-	// Skip the Fyne Desktop root window and other skip-hinted windows
-	if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") {
+	// Skip the Fyne Desktop root window, skip-hinted windows, and screensavers.
+	// Skipped windows are unredirected so they render directly above the compositor.
+	if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
+		isScreensaver(name, attr, geom) {
 		c.skipped = true
-		// Unredirect so the Fyne window renders directly via OpenGL
 		_ = composite.UnredirectWindowChecked(conn, window, composite.RedirectManual).Check()
 	}
 

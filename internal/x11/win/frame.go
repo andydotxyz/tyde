@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/icccm"
 	"github.com/BurntSushi/xgbutil/xwindow"
+	"github.com/FyshOS/saver"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -138,11 +139,17 @@ func newFrame(c *client) *frame {
 	}
 
 	title := "FyneDesk Border"
-	if strings.Contains(c.props.Title(), "Terminal Overlay") {
+	childTitle := c.props.Title()
+	if strings.Contains(childTitle, "Terminal Overlay") {
 		title = "Terminal Overlay"
 	}
-	if strings.Contains(c.props.Title(), "FyneDesk:skip") {
+	if strings.Contains(childTitle, "FyneDesk:skip") {
 		title += " FyneDesk:skip"
+	}
+	if strings.Contains(strings.ToLower(childTitle), "screensaver") ||
+		strings.Contains(strings.ToLower(childTitle), "screen saver") ||
+		strings.Contains(strings.ToLower(childTitle), saver.WindowTitle) {
+		title = "FyneDesk Screensaver"
 	}
 	_ = ewmh.WmNameSet(c.wm.X(), f.Id, title)
 	var offsetX, offsetY int16 = 0, 0
