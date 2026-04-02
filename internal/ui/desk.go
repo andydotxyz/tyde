@@ -266,7 +266,7 @@ func newHoverCatch(content fyne.CanvasObject, bg *backdrop) *hoverCatch {
 // ShowOverlayWithBackdrop shows an overlay with click-outside and mouse-out dismiss.
 // catchSize defines the hover-sensitive area (use content size + room for submenus).
 // Returns the combined object (backdrop + content) for use with HideOverlay.
-func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position) fyne.CanvasObject {
+func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, contentOffset ...fyne.Position) fyne.CanvasObject {
 	var combined fyne.CanvasObject
 	dismiss := func() {
 		l.HideOverlay(combined)
@@ -276,7 +276,11 @@ func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 	catch := newHoverCatch(content, bg)
 	catch.Resize(catchSize)
 	catch.Move(pos)
-	content.Move(fyne.NewPos(0, 0))
+	offset := fyne.NewPos(0, 0)
+	if len(contentOffset) > 0 {
+		offset = contentOffset[0]
+	}
+	content.Move(offset)
 	content.Resize(size)
 	combined = container.NewStack(bg, container.NewWithoutLayout(catch))
 
