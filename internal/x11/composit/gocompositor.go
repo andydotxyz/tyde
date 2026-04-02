@@ -36,13 +36,11 @@ import (
 type opaqueType string
 
 type client struct {
-	title        string
 	win          xproto.Window
 	opacity      uint32
 	opaqueType   opaqueType
 	damaged      bool
 	skipped      bool // Fyne Desktop window or other skipped windows
-	fullscreen   bool // window has _NET_WM_STATE_FULLSCREEN
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
 
 	geom       xproto.GetGeometryReply
@@ -221,7 +219,6 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
 			continue
 		}
-		c.fullscreen = checkFullscreen(c)
 		ws.targetFor(c).EnsureWindow(uint32(c.win))
 	}
 	syncOrder(ws)
@@ -365,7 +362,7 @@ type widgets struct {
 
 // targetFor returns the appropriate widget for a client based on fullscreen state.
 func (ws *widgets) targetFor(c *client) *ui.CompositorWidget {
-	if c.fullscreen {
+	if checkFullscreen(c) {
 		return ws.overlay
 	}
 	return ws.normal
@@ -379,40 +376,48 @@ func (ws *widgets) refreshBoth() {
 	})
 }
 
-// checkFullscreen detects fullscreen by checking if the window geometry
-// exactly matches any screen.
-func checkFullscreen(c *client) bool {
+// wmWindow returns the WM's Window for a compositor client, or nil.
+func wmWindow(c *client) fynedesk.Window {
 	inst := fynedesk.Instance()
-	if inst == nil {
-		return false
+	if inst == nil || inst.WindowManager() == nil {
+		return nil
 	}
-	for _, screen := range inst.Screens().Screens() {
-		if int(c.geom.X) == screen.X && int(c.geom.Y) == screen.Y &&
-			int(c.geom.Width) == screen.Width && int(c.geom.Height) == screen.Height {
-			return true
+	for _, w := range inst.WindowManager().Windows() {
+		xw, ok := w.(x11.XWin)
+		if ok && xw.FrameID() == c.win {
+			return w
 		}
 	}
-	return false
+	return nil
+}
+
+// checkFullscreen returns whether the WM considers this window fullscreen.
+func checkFullscreen(c *client) bool {
+	w := wmWindow(c)
+	return w != nil && w.Fullscreened()
 }
 
 // updateFullscreen checks whether a client's fullscreen state changed and
 // moves it between the normal and overlay widgets if needed.
 func updateFullscreen(ws *widgets, c *client) {
-	wasFull := c.fullscreen
-	c.fullscreen = checkFullscreen(c)
-	if wasFull == c.fullscreen {
+	target := ws.targetFor(c)
+	winID := uint32(c.win)
+
+	// Already in the correct widget — nothing to do.
+	if target.GetWindow(winID) != nil {
 		return
 	}
 
-	var from, to *ui.CompositorWidget
-	if c.fullscreen {
-		from, to = ws.normal, ws.overlay
+	// Move from the other widget to the correct one.
+	var from *ui.CompositorWidget
+	if target == ws.overlay {
+		from = ws.normal
 	} else {
-		from, to = ws.overlay, ws.normal
+		from = ws.overlay
 	}
 
-	from.RemoveWindow(uint32(c.win))
-	to.EnsureWindow(uint32(c.win))
+	from.RemoveWindow(winID)
+	target.EnsureWindow(winID)
 	c.damaged = true
 	allDamage = true
 	syncOrder(ws)
@@ -478,6 +483,10 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB)
 		if img == nil {
 			continue
+		}
+		w := wmWindow(c)
+		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
+			roundCorners(img, int(5*screenScale()))
 		}
 
 		target := ws.targetFor(c)
@@ -557,8 +566,17 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 	}
 }
 
+// wmTitle returns the WM window title for a compositor client, or "".
+func wmTitle(c *client) string {
+	w := wmWindow(c)
+	if w == nil {
+		return ""
+	}
+	return w.Properties().Title()
+}
+
 func computeTranslucency(conn *xgb.Conn, c *client) float64 {
-	if strings.Contains(c.title, "Terminal Overlay") {
+	if strings.Contains(wmTitle(c), "Terminal Overlay") {
 		return 0.2
 	}
 
@@ -570,7 +588,7 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 			if clients[j].skipped {
 				continue
 			}
-			if strings.Contains(clients[j].title, "FyneDesk:skip") {
+			if strings.Contains(wmTitle(clients[j]), "FyneDesk:skip") {
 				continue
 			}
 			if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
@@ -639,7 +657,6 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		return err
 	}
 	c := &client{
-		title:      name,
 		win:        window,
 		attributes: *attr,
 		geom:       *geom,
@@ -686,17 +703,14 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 
 	if !c.skipped {
 		name, _ := windowTitle(conn, c.win)
-		if name != c.title {
-			c.title = name
-			geom := &c.geom
-			if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
-				isScreensaver(name, &c.attributes, geom) {
-				c.skipped = true
-				_ = composite.UnredirectWindowChecked(conn, c.win, composite.RedirectManual).Check()
-				if c.damage != 0 {
-					_ = damage.Destroy(conn, c.damage).Check()
-					c.damage = 0
-				}
+		geom := &c.geom
+		if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
+			isScreensaver(name, &c.attributes, geom) {
+			c.skipped = true
+			_ = composite.UnredirectWindowChecked(conn, c.win, composite.RedirectManual).Check()
+			if c.damage != 0 {
+				_ = damage.Destroy(conn, c.damage).Check()
+				c.damage = 0
 			}
 		}
 	}
@@ -704,7 +718,6 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 	freeClientPixmap(conn, c)
 
 	if ws != nil && !c.skipped {
-		c.fullscreen = checkFullscreen(c)
 		ws.targetFor(c).EnsureWindow(uint32(c.win))
 		syncOrder(ws)
 		ws.refreshBoth()

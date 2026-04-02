@@ -5,6 +5,7 @@ package composit
 
 import (
 	"image"
+	"image/color"
 	"math"
 
 	"github.com/BurntSushi/xgb"
@@ -47,4 +48,29 @@ func capturePixmap(conn *xgb.Conn, drawable xproto.Drawable, w, h uint16, argb b
 	}
 
 	return img
+}
+
+// roundCorners clears pixels outside a circular arc of the given radius
+// at each corner of the image, making them fully transparent.
+func roundCorners(img *image.NRGBA, radius int) {
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if radius <= 0 || w < radius*2 || h < radius*2 {
+		return
+	}
+
+	transparent := color.NRGBA{}
+	r2 := float64(radius) * float64(radius)
+	for dy := 0; dy < radius; dy++ {
+		for dx := 0; dx < radius; dx++ {
+			cx := float64(radius-dx) - 0.5
+			cy := float64(radius-dy) - 0.5
+			if cx*cx+cy*cy > r2 {
+				img.SetNRGBA(dx, dy, transparent)         // top-left
+				img.SetNRGBA(w-1-dx, dy, transparent)     // top-right
+				img.SetNRGBA(dx, h-1-dy, transparent)     // bottom-left
+				img.SetNRGBA(w-1-dx, h-1-dy, transparent) // bottom-right
+			}
+		}
+	}
 }
