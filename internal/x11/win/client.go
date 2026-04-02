@@ -142,14 +142,11 @@ func (c *client) SetDesktop(id int) {
 	start := c.Position()
 	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
 		newY := start.Y - off*f
-
-		c.Move(fyne.NewPos(start.X, newY))
-
-		type moveNotifier interface {
-			NotifyWindowMoved(win fynedesk.Window)
-		}
-		if mover, ok := fynedesk.Instance().WindowManager().(moveNotifier); ok {
-			mover.NotifyWindowMoved(c)
+		pos := fyne.NewPos(start.X, newY)
+		if f >= 1.0 {
+			c.Move(pos) // final frame: sync X11
+		} else {
+			c.MoveVisual(pos)
 		}
 	}).Start()
 }
@@ -223,6 +220,25 @@ func (c *client) Move(pos fyne.Position) {
 	targetX := int16(pos.X * screen.CanvasScale())
 	targetY := int16(pos.Y * screen.CanvasScale())
 	c.frame.updateGeometry(targetX, targetY, c.frame.width, c.frame.height, false)
+}
+
+// MoveVisual updates only the compositor visual without X11 ConfigureWindow calls.
+// Used for smooth animations. Call Move() after to sync the actual X11 position.
+func (c *client) MoveVisual(pos fyne.Position) {
+	if c.frame == nil {
+		return
+	}
+	cb := fynedesk.Instance().VisualMoveCallback()
+	if cb == nil {
+		c.Move(pos)
+		return
+	}
+	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	targetX := int16(pos.X * screen.CanvasScale())
+	targetY := int16(pos.Y * screen.CanvasScale())
+	c.frame.x = targetX
+	c.frame.y = targetY
+	cb(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
 }
 
 func (c *client) NotifyBorderChange() {

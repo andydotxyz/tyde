@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/xgb/shape"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/icccm"
@@ -286,6 +287,9 @@ func (f *frame) endConfigureLoop() {
 	if f.pendingGeometry != nil {
 		close(f.pendingGeometry)
 	}
+
+	// Sync the actual X11 window position to match the visual after drag
+	f.updateGeometry(f.x, f.y, f.width, f.height, true)
 }
 
 func (f *frame) copyDecorationPixels(width, height, xoff, yoff uint32, img image.Image, pid xproto.Pixmap, draw xproto.Gcontext, depth byte) {
@@ -579,7 +583,15 @@ func (f *frame) mouseDrag(x, y int16) {
 	if f.moveOnly {
 		f.moveX += moveDeltaX
 		f.moveY += moveDeltaY
-		f.queueGeometry(f.moveX, f.moveY, f.width, f.height, false)
+		// Fast path: update compositor visual directly, skip X11 and queueGeometry.
+		// mouseDrag runs on the main thread (via fyne.Do) so this is safe.
+		if cb := fynedesk.Instance().VisualMoveCallback(); cb != nil {
+			f.x = f.moveX
+			f.y = f.moveY
+			cb(uint32(f.client.id), f.moveX, f.moveY, f.width, f.height)
+		} else {
+			f.queueGeometry(f.moveX, f.moveY, f.width, f.height, false)
+		}
 	}
 	if f.resizeTop || f.resizeBottom || f.resizeLeft || f.resizeRight && !windowSizeFixed(f.client.wm.X(), f.client.win) {
 		deltaX := x - f.resizeStartX
@@ -897,6 +909,7 @@ func (f *frame) show() {
 	xproto.GrabButton(f.client.wm.Conn(), true, f.client.id,
 		xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeSync,
 		f.client.wm.X().RootWin(), xproto.CursorNone, xproto.ButtonIndex1, xproto.ModMaskAny)
+	f.updateInputShape()
 
 	userMod := uint16(xproto.ModMask4)
 	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
@@ -973,6 +986,14 @@ func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {
 	f.childWidth = uint16(innerW)
 	f.childHeight = uint16(innerH)
 
+	// During drag (pendingGeometry active) and move-only (no resize),
+	// skip expensive X11 ConfigureWindow and only update the compositor visual.
+	// The actual X11 position is synced when the drag ends.
+	if cb := fynedesk.Instance().VisualMoveCallback(); f.pendingGeometry != nil && move && !resize && cb != nil {
+		cb(uint32(f.client.id), f.x, f.y, f.width, f.height)
+		return
+	}
+
 	xproto.ConfigureWindow(f.client.wm.Conn(), f.client.id, xproto.ConfigWindowX|xproto.ConfigWindowY|
 		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
 		[]uint32{uint32(f.x), uint32(f.y), uint32(f.width), uint32(f.height)})
@@ -985,10 +1006,78 @@ func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {
 		f.updateScale()
 		fynedesk.Instance().Screens().SetActive(newScreen)
 	}
+
+	f.updateInputShape()
 }
 
 func (f *frame) updateScale() {
 	// update border offset for current scale and redraw borders
 	f.updateGeometry(f.x, f.y, f.width, f.height, true)
 	f.applyTheme(true)
+}
+
+// updateInputShape sets the frame's X11 input shape to exclude desktop panel areas.
+// This allows mouse events in panel regions to pass through to the Fyne root window.
+func (f *frame) updateInputShape() {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return
+	}
+
+	screen := inst.Screens().ScreenForWindow(f.client)
+	if screen == nil || screen != inst.Screens().Primary() {
+		// Only the primary screen has panels; other screens need no clipping
+		return
+	}
+
+	cbX, cbY, cbW, cbH := inst.ContentBoundsPixels(screen)
+
+	// Build rectangles that represent the frame area INSIDE the content bounds.
+	// Any part of the frame outside the content bounds (i.e. under a panel) is excluded.
+	var rects []xproto.Rectangle
+
+	// Clip frame bounds to content bounds
+	fx, fy := int32(f.x), int32(f.y)
+	fw, fh := int32(f.width), int32(f.height)
+
+	cx1, cy1 := int32(cbX)+int32(screen.X), int32(cbY)+int32(screen.Y)
+	cx2, cy2 := cx1+int32(cbW), cy1+int32(cbH)
+
+	// Intersection of frame and content area
+	ix1 := max32(fx, cx1)
+	iy1 := max32(fy, cy1)
+	ix2 := min32(fx+fw, cx2)
+	iy2 := min32(fy+fh, cy2)
+
+	if ix1 < ix2 && iy1 < iy2 {
+		// There is an intersection — set input shape to just that area (in frame-local coords)
+		rects = append(rects, xproto.Rectangle{
+			X:      int16(ix1 - fx),
+			Y:      int16(iy1 - fy),
+			Width:  uint16(ix2 - ix1),
+			Height: uint16(iy2 - iy1),
+		})
+	}
+
+	if len(rects) == 0 {
+		// Frame is entirely under panels — make it fully input-transparent
+		rects = append(rects, xproto.Rectangle{X: 0, Y: 0, Width: 0, Height: 0})
+	}
+
+	_ = shape.RectanglesChecked(f.client.wm.Conn(), shape.SoSet, shape.SkInput,
+		0, f.client.id, 0, 0, rects).Check()
+}
+
+func max32(a, b int32) int32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min32(a, b int32) int32 {
+	if a < b {
+		return a
+	}
+	return b
 }

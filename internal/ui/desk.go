@@ -40,12 +40,13 @@ type desktop struct {
 	showMenu    func(*fyne.Menu, fyne.Position)
 	moduleCache []fynedesk.Module
 
-	bar     *bar
-	widgets *widgetPanel
-	mouse   fyne.CanvasObject
-	overlay *fyne.Container
-	root    fyne.Window
-	desk    int
+	bar              *bar
+	widgets          *widgetPanel
+	mouse            fyne.CanvasObject
+	overlay          *fyne.Container
+	root             fyne.Window
+	desk             int
+	visualMoveCallback func(winID uint32, x, y int16, w, h uint16)
 }
 
 func (l *desktop) Desktop() int {
@@ -70,6 +71,10 @@ func (l *desktop) SetDesktop(id int) {
 		deltas[i] = fyne.NewDelta(0, off)
 	}
 
+	type visualMover interface {
+		MoveVisual(fyne.Position)
+	}
+
 	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
 		for i, item := range l.wm.Windows() {
 			if item.Pinned() {
@@ -78,8 +83,16 @@ func (l *desktop) SetDesktop(id int) {
 
 			newX := starts[i].X + deltas[i].DX*f
 			newY := starts[i].Y + deltas[i].DY*f
+			pos := fyne.NewPos(newX, newY)
 
-			item.Move(fyne.NewPos(newX, newY))
+			if f >= 1.0 {
+				// Final frame: sync actual X11 positions
+				item.Move(pos)
+			} else if vm, ok := item.(visualMover); ok {
+				vm.MoveVisual(pos)
+			} else {
+				item.Move(pos)
+			}
 		}
 	}).Start()
 
@@ -149,21 +162,31 @@ func (l *desktop) Root() fyne.Window {
 	return l.root
 }
 
+func (l *desktop) SetVisualMoveCallback(cb func(winID uint32, x, y int16, w, h uint16)) {
+	l.visualMoveCallback = cb
+}
+
+func (l *desktop) VisualMoveCallback() func(winID uint32, x, y int16, w, h uint16) {
+	return l.visualMoveCallback
+}
+
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 	l.showMenu(menu, pos)
 }
 
-// rootRaiser is implemented by window managers that can raise/lower the desktop root window.
-type rootRaiser interface {
-	RaiseRoot()
-	LowerRoot()
+// inputShaper is implemented by window managers that can update X11 input shapes
+// on the root and frame windows to control which areas receive mouse events.
+type inputShaper interface {
+	SetOverlayActive(active bool)
 }
 
 // backdrop is a full-screen widget that dismisses an overlay on tap or mouse-in
 // (mouse-in on the backdrop means the cursor left the overlay content).
+// Mouse-out dismiss only activates after the mouse has been inside the content at least once.
 type backdrop struct {
 	widget.BaseWidget
 	onDismiss func()
+	armed     bool // true after mouse has entered the content area
 }
 
 func (b *backdrop) CreateRenderer() fyne.WidgetRenderer {
@@ -177,8 +200,8 @@ func (b *backdrop) Tapped(*fyne.PointEvent) {
 }
 
 func (b *backdrop) MouseIn(*deskDriver.MouseEvent) {
-	// Cursor entered the backdrop = left the overlay content
-	if b.onDismiss != nil {
+	// Only dismiss if the mouse was previously inside the content
+	if b.armed && b.onDismiss != nil {
 		b.onDismiss()
 	}
 }
@@ -194,23 +217,28 @@ func newBackdrop(onDismiss func()) *backdrop {
 
 // hoverCatch is a wrapper that absorbs hover events, preventing them from
 // falling through to the backdrop when the cursor is between child widgets.
+// It also arms the backdrop for mouse-out dismiss once the mouse enters.
 type hoverCatch struct {
 	widget.BaseWidget
-	content fyne.CanvasObject
+	content  fyne.CanvasObject
+	backdrop *backdrop
 }
 
 func (h *hoverCatch) CreateRenderer() fyne.WidgetRenderer {
-	// Use WithoutLayout so the content keeps its own size
-	// and doesn't get stretched to the full hoverCatch area.
 	return widget.NewSimpleRenderer(container.NewWithoutLayout(h.content))
 }
 
-func (h *hoverCatch) MouseIn(*deskDriver.MouseEvent)    {}
+func (h *hoverCatch) MouseIn(*deskDriver.MouseEvent) {
+	if h.backdrop != nil {
+		h.backdrop.armed = true
+	}
+}
+
 func (h *hoverCatch) MouseMoved(*deskDriver.MouseEvent) {}
 func (h *hoverCatch) MouseOut()                         {}
 
-func newHoverCatch(content fyne.CanvasObject) *hoverCatch {
-	h := &hoverCatch{content: content}
+func newHoverCatch(content fyne.CanvasObject, bg *backdrop) *hoverCatch {
+	h := &hoverCatch{content: content, backdrop: bg}
 	h.ExtendBaseWidget(h)
 	return h
 }
@@ -225,7 +253,7 @@ func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 	}
 
 	bg := newBackdrop(dismiss)
-	catch := newHoverCatch(content)
+	catch := newHoverCatch(content, bg)
 	catch.Resize(catchSize)
 	catch.Move(pos)
 	content.Move(fyne.NewPos(0, 0))
@@ -239,30 +267,31 @@ func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 }
 
 // ShowOverlay adds content to the desktop overlay layer, above all chrome and windows.
-// The root window is raised so that Fyne receives mouse events instead of X11 frame windows.
+// The root window's input shape is expanded and frame input shapes are cleared
+// so that Fyne receives mouse events for the overlay.
 func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position) {
 	fyne.Do(func() {
 		content.Resize(size)
 		content.Move(pos)
 		l.overlay.Add(content)
 		l.overlay.Refresh()
-	})
 
-	if rr, ok := l.wm.(rootRaiser); ok {
-		rr.RaiseRoot()
-	}
+		if is, ok := l.wm.(inputShaper); ok {
+			is.SetOverlayActive(true)
+		}
+	})
 }
 
 // HideOverlay removes content from the desktop overlay layer.
-// When no overlays remain, the root window is lowered so X11 windows receive events again.
+// When no overlays remain, input shapes are restored to normal.
 func (l *desktop) HideOverlay(content fyne.CanvasObject) {
 	fyne.Do(func() {
 		l.overlay.Remove(content)
 		l.overlay.Refresh()
 
 		if len(l.overlay.Objects) == 0 {
-			if rr, ok := l.wm.(rootRaiser); ok {
-				rr.LowerRoot()
+			if is, ok := l.wm.(inputShaper); ok {
+				is.SetOverlayActive(false)
 			}
 		}
 	})

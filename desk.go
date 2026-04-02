@@ -33,6 +33,9 @@ type Desktop interface {
 
 	DelayScreenSaver()
 	TriggerScreenSaver(bool)
+
+	SetVisualMoveCallback(func(winID uint32, x, y int16, w, h uint16))
+	VisualMoveCallback() func(winID uint32, x, y int16, w, h uint16)
 }
 
 var instance Desktop

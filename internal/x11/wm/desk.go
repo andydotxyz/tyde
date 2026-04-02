@@ -16,6 +16,7 @@ import (
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/randr"
 	"github.com/BurntSushi/xgb/screensaver"
+	"github.com/BurntSushi/xgb/shape"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
@@ -165,6 +166,7 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 	}
 
 	x11.LoadCursors(conn)
+	_ = shape.Init(conn.Conn())
 	mgr.initScreensaver()
 
 	a.Settings().AddListener(func(_ fyne.Settings) {
@@ -237,24 +239,125 @@ func (x *x11WM) Run() {
 	go x.runLoop()
 }
 
-// RaiseRoot raises the Fyne desktop window above all frame windows
-// so that Fyne overlay content can receive mouse events.
-func (x *x11WM) RaiseRoot() {
-	if x.rootID == 0 {
-		return
-	}
-	xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowStackMode,
-		[]uint32{xproto.StackModeAbove})
+// SetOverlayActive updates X11 input shapes on the root and all frame windows.
+// When active is true, the root accepts input everywhere and frames become input-transparent,
+// so that Fyne overlay content receives all mouse events.
+// When active is false, the root accepts input only in panel areas and frames resume
+// normal input shapes (excluding panels).
+func (x *x11WM) SetOverlayActive(active bool) {
+	x.updateRootInputShape(active)
+	x.updateFrameInputShapes(active)
 }
 
-// LowerRoot lowers the Fyne desktop window below all frame windows
-// so that X11 windows receive mouse events normally.
-func (x *x11WM) LowerRoot() {
+func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return
+	}
+
+	emptyRect := []xproto.Rectangle{{X: 0, Y: 0, Width: 0, Height: 0}}
+	for _, win := range x.clients {
+		xwin := win.(x11.XWin)
+		frameID := xwin.FrameID()
+
+		if overlayActive {
+			shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+				0, frameID, 0, 0, emptyRect)
+			continue
+		}
+
+		// Restore normal input shape: full frame clipped to content bounds
+		screen := inst.Screens().ScreenForWindow(win)
+		if screen == nil || screen != inst.Screens().Primary() {
+			// Non-primary screens have no panels; reset to default shape
+			shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, frameID, 0, 0, xproto.PixmapNone)
+			continue
+		}
+
+		cbX, cbY, cbW, cbH := inst.ContentBoundsPixels(screen)
+		fx, fy, fw, fh := xwin.Geometry()
+
+		cx1 := int(cbX) + screen.X
+		cy1 := int(cbY) + screen.Y
+		cx2 := cx1 + int(cbW)
+		cy2 := cy1 + int(cbH)
+
+		ix1 := max(fx, cx1)
+		iy1 := max(fy, cy1)
+		ix2 := min(fx+int(fw), cx2)
+		iy2 := min(fy+int(fh), cy2)
+
+		var rects []xproto.Rectangle
+		if ix1 < ix2 && iy1 < iy2 {
+			rects = append(rects, xproto.Rectangle{
+				X:      int16(ix1 - fx),
+				Y:      int16(iy1 - fy),
+				Width:  uint16(ix2 - ix1),
+				Height: uint16(iy2 - iy1),
+			})
+		}
+		if len(rects) == 0 {
+			rects = emptyRect
+		}
+
+		shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+			0, frameID, 0, 0, rects)
+	}
+}
+
+// updateRootInputShape sets the root window's X11 input shape.
+// When fullScreen is true, the root accepts input everywhere.
+// When false, it accepts input only in panel areas (left bar and right widget panel).
+func (x *x11WM) updateRootInputShape(fullScreen bool) {
 	if x.rootID == 0 {
 		return
 	}
-	xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowStackMode,
-		[]uint32{xproto.StackModeBelow})
+
+	if fullScreen {
+		// Reset input shape to default (full window)
+		shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, x.rootID, 0, 0, xproto.PixmapNone)
+		return
+	}
+
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return
+	}
+	primary := inst.Screens().Primary()
+	if primary == nil {
+		return
+	}
+
+	cbX, _, cbW, _ := inst.ContentBoundsPixels(primary)
+	screenW := uint16(primary.Width)
+	screenH := uint16(primary.Height)
+	offX := int16(primary.X)
+	offY := int16(primary.Y)
+
+	var rects []xproto.Rectangle
+	// Left bar area (if present)
+	if cbX > 0 {
+		rects = append(rects, xproto.Rectangle{
+			X: offX, Y: offY,
+			Width: uint16(cbX), Height: screenH,
+		})
+	}
+	// Right widget panel area
+	rightEdge := uint16(cbX) + uint16(cbW)
+	if rightEdge < screenW {
+		rects = append(rects, xproto.Rectangle{
+			X: offX + int16(rightEdge), Y: offY,
+			Width: screenW - rightEdge, Height: screenH,
+		})
+	}
+
+	if len(rects) == 0 {
+		// No panels — make root fully input-transparent
+		rects = append(rects, xproto.Rectangle{X: 0, Y: 0, Width: 0, Height: 0})
+	}
+
+	shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+		0, x.rootID, 0, 0, rects)
 }
 
 func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
@@ -533,6 +636,7 @@ func (x *x11WM) configureRoots() {
 		xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
 			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
 			[]uint32{uint32(minX), uint32(minY), uint32(rootWidth), uint32(rootHeight)})
+		x.updateRootInputShape(false) // reapply panel-only input shape after resize
 	}
 
 	err := ewmh.DesktopGeometrySet(x.x, &ewmh.DesktopGeometry{Width: rootWidth, Height: rootHeight}) // The size will grow when virtual desktops are supported
@@ -775,6 +879,7 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 			fyne.LogError("Show Window Error", err)
 		}
 		xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowStackMode, []uint32{xproto.StackModeBelow})
+		x.updateRootInputShape(false) // set input shape to panel areas
 		_ = ewmh.WmWindowTypeSet(x.x, win, []string{windowTypeDesktop})
 		x.bindShortcuts(win)
 		if !x.framedExisting {

@@ -32,7 +32,12 @@ func newCompositorWidget() *compositorWidget {
 }
 
 func (cw *compositorWidget) CreateRenderer() fyne.WidgetRenderer {
-	return &compositorRenderer{widget: cw}
+	cont := container.NewWithoutLayout()
+	return &compositorRenderer{
+		widget:  cw,
+		cont:    cont,
+		objects: []fyne.CanvasObject{cont},
+	}
 }
 
 // ensureWindow ensures a window image entry exists. Returns it.
@@ -107,16 +112,14 @@ func (cw *compositorWidget) reorder(topFirst []xproto.Window) {
 
 type compositorRenderer struct {
 	widget  *compositorWidget
-	objects []fyne.CanvasObject
 	cont    *fyne.Container
+	objects []fyne.CanvasObject // stable: always [cont]
 }
 
 func (r *compositorRenderer) Destroy() {}
 
 func (r *compositorRenderer) Layout(size fyne.Size) {
-	if r.cont != nil {
-		r.cont.Resize(size)
-	}
+	r.cont.Resize(size)
 }
 
 func (r *compositorRenderer) MinSize() fyne.Size {
@@ -131,12 +134,8 @@ func (r *compositorRenderer) Refresh() {
 	r.widget.mu.RLock()
 	defer r.widget.mu.RUnlock()
 
-	var scale float32 = 1
-	if inst := getScreenScale(); inst > 0 {
-		scale = inst
-	}
+	scale := getScreenScale()
 
-	// images are in Fyne draw order: first = bottom, last = top
 	objs := make([]fyne.CanvasObject, len(r.widget.images))
 	for i, wi := range r.widget.images {
 		wi.img.Move(fyne.NewPos(float32(wi.x)/scale, float32(wi.y)/scale))
@@ -144,9 +143,8 @@ func (r *compositorRenderer) Refresh() {
 		objs[i] = wi.img
 	}
 
-	r.cont = container.NewWithoutLayout(objs...)
-	r.cont.Resize(r.widget.Size())
-	r.objects = []fyne.CanvasObject{r.cont}
+	// Update the stable container's objects in place — never replace the container itself.
+	r.cont.Objects = objs
 }
 
 func getScreenScale() float32 {
