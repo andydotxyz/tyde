@@ -13,15 +13,15 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
-func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window) {
+func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func()) {
 	accList := acc.Items
 	cats := w.desk.IconProvider().CategorizedApps()
 	var catNames []string
@@ -45,7 +45,7 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 			if app.Hidden() {
 				continue
 			}
-			btn := w.newAppButton(app, win)
+			btn := w.newAppButtonOverlay(app, dismiss)
 			items = append(items, btn)
 			defer w.loadIcon(app, btn)
 		}
@@ -58,22 +58,26 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, win fyne.Window
 }
 
 func (w *widgetPanel) askLogout() {
-	win := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
+	var combined fyne.CanvasObject
+	dismiss := func() {
+		w.desk.HideOverlay(combined)
+	}
+
 	logout := widget.NewButtonWithIcon("Logout", theme.LogoutIcon(), func() {
-		win.Close()
+		dismiss()
 		time.Sleep(time.Second / 10)
 		w.desk.WindowManager().Close()
 	})
 	logout.Importance = widget.DangerImportance
 	cancel := widget.NewButton("Cancel", func() {
-		win.Close()
+		dismiss()
 	})
 
 	header := widget.NewRichTextFromMarkdown("### Log out")
 	header.Truncation = fyne.TextTruncateEllipsis
 	bottomPad := canvas.NewRectangle(color.Transparent)
 	bottomPad.SetMinSize(fyne.NewSquareSize(10))
-	content := container.NewBorder(
+	inner := container.NewBorder(
 		header,
 		container.NewVBox(
 			container.NewHBox(layout.NewSpacer(),
@@ -90,63 +94,64 @@ func (w *widgetPanel) askLogout() {
 	iconBox := container.NewWithoutLayout(icon)
 	icon.Resize(fyne.NewSize(92, 92))
 	icon.Move(fyne.NewPos(280-92-theme.Padding(), theme.Padding()))
-	win.SetContent(container.NewStack(
+	logoutContent := container.NewStack(
 		iconBox, bg,
-		container.NewPadded(content)))
+		container.NewPadded(inner))
 
-	win.Resize(fyne.NewSize(280, 150))
-	win.CenterOnScreen()
-	win.Show()
+	primary := w.desk.Screens().Primary()
+	scale := primary.CanvasScale()
+	pW := float32(primary.Width) / scale
+	pH := float32(primary.Height) / scale
+	originX, originY := screenOrigin(w.desk.Screens())
+	pX := float32(primary.X-originX) / scale
+	pY := float32(primary.Y-originY) / scale
+	size := fyne.NewSize(280, 150)
+	pos := fyne.NewPos(pX+(pW-size.Width)/2, pY+(pH-size.Height)/2)
+	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(logoutContent, size, size, pos)
 }
 
 func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
-	w2 := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
-	w2.SetPadded(true)
-	w2.Canvas().SetOnTypedKey(func(k *fyne.KeyEvent) {
-		if k.Name == fyne.KeyEscape {
-			w2.Close()
-		}
-	})
+	var combined fyne.CanvasObject
+	dismiss := func() {
+		w.desk.HideOverlay(combined)
+	}
+
 	items1 := []fyne.CanvasObject{
 		&widget.Button{Icon: theme.LogoutIcon(), Importance: widget.DangerImportance, OnTapped: func() {
+			dismiss()
 			w.askLogout()
-			w2.Close()
 		}},
 	}
-	isEmbed := w.desk.(*desktop).root.Title() != RootWindowName
 	items1 = append(items1, &widget.Button{Icon: wmtheme.LockIcon, Importance: widget.LowImportance, OnTapped: func() {
-		w2.Close()
+		dismiss()
 		w.desk.TriggerScreenSaver(false)
 	}})
-	if !isEmbed {
-		if os.Getenv("FYNE_DESK_RUNNER") != "" {
-			items1 = append(items1, &widget.Button{Icon: theme.ViewRefreshIcon(), Importance: widget.LowImportance, OnTapped: func() {
-				os.Exit(5)
-			}})
-		}
+	if os.Getenv("FYNE_DESK_RUNNER") != "" {
+		items1 = append(items1, &widget.Button{Icon: theme.ViewRefreshIcon(), Importance: widget.LowImportance, OnTapped: func() {
+			os.Exit(5)
+		}})
 	}
 
 	items2 := []fyne.CanvasObject{
 		&widget.Button{Icon: theme.QuestionIcon(), Importance: widget.LowImportance, OnTapped: func() {
+			dismiss()
 			w.showAbout()
-			w2.Close()
 		}},
 		&widget.Button{Icon: theme.SettingsIcon(), Importance: widget.LowImportance, OnTapped: func() {
+			dismiss()
 			w.showSettings()
-			w2.Close()
 		}},
 	}
 	items := container.NewBorder(nil, nil, container.NewHBox(items1...), container.NewHBox(items2...),
 		&widget.Button{Icon: theme.SearchIcon(), Text: "Search", Importance: widget.LowImportance, OnTapped: func() {
+			dismiss()
 			ShowAppLauncher()
-			w2.Close()
 		}})
 
 	var recent []fyne.CanvasObject
 	for _, app := range w.desk.RecentApps() {
-		btn := w.newAppButton(app, w2)
+		btn := w.newAppButtonOverlay(app, dismiss)
 		recent = append(recent, btn)
-
 		btn.Icon = app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
 	}
 
@@ -154,14 +159,32 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 		container.NewVBox(recent...)))
 	acc.MultiOpen = true
 	acc.Open(0)
-	go w.appendAppCategories(acc, w2)
+	go w.appendAppCategories(acc, dismiss)
 
-	w2.SetContent(container.NewBorder(
-		items, nil, nil, nil,
-		container.NewScroll(acc)))
-	winSize := w.desk.(*desktop).root.Canvas().Size()
-	pos := fyne.NewPos(winSize.Width-300, winSize.Height-360)
-	w.desk.WindowManager().ShowOverlay(w2, fyne.NewSize(300, 360), pos)
+	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
+	bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
+	bg := canvas.NewRectangle(bgCol)
+
+	inner := container.NewBorder(items, nil, nil, nil, container.NewScroll(acc))
+	menuContent := container.NewStack(bg, container.NewPadded(inner))
+
+	primary := w.desk.Screens().Primary()
+	scale := primary.CanvasScale()
+	originX, originY := screenOrigin(w.desk.Screens())
+	pRight := float32(primary.X-originX+primary.Width) / scale
+	pBottom := float32(primary.Y-originY+primary.Height) / scale
+	pos := fyne.NewPos(pRight-300, pBottom-360)
+	menuSize := fyne.NewSize(300, 360)
+	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos)
+}
+
+func (w *widgetPanel) newAppButtonOverlay(app appie.AppData, dismiss func()) *widget.Button {
+	b := widget.NewButtonWithIcon(app.Name(), wmtheme.BrokenImageIcon, func() {
+		dismiss()
+		_ = w.desk.RunApp(app)
+	})
+	b.Alignment = widget.ButtonAlignLeading
+	return b
 }
 
 func (w *widgetPanel) newAppButton(app appie.AppData, w2 fyne.Window) *widget.Button {
@@ -179,4 +202,17 @@ func (w *widgetPanel) loadIcon(app appie.AppData, btn *widget.Button) {
 	fyne.Do(func() {
 		btn.SetIcon(iconRes)
 	})
+}
+
+func screenOrigin(screens fynedesk.ScreenList) (int, int) {
+	originX, originY := 0, 0
+	for _, screen := range screens.Screens() {
+		if screen.X < originX {
+			originX = screen.X
+		}
+		if screen.Y < originY {
+			originY = screen.Y
+		}
+	}
+	return originX, originY
 }

@@ -127,6 +127,16 @@ func (td *Desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 	wid.ShowAtPosition(pos)
 }
 
+// ShowOverlay adds content to the desktop overlay
+func (td *Desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position) {
+	content.Resize(size)
+	content.Move(pos)
+}
+
+// HideOverlay removes content from the desktop overlay
+func (td *Desktop) HideOverlay(content fyne.CanvasObject) {
+}
+
 // WindowManager returns the window manager for this desktop, an in-memory test instance unless
 // configured through the constructor
 func (td *Desktop) WindowManager() fynedesk.WindowManager {

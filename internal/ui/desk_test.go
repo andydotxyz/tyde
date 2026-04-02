@@ -12,8 +12,6 @@ import (
 	wmTheme "fyshos.com/fynedesk/theme"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 )
 
@@ -24,7 +22,8 @@ func TestDeskLayout_Layout(t *testing.T) {
 	}), settings: wmTest.NewSettings()}
 	l.bar = testBar([]string{})
 	l.widgets = newWidgetPanel(l)
-	bg := &background{wallpaper: container.NewStack(canvas.NewImageFromResource(wmTheme.AppIcon))}
+	bg := &background{}
+	bg.ExtendBaseWidget(bg)
 	deskSize := fyne.NewSize(2000, 1000)
 
 	l.Layout([]fyne.CanvasObject{bg, l.bar, l.widgets}, deskSize)
@@ -70,15 +69,14 @@ func TestBackgroundChange(t *testing.T) {
 	l.settings = wmTest.NewSettings()
 	l.setupRoot()
 
-	bg := l.root.Content().(*fyne.Container).Objects[0].(*fyne.Container).Objects[0].(*background)
-
 	workingDir, err := os.Getwd()
 	if err != nil {
 		fyne.LogError("Could not get current working directory", err)
 		t.FailNow()
 	}
 
+	// Wallpaper is now managed by the X11 WM on the root window.
+	// Verify the settings path is set correctly.
 	l.settings.(*wmTest.Settings).SetBackground(filepath.Join(workingDir, "testdata", "fyne.png"))
-	l.updateBackgrounds(l.Settings().Background())
-	assert.Equal(t, l.settings.Background(), bg.wallpaper.Objects[0].(*canvas.Image).File)
+	assert.Equal(t, filepath.Join(workingDir, "testdata", "fyne.png"), l.settings.Background())
 }

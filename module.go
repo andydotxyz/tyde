@@ -47,6 +47,14 @@ type ScreenAreaModule interface {
 	ScreenAreaWidget() fyne.CanvasObject
 }
 
+// OverlayModule describes a module that provides a widget drawn above all
+// desktop chrome (bar, widget panel). Use this for content that must appear
+// on top of everything, such as fullscreen windows.
+type OverlayModule interface {
+	Module
+	OverlayWidget() fyne.CanvasObject
+}
+
 var modules []ModuleMetadata
 
 // AvailableModules lists all of the FyneDesk modules that were found at runtime

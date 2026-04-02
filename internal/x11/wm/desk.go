@@ -237,6 +237,26 @@ func (x *x11WM) Run() {
 	go x.runLoop()
 }
 
+// RaiseRoot raises the Fyne desktop window above all frame windows
+// so that Fyne overlay content can receive mouse events.
+func (x *x11WM) RaiseRoot() {
+	if x.rootID == 0 {
+		return
+	}
+	xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowStackMode,
+		[]uint32{xproto.StackModeAbove})
+}
+
+// LowerRoot lowers the Fyne desktop window below all frame windows
+// so that X11 windows receive mouse events normally.
+func (x *x11WM) LowerRoot() {
+	if x.rootID == 0 {
+		return
+	}
+	xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowStackMode,
+		[]uint32{xproto.StackModeBelow})
+}
+
 func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
 	w.SetTitle(windowNameMenu)
 	w.SetFixedSize(true)
@@ -507,6 +527,13 @@ func (x *x11WM) configureRoots() {
 
 	rootWidth := maxX - minX
 	rootHeight := maxY - minY
+
+	// Now extend the root window to span all screens for the compositor
+	if x.rootID != 0 {
+		xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
+			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
+			[]uint32{uint32(minX), uint32(minY), uint32(rootWidth), uint32(rootHeight)})
+	}
 
 	err := ewmh.DesktopGeometrySet(x.x, &ewmh.DesktopGeometry{Width: rootWidth, Height: rootHeight}) // The size will grow when virtual desktops are supported
 	if err != nil {

@@ -1,8 +1,9 @@
 package composit
 
-// A simple compositor written in go, based on https://github.com/bvkgo/gcompositor
-// which in turn is a Go re-write of https://github.com/jmanc3/xcompmgr-simple/.
-// Many thanks to both!
+// A Fyne-based compositor that captures X11 window content and displays it
+// as canvas.Image objects in the Fyne desktop window.
+// Based on the original X RENDER compositor, which was based on
+// https://github.com/bvkgo/gcompositor and https://github.com/jmanc3/xcompmgr-simple/.
 
 import (
 	"errors"
@@ -13,53 +14,46 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/composite"
 	"github.com/BurntSushi/xgb/damage"
-	"github.com/BurntSushi/xgb/render"
 	"github.com/BurntSushi/xgb/shape"
-	"github.com/BurntSushi/xgb/xfixes"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
+
+	"fyshos.com/fynedesk"
 )
 
 type opaqueType string
 
 type client struct {
-	title           string
-	win             xproto.Window
-	opacity         uint32
-	opaqueType      opaqueType
-	damaged, shaped bool
+	title      string
+	win        xproto.Window
+	opacity    uint32
+	opaqueType opaqueType
+	damaged    bool
+	skipped    bool // Fyne Desktop window or other skipped windows
+	fullscreen bool // window has _NET_WM_STATE_FULLSCREEN
 
-	geom                         xproto.GetGeometryReply
-	shapeBounds                  xproto.Rectangle
-	borderExtents, extents, clip xfixes.Region
-
-	buffer       xproto.Pixmap
-	attributes   xproto.GetWindowAttributesReply
-	damage       damage.Damage
-	pixels, mask render.Picture
+	geom       xproto.GetGeometryReply
+	attributes xproto.GetWindowAttributesReply
+	damage     damage.Damage
+	pixmap     xproto.Pixmap // cached NameWindowPixmap
 }
 
 var (
-	defaultScreen    int
-	pictFormats      *render.QueryPictFormatsReply
-	rootWindow       xproto.Window
-	rootVisualFormat *render.Pictforminfo
-	rootWidth        uint16
-	rootHeight       uint16
-	rootPicture      render.Picture
-	rootBuffer       render.Picture
-	rootTile         render.Picture
-	allDamage        xfixes.Region
-	clipChanged      bool
-	clients          []*client
+	defaultScreen int
+	rootWindow    xproto.Window
+	rootWidth     uint16
+	rootHeight    uint16
+	allDamage     bool
+	clients       []*client
 
+	opacityAtom    xproto.Atom
 	netWmNameAtom  xproto.Atom
 	netWmStateAtom xproto.Atom
-	opacityAtom    xproto.Atom
 	utf8StringAtom xproto.Atom
 	atomAtom       xproto.Atom
 	wmNameAtom     xproto.Atom
@@ -93,19 +87,12 @@ func initExtension[S any, T cookieReply[S]](conn *xgb.Conn, initFunc func(conn *
 }
 
 func setup(conn *xgb.Conn) error {
-	if err := initExtension[*render.QueryVersionReply, render.QueryVersionCookie](conn, render.Init, render.QueryVersion, 0, 11); err != nil {
-		return err
-	}
 	if err := initExtension[*composite.QueryVersionReply, composite.QueryVersionCookie](conn, composite.Init, composite.QueryVersion, 0, 2); err != nil {
 		return err
 	}
 	if err := initExtension[*damage.QueryVersionReply, damage.QueryVersionCookie](conn, damage.Init, damage.QueryVersion, 1, 1); err != nil {
 		return err
 	}
-	if err := initExtension[*xfixes.QueryVersionReply, xfixes.QueryVersionCookie](conn, xfixes.Init, xfixes.QueryVersion, 5, 0); err != nil {
-		return err
-	}
-
 	if err := shape.Init(conn); err != nil {
 		return err
 	}
@@ -141,9 +128,6 @@ func setup(conn *xgb.Conn) error {
 		if err = xproto.ChangeWindowAttributesChecked(conn, rootWindow, xproto.CwEventMask, mask).Check(); err != nil {
 			return err
 		}
-		if err = shape.SelectInputChecked(conn, rootWindow, true).Check(); err != nil {
-			return err
-		}
 
 		name := "_NET_WM_WINDOW_OPACITY"
 		opacityAtomReply, err := xproto.InternAtom(conn, false, uint16(len(name)), name).Reply()
@@ -151,6 +135,13 @@ func setup(conn *xgb.Conn) error {
 			return err
 		}
 		opacityAtom = opacityAtomReply.Atom
+
+		stateAtomName := "_NET_WM_STATE"
+		stateAtomReply, err := xproto.InternAtom(conn, false, uint16(len(stateAtomName)), stateAtomName).Reply()
+		if err != nil {
+			return err
+		}
+		netWmStateAtom = stateAtomReply.Atom
 
 		tree, err := xproto.QueryTree(conn, rootWindow).Reply()
 		if err != nil {
@@ -167,11 +158,11 @@ func setup(conn *xgb.Conn) error {
 		return err
 	}
 
-	return paintAll(conn, 0)
+	return nil
 }
 
 //gocyclo:ignore
-func run(done chan struct{}) error {
+func run(done chan struct{}, w *compositorWidget, overlay *compositorWidget) error {
 	c, err := xgbutil.NewConn()
 	if err != nil {
 		return err
@@ -179,12 +170,37 @@ func run(done chan struct{}) error {
 
 	conn := c.Conn()
 	defer conn.Close()
+
+	ws := &widgets{normal: w, overlay: overlay}
+
+	// Set up the screen scale function for the widget
+	screenScaleFunc = func() float32 {
+		inst := fynedesk.Instance()
+		if inst == nil {
+			return 1
+		}
+		return inst.Screens().Primary().CanvasScale()
+	}
+
 	err = setup(conn)
 	if err != nil {
 		return err
 	}
 
-	var exposeRects []xproto.Rectangle
+	// Add all initially mapped windows to the appropriate widget.
+	for _, c := range clients {
+		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+		c.fullscreen = checkFullscreen(c)
+		ws.targetFor(c).ensureWindow(c.win)
+	}
+	syncOrder(ws)
+	ws.refreshBoth()
+
+	// Initial capture of all visible windows
+	refreshWindows(conn, ws)
+
 	for {
 		select {
 		case <-done:
@@ -212,22 +228,19 @@ func run(done chan struct{}) error {
 					repaint = true
 				}
 			case xproto.ConfigureNotifyEvent:
-				if err := configureClient(conn, e); err != nil {
+				if err := configureClient(conn, ws, e); err != nil {
 					fyne.LogError("failed to configure client", err)
 					repaint = true
 				}
 			case xproto.DestroyNotifyEvent:
-				destroyWin(conn, e.Window, true)
+				destroyWin(conn, ws, e.Window)
 			case xproto.MapNotifyEvent:
-				if err := mapWin(conn, e.Window); err != nil {
+				if err := mapWin(conn, ws, e.Window); err != nil {
 					fyne.LogError("failed to map window", err)
 					repaint = true
 				}
 			case xproto.UnmapNotifyEvent:
-				if err := unmapWin(conn, e.Window); err != nil {
-					fyne.LogError("failed to unmap window", err)
-					repaint = true
-				}
+				unmapWin(conn, ws, e.Window)
 			case xproto.ReparentNotifyEvent:
 				if e.Parent == rootWindow {
 					if err := addClient(conn, e.Window); err != nil {
@@ -235,59 +248,21 @@ func run(done chan struct{}) error {
 						repaint = true
 					}
 				} else {
-					destroyWin(conn, e.Window, false)
+					destroyWin(conn, ws, e.Window)
 				}
-
 			case xproto.CirculateNotifyEvent:
-				circulateClient(e)
-			case xproto.ExposeEvent:
-				if e.Window == rootWindow {
-					exposeRects = append(exposeRects, xproto.Rectangle{
-						X:      int16(e.X),
-						Y:      int16(e.Y),
-						Width:  e.Width,
-						Height: e.Height,
-					})
-					if e.Count == 0 {
-						if err := exposeRoot(conn, exposeRects); err != nil {
-							fyne.LogError("failed to expose root", err)
-							repaint = true
-						}
-						exposeRects = nil
-					}
-				} else {
-					repaint = true
-				}
+				circulateClient(ws, e)
 			case xproto.PropertyNotifyEvent:
-				for _, prop := range []string{"_XROOTPMAP_ID", "ESETROOT_PMAP_ID"} {
-					atom, err := xproto.InternAtom(conn, false, uint16(len(prop)), prop).Reply()
-					if err == nil && e.Atom == atom.Atom {
-						if rootTile != 0 {
-							render.FreePicture(conn, rootTile)
-							rootTile = 0
-						}
-						repaint = true
-						break
-					}
-				}
 				if e.Atom == opacityAtom {
 					if c := getClientFromWindow(e.Window); c != nil {
-						if err := updateOpacity(conn, 1, c); err != nil {
-							fyne.LogError("failed to get opacity type", err)
-							repaint = true
-						}
+						updateOpacity(conn, 1, c)
+						allDamage = true
 					}
 				}
-
-			case shape.NotifyEvent:
-				if err := shapeWin(conn, &e); err != nil {
-					fyne.LogError("failed to send shape notify", err)
-					repaint = true
-				}
-			case *shape.NotifyEvent:
-				if err := shapeWin(conn, e); err != nil {
-					fyne.LogError("failed to send shape notify", err)
-					repaint = true
+				if e.Atom == netWmStateAtom {
+					if cl := getClientFromWindow(e.Window); cl != nil {
+						updateFullscreen(ws, cl)
+					}
 				}
 			case damage.NotifyEvent:
 				if err := damageClient(conn, &e); err != nil {
@@ -296,34 +271,15 @@ func run(done chan struct{}) error {
 				}
 			}
 
-			if allDamage != 0 {
-				if err := paintAll(conn, allDamage); err != nil {
-					fyne.LogError("failed to paint all damage", err)
-					repaint = true
-				}
-			}
-
-			if repaint {
-				if err := paintAll(conn, 0); err != nil {
-					fyne.LogError("failed to paint all damage", err)
-				}
+			if allDamage || repaint {
+				refreshTranslucency(conn, ws)
+				refreshWindows(conn, ws)
+				allDamage = false
 			}
 
 			conn.Sync()
-
-			allDamage = 0
-			clipChanged = false
 		}
 	}
-}
-
-func findPictFormat(formats *render.QueryPictFormatsReply, id render.Pictformat) *render.Pictforminfo {
-	for _, f := range formats.Formats {
-		if f.Id == id {
-			return &f
-		}
-	}
-	return nil
 }
 
 func registerManager(conn *xgb.Conn, screen int) error {
@@ -356,443 +312,219 @@ func registerManager(conn *xgb.Conn, screen int) error {
 	return nil
 }
 
-func setupRoot(conn *xgb.Conn) (err error) {
+func setupRoot(conn *xgb.Conn) error {
 	screen := xproto.Setup(conn).DefaultScreen(conn)
 	defaultScreen = conn.DefaultScreen
 	rootWindow = screen.Root
 	rootWidth = screen.WidthInPixels
 	rootHeight = screen.HeightInPixels
+	return nil
+}
 
-	rootVisual := screen.RootVisual
-	pictFormats, err = render.QueryPictFormats(conn).Reply()
-	if err != nil {
-		return err
+// widgets pairs the normal and overlay compositor widgets.
+type widgets struct {
+	normal  *compositorWidget
+	overlay *compositorWidget
+}
+
+// targetFor returns the appropriate widget for a client based on fullscreen state.
+func (ws *widgets) targetFor(c *client) *compositorWidget {
+	if c.fullscreen {
+		return ws.overlay
 	}
-	var visualFormat *render.Pictforminfo
-	for _, v := range pictFormats.Screens[defaultScreen].Depths {
-		for _, f := range v.Visuals {
-			if f.Visual == rootVisual {
-				visualFormat = findPictFormat(pictFormats, f.Format)
+	return ws.normal
+}
+
+// refreshBoth refreshes both widgets via fyne.Do.
+func (ws *widgets) refreshBoth() {
+	fyne.Do(func() {
+		ws.normal.Refresh()
+		ws.overlay.Refresh()
+	})
+}
+
+// checkFullscreen detects fullscreen by checking if the window geometry
+// exactly matches any screen. This works because fullscreen windows cover the
+// entire screen, while maximized windows are smaller (content area only).
+func checkFullscreen(c *client) bool {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return false
+	}
+	for _, screen := range inst.Screens().Screens() {
+		if int(c.geom.X) == screen.X && int(c.geom.Y) == screen.Y &&
+			int(c.geom.Width) == screen.Width && int(c.geom.Height) == screen.Height {
+			return true
+		}
+	}
+	return false
+}
+
+// updateFullscreen checks whether a client's fullscreen state changed and
+// moves it between the normal and overlay widgets if needed.
+func updateFullscreen(ws *widgets, c *client) {
+	wasFull := c.fullscreen
+	c.fullscreen = checkFullscreen(c)
+	if wasFull == c.fullscreen {
+		return
+	}
+
+	var from, to *compositorWidget
+	if c.fullscreen {
+		from, to = ws.normal, ws.overlay
+	} else {
+		from, to = ws.overlay, ws.normal
+	}
+
+	from.removeWindow(c.win)
+	to.ensureWindow(c.win)
+	c.damaged = true
+	allDamage = true
+	syncOrder(ws)
+	ws.refreshBoth()
+}
+
+// syncOrder rebuilds the image ordering in both widgets to match the clients list.
+func syncOrder(ws *widgets) {
+	order := make([]xproto.Window, len(clients))
+	for i, c := range clients {
+		order[i] = c.win
+	}
+	ws.normal.reorder(order)
+	ws.overlay.reorder(order)
+}
+
+// refreshWindows captures all damaged windows and updates the Fyne widgets.
+func refreshWindows(conn *xgb.Conn, ws *widgets) {
+	for _, c := range clients {
+		if !c.damaged || c.skipped {
+			continue
+		}
+		if c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+		if c.geom.X+int16(c.geom.Width) < 1 || c.geom.Y+int16(c.geom.Height) < 1 ||
+			c.geom.X >= int16(rootWidth) || c.geom.Y >= int16(rootHeight) {
+			continue
+		}
+
+		captureAndUpdateClient(conn, ws.targetFor(c), c)
+	}
+}
+
+// refreshTranslucency updates the translucency of all visible windows
+// without recapturing their content. Called after stacking order changes.
+func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
+	type update struct {
+		wi           *windowImage
+		translucency float64
+	}
+	var updates []update
+
+	for _, c := range clients {
+		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+		w := ws.targetFor(c)
+		wi := w.getWindow(c.win)
+		if wi == nil {
+			continue
+		}
+		translucency := computeTranslucency(conn, c)
+		if wi.img.Translucency != translucency {
+			updates = append(updates, update{wi, translucency})
+		}
+	}
+
+	if len(updates) > 0 {
+		fyne.Do(func() {
+			for _, u := range updates {
+				u.wi.img.Translucency = u.translucency
+			}
+			ws.normal.Refresh()
+			ws.overlay.Refresh()
+		})
+	}
+}
+
+func captureAndUpdateClient(conn *xgb.Conn, w *compositorWidget, c *client) {
+	// Ensure we have a named pixmap
+	if c.pixmap == 0 {
+		pixmap, err := xproto.NewPixmapId(conn)
+		if err != nil {
+			return
+		}
+		if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
+			return
+		}
+		c.pixmap = pixmap
+	}
+
+	totalW := c.geom.Width + c.geom.BorderWidth*2
+	totalH := c.geom.Height + c.geom.BorderWidth*2
+
+	isARGB := c.opaqueType == argb
+	img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB)
+	if img == nil {
+		return
+	}
+
+	// Calculate translucency
+	translucency := computeTranslucency(conn, c)
+
+	wi := w.getWindow(c.win)
+	if wi == nil {
+		return
+	}
+
+	fyne.Do(func() {
+		wi.img.Image = img
+		wi.img.Translucency = translucency
+		wi.x = c.geom.X
+		wi.y = c.geom.Y
+		wi.w = totalW
+		wi.h = totalH
+		canvas.Refresh(wi.img)
+		w.Refresh()
+	})
+}
+
+func computeTranslucency(conn *xgb.Conn, c *client) float64 {
+	if strings.Contains(c.title, "Terminal Overlay") {
+		return 0.2
+	}
+
+	// Check if this is the top visible window
+	isTop := true
+	idx := indexFunc(clients, func(cl *client) bool { return cl.win == c.win })
+	if idx > 0 {
+		for j := idx - 1; j >= 0; j-- {
+			if clients[j].skipped {
+				continue
+			}
+			if strings.Contains(clients[j].title, "FyneDesk:skip") {
+				continue
+			}
+			if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
+				continue
+			}
+			if clients[j].attributes.MapState == xproto.MapStateViewable {
+				isTop = false
 				break
 			}
 		}
 	}
-	if visualFormat == nil {
-		return fmt.Errorf("could not find visual format for root window")
-	}
-	rootVisualFormat = visualFormat
 
-	rootPicture, err = render.NewPictureId(conn)
-	if err != nil {
-		return err
-	}
-	err = render.CreatePictureChecked(conn, rootPicture, xproto.Drawable(rootWindow), rootVisualFormat.Id, render.CpSubwindowMode, []uint32{xproto.SubwindowModeIncludeInferiors}).Check()
-	if err != nil {
-		return err
+	if !isTop {
+		return 0.2
 	}
 
-	return nil
-}
-
-func createRootTile(conn *xgb.Conn) (render.Picture, error) {
-	pixmap, err := xproto.NewPixmapId(conn)
-	if err != nil {
-		return render.PictureNone, err
-	}
-	err = xproto.CreatePixmapChecked(conn, xproto.Setup(conn).DefaultScreen(conn).RootDepth, pixmap,
-		xproto.Drawable(rootWindow), 1, 1).Check()
-	if err != nil {
-		return render.PictureNone, err
-	}
-	picture, err := render.NewPictureId(conn)
-	if err != nil {
-		return render.PictureNone, err
-	}
-	err = render.CreatePictureChecked(conn, picture, xproto.Drawable(pixmap), rootVisualFormat.Id, render.CpRepeat, []uint32{1}).Check()
-	if err != nil {
-		return render.PictureNone, err
-	}
-	color := render.Color{Red: 0x8080, Green: 0x8080, Blue: 0x8080, Alpha: 0xffff}
-	err = render.FillRectanglesChecked(conn, render.PictOpSrc, picture, color, []xproto.Rectangle{{Width: 1, Height: 1}}).Check()
-	if err != nil {
-		return render.PictureNone, err
-	}
-	return picture, nil
-}
-
-func getBackgroundTile(conn *xgb.Conn) (render.Picture, error) {
-	for _, propName := range []string{"_XROOTPMAP_ID", "ESETROOT_PMAP_ID"} {
-		atom, err := xproto.InternAtom(conn, false, uint16(len(propName)), propName).Reply()
-		if err != nil {
-			continue
-		}
-		reply, err := xproto.GetProperty(conn, false, rootWindow, atom.Atom, xproto.GetPropertyTypeAny, 0, 1).Reply()
-		if err != nil || reply.Format != 32 || len(reply.Value) < 4 {
-			continue
-		}
-		pixmapID := xproto.Pixmap(xgb.Get32(reply.Value))
-		if pixmapID == 0 {
-			continue
-		}
-		picture, err := render.NewPictureId(conn)
-		if err != nil {
-			continue
-		}
-		err = render.CreatePictureChecked(conn, picture, xproto.Drawable(pixmapID), rootVisualFormat.Id, render.CpRepeat, []uint32{1}).Check()
-		if err != nil {
-			continue
-		}
-		return picture, nil
-	}
-	return render.PictureNone, fmt.Errorf("no background pixmap found")
-}
-
-func paintRoot(conn *xgb.Conn) error {
-	if rootTile == render.PictureNone {
-		tile, err := getBackgroundTile(conn)
-		if err != nil {
-			tile, err = createRootTile(conn)
-			if err != nil {
-				return err
-			}
-		}
-		rootTile = tile
+	// Check custom opacity
+	if c.opacity != opaque {
+		return 1.0 - float64(c.opacity)/float64(opaque)
 	}
 
-	err := render.CompositeChecked(conn, render.PictOpSrc, rootTile, 0, rootBuffer,
-		0, 0, 0, 0, 0, 0, rootWidth, rootHeight).Check()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func getClientArea(conn *xgb.Conn, client *client) (xfixes.Region, error) {
-	rect := xproto.Rectangle{
-		X:      client.geom.X,
-		Y:      client.geom.Y,
-		Width:  client.geom.Width + client.geom.BorderWidth*2,
-		Height: client.geom.Height + client.geom.BorderWidth*2,
-	}
-	region, err := xfixes.NewRegionId(conn)
-	if err != nil {
-		return 0, err
-	}
-	if err = xfixes.CreateRegionChecked(conn, region, []xproto.Rectangle{rect}).Check(); err != nil {
-		return 0, err
-	}
-	return region, nil
-}
-
-func getBorderArea(conn *xgb.Conn, client *client) (xfixes.Region, error) {
-	region, err := xfixes.NewRegionId(conn)
-	if err != nil {
-		return 0, err
-	}
-	err = xfixes.CreateRegionFromWindowChecked(conn, region, client.win, shape.SkBounding).Check()
-	if err != nil {
-		return 0, err
-	}
-	dx := client.geom.X + int16(client.geom.BorderWidth)
-	dy := client.geom.Y + int16(client.geom.BorderWidth)
-	err = xfixes.TranslateRegionChecked(conn, region, dx, dy).Check()
-	if err != nil {
-		return 0, err
-	}
-	return region, nil
-}
-
-//gocyclo:ignore
-func paintAll(conn *xgb.Conn, region xfixes.Region) error {
-	if region == 0 {
-		rect := xproto.Rectangle{X: 0, Y: 0, Width: rootWidth, Height: rootHeight}
-		r, err := xfixes.NewRegionId(conn)
-		if err != nil {
-			return err
-		}
-		if err = xfixes.CreateRegionChecked(conn, r, []xproto.Rectangle{rect}).Check(); err != nil {
-			return err
-		}
-		region = r
-	}
-	defer func() {
-		_ = xfixes.DestroyRegionChecked(conn, region).Check()
-	}()
-
-	if rootBuffer == 0 {
-		err := createRootBuffer(conn)
-		if err != nil {
-			return err
-		}
-	}
-
-	err := xfixes.SetPictureClipRegionChecked(conn, rootPicture, region, 0, 0).Check()
-	if err != nil {
-		return err
-	}
-
-	for _, c := range clients {
-		if !c.damaged {
-			continue
-		}
-		if c.geom.X+int16(c.geom.Width) < 1 || c.geom.Y+int16(c.geom.Height) < 1 ||
-			c.geom.X >= int16(rootWidth) || c.geom.Y >= int16(rootHeight) {
-			continue
-		}
-
-		if c.pixels == 0 {
-			if c.buffer == 0 {
-				pixmap, err := xproto.NewPixmapId(conn)
-				if err != nil {
-					return err
-				}
-				if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
-					return err
-				}
-				c.buffer = pixmap
-			}
-
-			var visualFormat render.Pictformat
-			for _, v := range pictFormats.Screens[defaultScreen].Depths {
-				for _, f := range v.Visuals {
-					if f.Visual == c.attributes.Visual {
-						visualFormat = f.Format
-						break
-					}
-				}
-			}
-			c.pixels, err = render.NewPictureId(conn)
-			if err != nil {
-				fyne.LogError("Error creating pictureId", err)
-				continue
-			}
-			err = render.CreatePictureChecked(conn, c.pixels, xproto.Drawable(c.buffer), visualFormat,
-				render.CpSubwindowMode, []uint32{xproto.SubwindowModeIncludeInferiors}).Check()
-			if err != nil {
-				fyne.LogError("Error create=ing picture", err)
-				return err
-			}
-		}
-
-		if clipChanged {
-			if c.borderExtents != 0 {
-				_ = xfixes.DestroyRegion(conn, c.borderExtents)
-				c.borderExtents = 0
-			}
-			if c.extents != 0 {
-				_ = xfixes.DestroyRegion(conn, c.extents)
-				c.extents = 0
-			}
-			if c.clip != 0 {
-				xfixes.DestroyRegion(conn, c.clip)
-				c.clip = 0
-			}
-		}
-		if c.borderExtents == 0 {
-			area, err := getBorderArea(conn, c)
-			if err != nil {
-				return err
-			}
-			c.borderExtents = area
-		}
-		if c.extents == 0 {
-			extents, err := getClientArea(conn, c)
-			if err != nil {
-				return err
-			}
-			c.extents = extents
-		}
-
-		if c.opaqueType == solid {
-			x, y := c.geom.X, c.geom.Y
-			w, h := c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2
-			if err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, region, 0, 0).Check(); err != nil {
-				return err
-			}
-			err = xfixes.SubtractRegionChecked(conn, region, c.borderExtents, region).Check()
-			if err != nil {
-				return err
-			}
-			err = render.CompositeChecked(conn, render.PictOpSrc, c.pixels, 0, rootBuffer,
-				0, 0, 0, 0, x, y, w, h).Check()
-			if err != nil {
-				return err
-			}
-		}
-
-		if c.clip == 0 {
-			c.clip, err = xfixes.NewRegionId(conn)
-			if err != nil {
-				return err
-			}
-			err = xfixes.CreateRegionChecked(conn, c.clip, nil).Check()
-			if err != nil {
-				return err
-			}
-			err = xfixes.CopyRegionChecked(conn, region, c.clip).Check()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, region, 0, 0).Check()
-	if err != nil {
-		return err
-	}
-
-	if err = paintRoot(conn); err != nil {
-		return err
-	}
-	for i := len(clients) - 1; i >= 0; i-- {
-		c := clients[i]
-		if !c.damaged {
-			continue
-		}
-		if c.geom.X+int16(c.geom.Width) < 1 || c.geom.Y+int16(c.geom.Height) < 1 ||
-			c.geom.X >= int16(rootWidth) || c.geom.Y >= int16(rootHeight) {
-			continue
-		}
-
-		err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, c.clip, 0, 0).Check()
-		if err != nil {
-			return err
-		}
-
-		if strings.Contains(c.title, "Terminal Overlay") {
-			_ = updateOpacity(conn, 0.8, c)
-		} else {
-			isTop := true
-			if i > 0 {
-				for j := i - 1; j >= 0; j-- {
-					if strings.Contains(clients[j].title, "FyneDesk:skip") {
-						continue
-					}
-					if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
-						continue
-					}
-
-					if clients[j].attributes.MapState == xproto.MapStateViewable {
-						isTop = false
-						break
-					}
-				}
-			}
-
-			if !isTop {
-				_ = updateOpacity(conn, 0.8, c)
-			} else {
-				_ = updateOpacity(conn, 1.0, c)
-			}
-		}
-		if c.opacity != opaque && c.mask == 0 {
-			c.mask, _ = makeMask(conn, uint16(c.opacity>>16))
-		}
-
-		if c.opaqueType == transparent || c.opaqueType == argb {
-			err = xfixes.IntersectRegionChecked(conn, c.clip, c.borderExtents, c.clip).Check()
-			if err != nil {
-				return err
-			}
-			err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, c.clip, 0, 0).Check()
-			if err != nil {
-				return err
-			}
-			x, y := c.geom.X, c.geom.Y
-			w, h := c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2
-			err = render.CompositeChecked(conn, render.PictOpOver, c.pixels, c.mask, rootBuffer,
-				0, 0, 0, 0, x, y, w, h).Check()
-			if err != nil {
-				return err
-			}
-		}
-
-		if c.clip != 0 {
-			_ = xfixes.DestroyRegion(conn, c.clip)
-			c.clip = 0
-		}
-	}
-
-	if rootBuffer != rootPicture {
-		err = xfixes.SetPictureClipRegionChecked(conn, rootBuffer, 0, 0, 0).Check()
-		if err != nil {
-			return err
-		}
-		err = render.CompositeChecked(conn, render.PictOpSrc, rootBuffer, 0, rootPicture,
-			0, 0, 0, 0, 0, 0, rootWidth, rootHeight).Check()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func createRootBuffer(conn *xgb.Conn) error {
-	pixmap, err := xproto.NewPixmapId(conn)
-	if err != nil {
-		return err
-	}
-	err = xproto.CreatePixmapChecked(conn, xproto.Setup(conn).DefaultScreen(conn).RootDepth, pixmap,
-		xproto.Drawable(rootWindow), rootWidth, rootHeight).Check()
-	if err != nil {
-		return err
-	}
-	rootBuffer, err = render.NewPictureId(conn)
-	if err != nil {
-		return err
-	}
-	if err = render.CreatePictureChecked(conn, rootBuffer, xproto.Drawable(pixmap), rootVisualFormat.Id, 0, nil).Check(); err != nil {
-		return err
-	}
-	xproto.FreePixmap(conn, pixmap)
-	return nil
-}
-
-func addDamage(conn *xgb.Conn, damage xfixes.Region) error {
-	if allDamage == 0 {
-		allDamage = damage
-		return nil
-	}
-	err := xfixes.UnionRegionChecked(conn, allDamage, damage, allDamage).Check()
-	if err != nil {
-		return err
-	}
-	if err = xfixes.DestroyRegionChecked(conn, damage).Check(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func finishUnmapClient(conn *xgb.Conn, client *client) error {
-	client.damaged = false
-	if client.extents != 0 {
-		if err := addDamage(conn, client.extents); err != nil {
-			fyne.LogError("Failed to add damage for "+client.title, err)
-		}
-		client.extents = 0
-	}
-	if client.buffer != 0 {
-		xproto.FreePixmap(conn, client.buffer)
-		client.buffer = 0
-	}
-	if client.pixels != 0 {
-		render.FreePicture(conn, client.pixels)
-		client.pixels = 0
-	}
-	err := xproto.ChangeWindowAttributesChecked(conn, client.win, xproto.CwEventMask, []uint32{0}).Check()
-	if err != nil {
-		fyne.LogError("Error clearing event mask for "+client.title, err)
-	}
-	if client.borderExtents != 0 {
-		_ = xfixes.DestroyRegion(conn, client.borderExtents)
-		client.borderExtents = 0
-	}
-	if client.clip != 0 {
-		_ = xfixes.DestroyRegion(conn, client.clip)
-		client.clip = 0
-	}
-	clipChanged = true
-	return nil
+	return 0.0
 }
 
 func getClientFromWindow(window xproto.Window) *client {
@@ -803,89 +535,6 @@ func getClientFromWindow(window xproto.Window) *client {
 		return nil
 	}
 	return clients[i]
-}
-
-func unmapWin(conn *xgb.Conn, window xproto.Window) error {
-	c := getClientFromWindow(window)
-	if c == nil {
-		return nil // gone?
-	}
-	c.attributes.MapState = xproto.MapStateUnmapped
-	_ = finishUnmapClient(conn, c)
-	return nil
-}
-
-func updateOpacity(conn *xgb.Conn, fallback float32, c *client) error {
-	opacity, err := getOpacity(conn, c.win)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			fyne.LogError("could not fetch opacity property for "+c.title, err)
-		}
-		if fallback < 1.0 {
-			opacity = uint32(fallback * float32(opaque))
-		} else {
-			opacity = opaque
-		}
-	}
-	c.opacity = opacity
-
-	if c.mask != 0 {
-		render.FreePicture(conn, c.mask)
-		c.mask = 0
-	}
-
-	var format *render.Pictforminfo
-	if c.attributes.Class == xproto.WindowClassInputOnly {
-		format = nil
-	} else {
-		for _, v := range pictFormats.Screens[defaultScreen].Depths {
-			for _, f := range v.Visuals {
-				if f.Visual == c.attributes.Visual {
-					format = findPictFormat(pictFormats, f.Format)
-					break
-				}
-			}
-		}
-	}
-
-	c.opaqueType = solid
-	if format != nil && format.Type == render.PictTypeDirect && format.Direct.AlphaMask != 0 {
-		c.opaqueType = argb
-	} else if opacity != opaque {
-		c.opaqueType = transparent
-	}
-
-	if c.extents != 0 {
-		region, err := xfixes.NewRegionId(conn)
-		if err != nil {
-			return err
-		}
-		if err = xfixes.CreateRegionChecked(conn, region, nil).Check(); err != nil {
-			return err
-		}
-		err = xfixes.CopyRegionChecked(conn, c.extents, region).Check()
-		if err != nil {
-			return err
-		}
-		if err = addDamage(conn, region); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func mapWin(conn *xgb.Conn, window xproto.Window) error {
-	c := getClientFromWindow(window)
-	if c == nil {
-		return fmt.Errorf("could not get client for window %x", window)
-	}
-
-	mask := []uint32{xproto.EventMaskPropertyChange}
-	_ = xproto.ChangeWindowAttributes(conn, window, xproto.CwEventMask, mask)
-
-	c.attributes.MapState = xproto.MapStateViewable
-	c.damaged = false
-	return nil
 }
 
 func addClient(conn *xgb.Conn, window xproto.Window) error {
@@ -902,17 +551,22 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		return err
 	}
 	c := &client{
-		title:       name,
-		win:         window,
-		attributes:  *attr,
-		geom:        *geom,
-		shaped:      false,
-		opacity:     opaque,
-		shapeBounds: xproto.Rectangle{X: geom.X, Y: geom.Y, Width: geom.Width, Height: geom.Height},
-		damaged:     false,
+		title:      name,
+		win:        window,
+		attributes: *attr,
+		geom:       *geom,
+		opacity:    opaque,
+		damaged:    false,
 	}
 
-	if attr.Class != xproto.WindowClassInputOnly {
+	// Skip the Fyne Desktop root window and other skip-hinted windows
+	if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") {
+		c.skipped = true
+		// Unredirect so the Fyne window renders directly via OpenGL
+		_ = composite.UnredirectWindowChecked(conn, window, composite.RedirectManual).Check()
+	}
+
+	if !c.skipped && attr.Class != xproto.WindowClassInputOnly {
 		c.damage, err = damage.NewDamageId(conn)
 		if err != nil {
 			return err
@@ -920,21 +574,138 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		if err = damage.CreateChecked(conn, c.damage, xproto.Drawable(window), damage.ReportLevelNonEmpty).Check(); err != nil {
 			return err
 		}
-		if err = shape.SelectInputChecked(conn, window, true).Check(); err != nil {
-			return err
-		}
 	}
 
 	clients = append([]*client{c}, clients...)
 	if c.attributes.MapState == xproto.MapStateViewable {
-		if err = mapWin(conn, window); err != nil {
-			return err
-		}
+		return mapWin(conn, nil, window)
 	}
 	return nil
 }
 
-func restackWin(window, target xproto.Window) {
+func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
+	c := getClientFromWindow(window)
+	if c == nil {
+		return fmt.Errorf("could not get client for window %x", window)
+	}
+
+	mask := []uint32{xproto.EventMaskPropertyChange}
+	_ = xproto.ChangeWindowAttributes(conn, window, xproto.CwEventMask, mask)
+
+	c.attributes.MapState = xproto.MapStateViewable
+	c.damaged = true
+	updateOpacity(conn, 1, c)
+
+	// Invalidate cached pixmap on map
+	freeClientPixmap(conn, c)
+
+	if ws != nil && !c.skipped {
+		c.fullscreen = checkFullscreen(c)
+		ws.targetFor(c).ensureWindow(c.win)
+		syncOrder(ws)
+		ws.refreshBoth()
+	}
+
+	allDamage = true
+	return nil
+}
+
+func unmapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
+	c := getClientFromWindow(window)
+	if c == nil {
+		return
+	}
+	c.attributes.MapState = xproto.MapStateUnmapped
+	c.damaged = false
+	freeClientPixmap(conn, c)
+
+	if ws != nil && !c.skipped {
+		ws.targetFor(c).removeWindow(c.win)
+		ws.refreshBoth()
+	}
+
+	allDamage = true
+}
+
+func destroyWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
+	i := indexFunc(clients, func(c *client) bool {
+		return c.win == window
+	})
+	if i == -1 {
+		return
+	}
+
+	c := clients[i]
+	freeClientPixmap(conn, c)
+	if c.damage != 0 {
+		_ = damage.Destroy(conn, c.damage).Check()
+		c.damage = 0
+	}
+
+	if ws != nil && !c.skipped {
+		ws.targetFor(c).removeWindow(c.win)
+		ws.refreshBoth()
+	}
+
+	clients = delete(clients, i, i+1)
+	allDamage = true
+}
+
+func freeClientPixmap(conn *xgb.Conn, c *client) {
+	if c.pixmap != 0 {
+		xproto.FreePixmap(conn, c.pixmap)
+		c.pixmap = 0
+	}
+}
+
+func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent) error {
+	client := getClientFromWindow(e.Window)
+	if client == nil {
+		if e.Window == rootWindow {
+			rootWidth = e.Width
+			rootHeight = e.Height
+		}
+		return nil
+	}
+
+	if client.geom.Width != e.Width || client.geom.Height != e.Height {
+		freeClientPixmap(conn, client)
+	}
+
+	client.geom.X = e.X
+	client.geom.Y = e.Y
+	client.geom.Width = e.Width
+	client.geom.Height = e.Height
+	client.geom.BorderWidth = e.BorderWidth
+	client.attributes.OverrideRedirect = e.OverrideRedirect
+
+	restackWin(ws, e.Window, e.AboveSibling)
+
+	// Check if fullscreen state changed due to geometry change
+	updateFullscreen(ws, client)
+
+	if !client.skipped {
+		w := ws.targetFor(client)
+		wi := w.getWindow(client.win)
+		if wi != nil {
+			totalW := client.geom.Width + client.geom.BorderWidth*2
+			totalH := client.geom.Height + client.geom.BorderWidth*2
+			fyne.Do(func() {
+				wi.x = client.geom.X
+				wi.y = client.geom.Y
+				wi.w = totalW
+				wi.h = totalH
+				w.Refresh()
+			})
+		}
+	}
+
+	client.damaged = true
+	allDamage = true
+	return nil
+}
+
+func restackWin(ws *widgets, window, target xproto.Window) {
 	i := indexFunc(clients, func(c *client) bool { return c.win == window })
 	if i == -1 {
 		return
@@ -944,90 +715,22 @@ func restackWin(window, target xproto.Window) {
 
 	if target == 0 {
 		clients = append(clients, c)
-		return
+	} else {
+		j := indexFunc(clients, func(c *client) bool { return c.win == target })
+		if j == -1 {
+			clients = append(clients, c)
+		} else {
+			clients = insert(clients, j, c)
+		}
 	}
 
-	j := indexFunc(clients, func(c *client) bool { return c.win == target })
-	if j == -1 {
-		clients = append(clients, c)
-		return
+	if ws != nil {
+		syncOrder(ws)
+		ws.refreshBoth()
 	}
-
-	clients = insert(clients, j, c)
 }
 
-func configureClient(conn *xgb.Conn, e xproto.ConfigureNotifyEvent) error {
-	client := getClientFromWindow(e.Window)
-	if client == nil {
-		if e.Window == rootWindow {
-			if rootBuffer != 0 {
-				render.FreePicture(conn, rootBuffer)
-				rootBuffer = 0
-			}
-			rootWidth = e.Width
-			rootHeight = e.Height
-		}
-		return nil
-	}
-
-	dam, err := xfixes.NewRegionId(conn)
-	if err != nil {
-		return err
-	}
-	err = xfixes.CreateRegionChecked(conn, dam, nil).Check()
-	if err != nil {
-		return err
-	}
-	if client.extents != 0 {
-		if err = xfixes.CopyRegionChecked(conn, client.extents, dam).Check(); err != nil {
-			return err
-		}
-	}
-	client.shapeBounds.X -= client.geom.X
-	client.shapeBounds.Y -= client.geom.Y
-	client.geom.X = e.X
-	client.geom.Y = e.Y
-	if client.geom.Width != e.Width || client.geom.Height != e.Height {
-		if client.buffer != 0 {
-			xproto.FreePixmap(conn, client.buffer)
-			client.buffer = 0
-			if client.pixels != 0 {
-				render.FreePicture(conn, client.pixels)
-				client.pixels = 0
-			}
-		}
-	}
-	client.geom.Width = e.Width
-	client.geom.Height = e.Height
-	client.geom.BorderWidth = e.BorderWidth
-	client.attributes.OverrideRedirect = e.OverrideRedirect
-
-	restackWin(e.Window, e.AboveSibling)
-
-	extents, err := getClientArea(conn, client)
-	if err != nil {
-		return err
-	}
-	if err = xfixes.UnionRegionChecked(conn, dam, extents, dam).Check(); err != nil {
-		return err
-	}
-	if err = xfixes.DestroyRegionChecked(conn, extents).Check(); err != nil {
-		return err
-	}
-	if err = addDamage(conn, dam); err != nil {
-		return err
-	}
-	client.shapeBounds.X += client.geom.X
-	client.shapeBounds.Y += client.geom.Y
-	if !client.shaped {
-		client.shapeBounds.Width = client.geom.Width
-		client.shapeBounds.Height = client.geom.Height
-	}
-	clipChanged = true
-	return nil
-}
-
-func circulateClient(e xproto.CirculateNotifyEvent) {
+func circulateClient(ws *widgets, e xproto.CirculateNotifyEvent) {
 	client := getClientFromWindow(e.Window)
 	if client == nil {
 		return
@@ -1038,37 +741,8 @@ func circulateClient(e xproto.CirculateNotifyEvent) {
 	} else if e.Place == xproto.PlaceOnBottom {
 		target = 0
 	}
-	restackWin(client.win, target)
-	clipChanged = true
-}
-
-func destroyWin(conn *xgb.Conn, window xproto.Window, gone bool) {
-	i := indexFunc(clients, func(c *client) bool {
-		return c.win == window
-	})
-	if i == -1 {
-		return
-	}
-
-	client := clients[i]
-	if gone {
-		_ = finishUnmapClient(conn, client)
-	}
-
-	if client.pixels != 0 {
-		render.FreePicture(conn, client.pixels)
-		client.pixels = 0
-	}
-	if client.mask != 0 {
-		render.FreePicture(conn, client.mask)
-		client.mask = 0
-	}
-	if client.damage != 0 {
-		_ = damage.Destroy(conn, client.damage).Check()
-		client.damage = 0
-	}
-
-	clients = delete(clients, i, i+1)
+	restackWin(ws, client.win, target)
+	allDamage = true
 }
 
 func damageClient(conn *xgb.Conn, e *damage.NotifyEvent) error {
@@ -1077,99 +751,33 @@ func damageClient(conn *xgb.Conn, e *damage.NotifyEvent) error {
 		return nil
 	}
 
-	var parts xfixes.Region
-	if !client.damaged {
-		ps, err := getClientArea(conn, client)
-		if err != nil {
-			return err
-		}
-		parts = ps
-		if err = damage.SubtractChecked(conn, client.damage, xfixes.RegionNone, xfixes.RegionNone).Check(); err != nil {
-			return err
-		}
-	} else {
-		ps, err := xfixes.NewRegionId(conn)
-		if err != nil {
-			return err
-		}
-		parts = ps
-		if err = xfixes.CreateRegionChecked(conn, parts, nil).Check(); err != nil {
-			return err
-		}
-		if err = damage.SubtractChecked(conn, client.damage, xfixes.RegionNone, parts).Check(); err != nil {
-			return err
-		}
-		dx := client.geom.X + int16(client.geom.BorderWidth)
-		dy := client.geom.Y + int16(client.geom.BorderWidth)
-		if err = xfixes.TranslateRegionChecked(conn, parts, dx, dy).Check(); err != nil {
-			return err
-		}
-	}
-	if err := addDamage(conn, parts); err != nil {
+	if err := damage.SubtractChecked(conn, client.damage, 0, 0).Check(); err != nil {
 		return err
 	}
+
 	client.damaged = true
+	allDamage = true
 	return nil
 }
 
-func shapeWin(conn *xgb.Conn, e *shape.NotifyEvent) error {
-	client := getClientFromWindow(e.AffectedWindow)
-	if client == nil {
-		return nil
-	}
-	if e.ShapeKind == shape.SkBounding || e.ShapeKind == shape.SkClip {
-		clipChanged = true
-		region0, err := xfixes.NewRegionId(conn)
-		if err != nil {
-			return err
-		}
-		err = xfixes.CreateRegionChecked(conn, region0, []xproto.Rectangle{client.shapeBounds}).Check()
-		if err != nil {
-			return err
-		}
-		if e.Shaped {
-			client.shaped = true
-			client.shapeBounds.X = client.geom.X + e.ExtentsX
-			client.shapeBounds.Y = client.geom.Y + e.ExtentsY
-			client.shapeBounds.Width = e.ExtentsWidth
-			client.shapeBounds.Height = e.ExtentsHeight
+func updateOpacity(conn *xgb.Conn, fallback float32, c *client) {
+	opacity, err := getOpacity(conn, c.win)
+	if err != nil {
+		if fallback < 1.0 {
+			opacity = uint32(fallback * float32(opaque))
 		} else {
-			client.shaped = false
-			client.shapeBounds.X = client.geom.X
-			client.shapeBounds.Y = client.geom.Y
-			client.shapeBounds.Width = client.geom.Width
-			client.shapeBounds.Height = client.geom.Height
-		}
-		region1, err := xfixes.NewRegionId(conn)
-		if err != nil {
-			return err
-		}
-		err = xfixes.CreateRegionChecked(conn, region1, []xproto.Rectangle{client.shapeBounds}).Check()
-		if err != nil {
-			return err
-		}
-		err = xfixes.UnionRegionChecked(conn, region0, region1, region0).Check()
-		if err != nil {
-			return err
-		}
-		xfixes.DestroyRegion(conn, region1)
-		if err = paintAll(conn, region0); err != nil {
-			return err
+			opacity = opaque
 		}
 	}
-	return nil
-}
+	c.opacity = opacity
 
-func exposeRoot(conn *xgb.Conn, rects []xproto.Rectangle) error {
-	region, err := xfixes.NewRegionId(conn)
-	if err != nil {
-		return err
+	c.opaqueType = solid
+	// Detect ARGB visuals by checking if the window has 32-bit depth
+	if c.geom.Depth == 32 {
+		c.opaqueType = argb
+	} else if opacity != opaque {
+		c.opaqueType = transparent
 	}
-	err = xfixes.CreateRegionChecked(conn, region, rects).Check()
-	if err != nil {
-		return err
-	}
-	return addDamage(conn, region)
 }
 
 func windowTitle(conn *xgb.Conn, window xproto.Window) (string, error) {
@@ -1279,77 +887,4 @@ func getOpacity(conn *xgb.Conn, window xproto.Window) (uint32, error) {
 		return opaque, fmt.Errorf("unexpected format %d", reply.Format)
 	}
 	return xgb.Get32(reply.Value), nil
-}
-
-func makeMask(conn *xgb.Conn, a uint16) (render.Picture, error) {
-	depth := byte(8)
-	root := xproto.Setup(conn).DefaultScreen(conn).Root
-
-	pixmap, err := xproto.NewPixmapId(conn)
-	if err != nil {
-		return 0, err
-	}
-	err = xproto.CreatePixmapChecked(conn, depth, pixmap, xproto.Drawable(root), 1, 1).Check()
-	if err != nil {
-		return 0, err
-	}
-
-	formatID, err := findARGBPictFormat(conn, false)
-	if err != nil {
-		xproto.FreePixmap(conn, pixmap)
-		return 0, err
-	}
-
-	picture, err := render.NewPictureId(conn)
-	if err != nil {
-		xproto.FreePixmap(conn, pixmap)
-		return 0, err
-	}
-
-	mask := uint32(render.CpRepeat)
-	values := []uint32{1}
-	err = render.CreatePictureChecked(conn, picture, xproto.Drawable(pixmap), formatID, mask, values).Check()
-	if err != nil {
-		xproto.FreePixmap(conn, pixmap)
-		return 0, err
-	}
-
-	color := render.Color{Alpha: a, Red: 0, Green: 0, Blue: 0}
-	rects := []xproto.Rectangle{{X: 0, Y: 0, Width: 1, Height: 1}}
-	err = render.FillRectanglesChecked(conn, render.PictOpSrc, picture, color, rects).Check()
-	if err != nil {
-		render.FreePicture(conn, picture)
-		xproto.FreePixmap(conn, pixmap)
-		return 0, err
-	}
-
-	xproto.FreePixmap(conn, pixmap)
-	return picture, nil
-}
-
-func findARGBPictFormat(conn *xgb.Conn, argb bool) (render.Pictformat, error) {
-	reply, err := render.QueryPictFormats(conn).Reply()
-	if err != nil {
-		return 0, err
-	}
-	for _, f := range reply.Formats {
-		if argb {
-			if f.Type == render.PictTypeDirect && f.Depth == 32 &&
-				f.Direct.AlphaShift == 24 && f.Direct.AlphaMask == 0xff &&
-				f.Direct.RedShift == 16 && f.Direct.RedMask == 0xff &&
-				f.Direct.GreenShift == 8 && f.Direct.GreenMask == 0xff &&
-				f.Direct.BlueShift == 0 && f.Direct.BlueMask == 0xff {
-				return f.Id, nil
-			}
-		} else {
-			if f.Type == render.PictTypeDirect && f.Depth == 8 &&
-				f.Direct.AlphaShift == 0 && f.Direct.AlphaMask == 0xff &&
-				f.Direct.RedShift == 0 && f.Direct.RedMask == 0 &&
-				f.Direct.GreenShift == 0 && f.Direct.GreenMask == 0 &&
-				f.Direct.BlueShift == 0 && f.Direct.BlueMask == 0 {
-				return f.Id, nil
-			}
-		}
-	}
-	return 0, fmt.Errorf("standard picture format not found")
 }

@@ -14,8 +14,6 @@ import (
 
 type background struct {
 	widget.BaseWidget
-
-	wallpaper *fyne.Container
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
@@ -24,8 +22,11 @@ func (b *background) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (b *background) loadModules() []fyne.CanvasObject {
-	objects := []fyne.CanvasObject{b.wallpaper}
+	objects := b.screenWallpapers()
 
+	// Add non-compositor screen area modules first (e.g. files),
+	// then the compositor on top so windows are drawn over desktop content.
+	var compositorWidget fyne.CanvasObject
 	for _, m := range fynedesk.Instance().Modules() {
 		if deskMod, ok := m.(fynedesk.ScreenAreaModule); ok {
 			wid := deskMod.ScreenAreaWidget()
@@ -33,56 +34,89 @@ func (b *background) loadModules() []fyne.CanvasObject {
 				continue
 			}
 
-			objects = append(objects, wid)
+			if m.Metadata().Name == "Compositor" {
+				compositorWidget = wid
+			} else {
+				objects = append(objects, wid)
+			}
 		}
+	}
+	if compositorWidget != nil {
+		objects = append(objects, compositorWidget)
 	}
 
 	return objects
 }
 
-func (b *background) updateBackground(path string) {
-	_, err := os.Stat(path)
-	if path == "" || err != nil {
-		set := fyne.CurrentApp().Settings()
-		src := backgrounds.Default()
-		b.wallpaper.Objects[0] = src.Load(set.Theme(), set.ThemeVariant())
-	} else {
-		bg := canvas.NewImageFromFile(path)
-		bg.ScaleMode = canvas.ImageScaleFastest
-		b.wallpaper.Objects[0] = bg
+// screenWallpapers creates one wallpaper image per screen, positioned correctly
+// within the multi-screen window, mirroring the X root background layout.
+func (b *background) screenWallpapers() []fyne.CanvasObject {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return nil
 	}
-	b.loadModules()
-	canvas.Refresh(b.wallpaper)
+
+	screens := inst.Screens()
+	if screens == nil {
+		return nil
+	}
+
+	// Find the window origin (top-left of all screens bounding box)
+	originX, originY := 0, 0
+	for _, screen := range screens.Screens() {
+		if screen.X < originX {
+			originX = screen.X
+		}
+		if screen.Y < originY {
+			originY = screen.Y
+		}
+	}
+
+	scale := screens.Primary().CanvasScale()
+	wallpapers := container.NewWithoutLayout()
+
+	for _, screen := range screens.Screens() {
+		img := loadWallpaper()
+		img.Move(fyne.NewPos(
+			float32(screen.X-originX)/scale,
+			float32(screen.Y-originY)/scale,
+		))
+		img.Resize(fyne.NewSize(
+			float32(screen.Width)/scale,
+			float32(screen.Height)/scale,
+		))
+		wallpapers.Add(img)
+	}
+
+	return []fyne.CanvasObject{wallpapers}
+}
+
+func (b *background) updateBackground(_ string) {
 	b.Refresh()
 }
 
-func backgroundPath() string {
-	pathEnv := fynedesk.Instance().Settings().Background()
-	if pathEnv == "" {
-		return ""
+func loadWallpaper() fyne.CanvasObject {
+	path := ""
+	inst := fynedesk.Instance()
+	if inst != nil {
+		path = inst.Settings().Background()
 	}
 
-	if stat, err := os.Stat(pathEnv); os.IsNotExist(err) || !stat.Mode().IsRegular() {
-		return ""
+	if path != "" {
+		if stat, err := os.Stat(path); err == nil && stat.Mode().IsRegular() {
+			img := canvas.NewImageFromFile(path)
+			img.ScaleMode = canvas.ImageScaleFastest
+			return img
+		}
 	}
 
-	return pathEnv
+	set := fyne.CurrentApp().Settings()
+	src := backgrounds.Default()
+	return src.Load(set.Theme(), set.ThemeVariant())
 }
 
 func newBackground() *background {
-	var bg fyne.CanvasObject
-	imagePath := backgroundPath()
-	if imagePath != "" {
-		img := canvas.NewImageFromFile(imagePath)
-		img.ScaleMode = canvas.ImageScaleFastest
-		bg = img
-	} else {
-		set := fyne.CurrentApp().Settings()
-		b := backgrounds.Default()
-		bg = b.Load(set.Theme(), set.ThemeVariant())
-	}
-
-	ret := &background{wallpaper: container.NewStack(bg)}
+	ret := &background{}
 	ret.ExtendBaseWidget(ret)
 	return ret
 }

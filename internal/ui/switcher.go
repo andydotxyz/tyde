@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -132,7 +131,7 @@ func (s switchIconRenderer) Destroy() {
 
 // Switcher is an instance of a visible app switcher that can request a change in window stacking order
 type Switcher struct {
-	win      fyne.Window
+	content  fyne.CanvasObject
 	icons    []fyne.CanvasObject
 	provider appie.Provider
 	selected fynedesk.Window
@@ -149,8 +148,12 @@ func (s *Switcher) currentIndex() int {
 }
 
 func (s *Switcher) setCurrent(i int) {
+	// Unfocus current
+	for _, ico := range s.icons {
+		ico.(*switchIcon).FocusLost()
+	}
 	icon := s.icons[i].(*switchIcon)
-	s.win.Canvas().Focus(icon)
+	icon.FocusGained()
 	s.selected = icon.win
 }
 
@@ -193,24 +196,13 @@ func (s *Switcher) raise(win fynedesk.Window) {
 	win.RaiseToTop()
 }
 
-func (s *Switcher) loadUI(title string) {
-	win := s.win
-	if win == nil {
-		if d, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
-			win = d.CreateSplashWindow()
-			win.SetPadded(true)
-		} else {
-			win = fyne.CurrentApp().NewWindow(title)
-		}
-		s.win = win
-	}
+func (s *Switcher) loadUI() {
+	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
+	bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
+	bg := canvas.NewRectangle(bgCol)
 
-	// we are called on a goroutine from wm/switcher.go
-	fyne.Do(func() {
-		win.SetContent(container.NewHBox(s.icons...))
-		win.CenterOnScreen()
-		win.SetTitle(title)
-	})
+	inner := container.NewPadded(container.NewHBox(s.icons...))
+	s.content = container.NewStack(bg, inner)
 }
 
 func (s *Switcher) loadIcons(list []fynedesk.Window) []fyne.CanvasObject {
@@ -241,15 +233,25 @@ func (s *Switcher) HideCancel() {
 	go func() {
 		time.Sleep(time.Millisecond * 100)
 
-		fyne.Do(func() {
-			s.win.Hide()
-		})
+		fynedesk.Instance().HideOverlay(s.content)
 	}()
 }
 
 // Show the app switcher, it would then be hidden with HideApply or HideCancel.
 func (s *Switcher) Show() {
-	s.win.Show()
+	inst := fynedesk.Instance()
+	size := s.content.MinSize()
+
+	primary := inst.Screens().Primary()
+	scale := primary.CanvasScale()
+	originX, originY := screenOrigin(inst.Screens())
+	pX := float32(primary.X-originX) / scale
+	pY := float32(primary.Y-originY) / scale
+	pW := float32(primary.Width) / scale
+	pH := float32(primary.Height) / scale
+	pos := fyne.NewPos(pX+(pW-size.Width)/2, pY+(pH-size.Height)/2)
+
+	inst.ShowOverlay(s.content, size, pos)
 }
 
 func newAppSwitcherAt(off int, wins []fynedesk.Window, prov appie.Provider) *Switcher {
@@ -259,14 +261,12 @@ func newAppSwitcherAt(off int, wins []fynedesk.Window, prov appie.Provider) *Swi
 		return nil
 	}
 
-	s.loadUI("Window switcher " + SkipTaskbarHint)
+	s.loadUI()
 	if off < 0 {
 		off = len(s.icons) + off // plus a negative is minus
 	}
 	fyne.Do(func() {
-		icon := s.icons[off].(*switchIcon)
-		s.selected = icon.win
-		s.win.Canvas().Focus(icon)
+		s.setCurrent(off)
 	})
 	return s
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"math"
 	"os/exec"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/notify"
@@ -41,6 +43,7 @@ type desktop struct {
 	bar     *bar
 	widgets *widgetPanel
 	mouse   fyne.CanvasObject
+	overlay *fyne.Container
 	root    fyne.Window
 	desk    int
 }
@@ -92,22 +95,50 @@ func (l *desktop) ShowSettings() {
 }
 
 func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	// Calculate the window origin (top-left of the bounding box of all screens)
+	originX, originY := 0, 0
+	for _, screen := range l.screens.Screens() {
+		if screen.X < originX {
+			originX = screen.X
+		}
+		if screen.Y < originY {
+			originY = screen.Y
+		}
+	}
+
+	// Position background, bar and widgets on the primary screen only.
+	// Coordinates are relative to the window origin.
+	primary := l.screens.Primary()
+	scale := primary.CanvasScale()
+
+	pX := float32(primary.X-originX) / scale
+	pY := float32(primary.Y-originY) / scale
+	pW := float32(primary.Width) / scale
+	pH := float32(primary.Height) / scale
+
 	bg := objects[0].(*background)
 	bg.Resize(size)
+
 	if l.Settings().NarrowLeftLauncher() {
-		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, size.Height))
-		l.bar.Move(fyne.NewPos(0, 0))
+		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, pH))
+		l.bar.Move(fyne.NewPos(pX, pY))
 	} else {
 		barHeight := l.bar.MinSize().Height
-		l.bar.Resize(fyne.NewSize(size.Width, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
-		l.bar.Move(fyne.NewPos(0, size.Height-barHeight))
+		l.bar.Resize(fyne.NewSize(pW, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
+		l.bar.Move(fyne.NewPos(pX, pY+pH-barHeight))
 	}
 	l.bar.Refresh()
 
 	widgetsWidth := l.widgets.MinSize().Width
-	l.widgets.Resize(fyne.NewSize(widgetsWidth, size.Height))
-	l.widgets.Move(fyne.NewPos(size.Width-widgetsWidth, 0))
+	l.widgets.Resize(fyne.NewSize(widgetsWidth, pH))
+	l.widgets.Move(fyne.NewPos(pX+pW-widgetsWidth, pY))
 	l.widgets.Refresh()
+
+	// Size overlay objects (between widgets and mouse) to the full window
+	for i := 3; i < len(objects)-1; i++ {
+		objects[i].Resize(size)
+		objects[i].Move(fyne.NewPos(0, 0))
+	}
 }
 
 func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
@@ -120,6 +151,121 @@ func (l *desktop) Root() fyne.Window {
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 	l.showMenu(menu, pos)
+}
+
+// rootRaiser is implemented by window managers that can raise/lower the desktop root window.
+type rootRaiser interface {
+	RaiseRoot()
+	LowerRoot()
+}
+
+// backdrop is a full-screen widget that dismisses an overlay on tap or mouse-in
+// (mouse-in on the backdrop means the cursor left the overlay content).
+type backdrop struct {
+	widget.BaseWidget
+	onDismiss func()
+}
+
+func (b *backdrop) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+}
+
+func (b *backdrop) Tapped(*fyne.PointEvent) {
+	if b.onDismiss != nil {
+		b.onDismiss()
+	}
+}
+
+func (b *backdrop) MouseIn(*deskDriver.MouseEvent) {
+	// Cursor entered the backdrop = left the overlay content
+	if b.onDismiss != nil {
+		b.onDismiss()
+	}
+}
+
+func (b *backdrop) MouseMoved(*deskDriver.MouseEvent) {}
+func (b *backdrop) MouseOut()                         {}
+
+func newBackdrop(onDismiss func()) *backdrop {
+	b := &backdrop{onDismiss: onDismiss}
+	b.ExtendBaseWidget(b)
+	return b
+}
+
+// hoverCatch is a wrapper that absorbs hover events, preventing them from
+// falling through to the backdrop when the cursor is between child widgets.
+type hoverCatch struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+}
+
+func (h *hoverCatch) CreateRenderer() fyne.WidgetRenderer {
+	// Use WithoutLayout so the content keeps its own size
+	// and doesn't get stretched to the full hoverCatch area.
+	return widget.NewSimpleRenderer(container.NewWithoutLayout(h.content))
+}
+
+func (h *hoverCatch) MouseIn(*deskDriver.MouseEvent)    {}
+func (h *hoverCatch) MouseMoved(*deskDriver.MouseEvent) {}
+func (h *hoverCatch) MouseOut()                         {}
+
+func newHoverCatch(content fyne.CanvasObject) *hoverCatch {
+	h := &hoverCatch{content: content}
+	h.ExtendBaseWidget(h)
+	return h
+}
+
+// ShowOverlayWithBackdrop shows an overlay with click-outside and mouse-out dismiss.
+// catchSize defines the hover-sensitive area (use content size + room for submenus).
+// Returns the combined object (backdrop + content) for use with HideOverlay.
+func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position) fyne.CanvasObject {
+	var combined fyne.CanvasObject
+	dismiss := func() {
+		l.HideOverlay(combined)
+	}
+
+	bg := newBackdrop(dismiss)
+	catch := newHoverCatch(content)
+	catch.Resize(catchSize)
+	catch.Move(pos)
+	content.Move(fyne.NewPos(0, 0))
+	content.Resize(size)
+	combined = container.NewStack(bg, container.NewWithoutLayout(catch))
+
+	// Size the combined to fill the full window
+	winSize := l.root.Canvas().Size()
+	l.ShowOverlay(combined, winSize, fyne.NewPos(0, 0))
+	return combined
+}
+
+// ShowOverlay adds content to the desktop overlay layer, above all chrome and windows.
+// The root window is raised so that Fyne receives mouse events instead of X11 frame windows.
+func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position) {
+	fyne.Do(func() {
+		content.Resize(size)
+		content.Move(pos)
+		l.overlay.Add(content)
+		l.overlay.Refresh()
+	})
+
+	if rr, ok := l.wm.(rootRaiser); ok {
+		rr.RaiseRoot()
+	}
+}
+
+// HideOverlay removes content from the desktop overlay layer.
+// When no overlays remain, the root window is lowered so X11 windows receive events again.
+func (l *desktop) HideOverlay(content fyne.CanvasObject) {
+	fyne.Do(func() {
+		l.overlay.Remove(content)
+		l.overlay.Refresh()
+
+		if len(l.overlay.Objects) == 0 {
+			if rr, ok := l.wm.(rootRaiser); ok {
+				rr.LowerRoot()
+			}
+		}
+	})
 }
 
 func (l *desktop) updateBackgrounds(path string) {
@@ -137,7 +283,22 @@ func (l *desktop) createPrimaryContent() fyne.CanvasObject {
 	l.mouse = newMouse()
 	l.mouse.Hide()
 
-	return container.New(l, newBackground(), l.bar, l.widgets, l.mouse)
+	// Order: background (wallpapers + files + compositor) -> bar -> widgets -> overlays -> mouse
+	objects := []fyne.CanvasObject{newBackground(), l.bar, l.widgets}
+
+	// Add overlay widgets (e.g. fullscreen windows) above desktop chrome
+	for _, m := range l.Modules() {
+		if om, ok := m.(fynedesk.OverlayModule); ok {
+			if wid := om.OverlayWidget(); wid != nil {
+				objects = append(objects, wid)
+			}
+		}
+	}
+
+	// UI overlay for menus, dialogs, switcher, notifications
+	l.overlay = container.NewWithoutLayout()
+	objects = append(objects, l.overlay, l.mouse)
+	return container.New(l, objects...)
 }
 
 func (l *desktop) createRoot(screens fynedesk.ScreenList) fyne.Window {
@@ -153,8 +314,10 @@ func (l *desktop) setupRoot() {
 		l.root = l.createRoot(l.screens)
 	}
 
+	// Size the root window to cover all screens so the compositor can render windows on any display
+	w, h := l.RootSizePixels()
 	scale := l.screens.Primary().CanvasScale()
-	l.root.Resize(fyne.NewSize(float32(l.screens.Primary().Width)/scale, float32(l.screens.Primary().Height)/scale))
+	l.root.Resize(fyne.NewSize(float32(w)/scale, float32(h)/scale))
 }
 
 func (l *desktop) RecentApps() []appie.AppData {
