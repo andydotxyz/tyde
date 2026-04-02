@@ -22,9 +22,8 @@ type desktops struct {
 }
 
 func (d *desktops) DesktopChangeNotify(id int) {
-	oldID := d.current
 	d.current = id
-	d.gui.refreshFrom(oldID)
+	d.gui.refresh()
 }
 
 func (d *desktops) Destroy() {
@@ -92,10 +91,9 @@ func (d *desktops) StatusAreaWidget() fyne.CanvasObject {
 }
 
 func (d *desktops) setDesktop(id int) {
-	oldID := d.current
 	d.current = id
 	fynedesk.Instance().SetDesktop(id)
-	d.gui.refreshFrom(oldID)
+	d.gui.refreshButtons()
 }
 
 // newDesktops creates a new module that will manage virtual desktops and display a pager widget.

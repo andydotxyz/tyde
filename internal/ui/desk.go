@@ -46,6 +46,8 @@ type desktop struct {
 	overlay           *fyne.Container
 	root              fyne.Window
 	desk              int
+	deskAnim          *fyne.Animation
+	deskAnimTargets   map[fynedesk.Window]fyne.Position // where the in-flight animation is heading
 	compositor        *CompositorWidget
 	compositorOverlay *CompositorWidget
 	compositorDone    chan struct{}
@@ -57,6 +59,14 @@ func (l *desktop) Desktop() int {
 
 func (l *desktop) SetDesktop(id int) {
 	diff := id - l.desk
+	prevTargets := l.deskAnimTargets
+
+	// Stop any in-flight animation; the new one takes over.
+	if l.deskAnim != nil {
+		l.deskAnim.Stop()
+		l.deskAnim = nil
+	}
+
 	l.desk = id
 
 	_, height := l.RootSizePixels()
@@ -64,45 +74,61 @@ func (l *desktop) SetDesktop(id int) {
 	wins := l.wm.Windows()
 
 	starts := make([]fyne.Position, len(wins))
-	deltas := make([]fyne.Delta, len(wins))
+	targets := make(map[fynedesk.Window]fyne.Position, len(wins))
 	for i, win := range wins {
-		starts[i] = win.Position()
+		// If the previous animation was heading somewhere, start from
+		// that target rather than the current (mid-flight) position.
+		if prev, ok := prevTargets[win]; ok {
+			starts[i] = prev
+		} else {
+			starts[i] = win.Position()
+		}
 
 		display := l.Screens().ScreenForWindow(win)
 		off := offPix / display.Scale
-		deltas[i] = fyne.NewDelta(0, off)
+		targets[win] = fyne.NewPos(starts[i].X, starts[i].Y+off)
 	}
 
 	type visualMover interface {
 		MoveVisual(fyne.Position)
 	}
 
-	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
-		for i, item := range l.wm.Windows() {
+	l.deskAnimTargets = targets
+	var a *fyne.Animation
+	a = fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
+		if l.deskAnim != a {
+			return // superseded by a newer animation
+		}
+		for i, item := range wins {
 			if item.Pinned() {
 				continue
 			}
 
-			newX := starts[i].X + deltas[i].DX*f
-			newY := starts[i].Y + deltas[i].DY*f
+			target := targets[item]
+			newX := starts[i].X + (target.X-starts[i].X)*f
+			newY := starts[i].Y + (target.Y-starts[i].Y)*f
 			pos := fyne.NewPos(newX, newY)
 
 			if f >= 1.0 {
-				// Final frame: sync actual X11 positions
 				item.Move(pos)
+				if i == len(wins)-1 {
+					l.deskAnim = nil
+					l.deskAnimTargets = nil
+					for _, m := range l.Modules() {
+						if desk, ok := m.(notify.DesktopNotify); ok {
+							desk.DesktopChangeNotify(id)
+						}
+					}
+				}
 			} else if vm, ok := item.(visualMover); ok {
 				vm.MoveVisual(pos)
 			} else {
 				item.Move(pos)
 			}
 		}
-	}).Start()
-
-	for _, m := range l.Modules() {
-		if desk, ok := m.(notify.DesktopNotify); ok {
-			desk.DesktopChangeNotify(id)
-		}
-	}
+	})
+	l.deskAnim = a
+	a.Start()
 }
 
 func (l *desktop) ShowSettings() {

@@ -70,24 +70,32 @@ func (p *pager) refresh() {
 	})
 }
 
+func (p *pager) refreshButtons() {
+	desk := fynedesk.Instance()
+	fyne.Do(func() {
+		for i, b := range p.buttons.Objects {
+			l := p.labels.Objects[i]
+			if i == desk.Desktop() {
+				b.(*widget.Button).Importance = widget.HighImportance
+				l.(*widget.Label).Importance = widget.LowImportance
+			} else {
+				b.(*widget.Button).Importance = widget.MediumImportance
+				l.(*widget.Label).Importance = widget.MediumImportance
+			}
+
+			b.Refresh()
+			l.Refresh()
+		}
+	})
+}
+
 func (p *pager) refreshFrom(oldID int) {
 	desk := fynedesk.Instance()
 	wins := fynedesk.Instance().WindowManager().Windows()
 
-	var rects []fyne.CanvasObject
-	for i, b := range p.buttons.Objects {
-		l := p.labels.Objects[i]
-		if i == desk.Desktop() {
-			b.(*widget.Button).Importance = widget.HighImportance
-			l.(*widget.Label).Importance = widget.LowImportance
-		} else {
-			b.(*widget.Button).Importance = widget.MediumImportance
-			l.(*widget.Label).Importance = widget.MediumImportance
-		}
+	p.refreshButtons()
 
-		b.Refresh()
-		l.Refresh()
-	}
+	var rects []fyne.CanvasObject
 	pivot := p.buttons.Objects[oldID]
 
 	for j := len(wins) - 1; j >= 0; j-- {

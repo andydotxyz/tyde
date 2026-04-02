@@ -145,6 +145,12 @@ func (c *client) SetDesktop(id int) {
 		pos := fyne.NewPos(start.X, newY)
 		if f >= 1.0 {
 			c.Move(pos) // final frame: sync X11
+			type moveNotifier interface {
+				NotifyWindowMoved(fynedesk.Window)
+			}
+			if mn, ok := c.wm.(moveNotifier); ok {
+				mn.NotifyWindowMoved(c)
+			}
 		} else {
 			c.MoveVisual(pos)
 		}
@@ -235,8 +241,6 @@ func (c *client) MoveVisual(pos fyne.Position) {
 	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
 	targetX := int16(pos.X * screen.CanvasScale())
 	targetY := int16(pos.Y * screen.CanvasScale())
-	c.frame.x = targetX
-	c.frame.y = targetY
 	x11.VisualMoveCallback(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
 }
 
