@@ -150,7 +150,7 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 
 	var recent []fyne.CanvasObject
 	for _, app := range w.desk.RecentApps() {
-		btn := w.newAppButtonOverlay(app, dismiss)
+		btn := w.newAppButton(app, dismiss)
 		recent = append(recent, btn)
 		btn.Icon = app.Icon(w.desk.Settings().IconTheme(), int(64*w.desk.Screens().Primary().CanvasScale()))
 	}
@@ -178,18 +178,9 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos)
 }
 
-func (w *widgetPanel) newAppButtonOverlay(app appie.AppData, dismiss func()) *widget.Button {
+func (w *widgetPanel) newAppButton(app appie.AppData, dismiss func()) *widget.Button {
 	b := widget.NewButtonWithIcon(app.Name(), wmtheme.BrokenImageIcon, func() {
 		dismiss()
-		_ = w.desk.RunApp(app)
-	})
-	b.Alignment = widget.ButtonAlignLeading
-	return b
-}
-
-func (w *widgetPanel) newAppButton(app appie.AppData, w2 fyne.Window) *widget.Button {
-	b := widget.NewButtonWithIcon(app.Name(), wmtheme.BrokenImageIcon, func() {
-		w2.Close()
 		_ = w.desk.RunApp(app)
 	})
 	b.Alignment = widget.ButtonAlignLeading
