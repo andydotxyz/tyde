@@ -13,7 +13,6 @@ import (
 	"log"
 	"math"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -582,7 +581,13 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 
 	// Check if this is the top visible window
 	isTop := true
-	idx := slices.IndexFunc(clients, func(cl *client) bool { return cl.win == c.win })
+	idx := -1
+	for i, cl := range clients {
+		if cl.win == c.win {
+			idx = i
+			break
+		}
+	}
 	if idx > 0 {
 		for j := idx - 1; j >= 0; j-- {
 			if clients[j].skipped {
@@ -630,13 +635,12 @@ func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xp
 }
 
 func getClientFromWindow(window xproto.Window) *client {
-	i := slices.IndexFunc(clients, func(c *client) bool {
-		return c.win == window
-	})
-	if i == -1 {
-		return nil
+	for _, c := range clients {
+		if c.win == window {
+			return c
+		}
 	}
-	return clients[i]
+	return nil
 }
 
 func addClient(conn *xgb.Conn, window xproto.Window) error {
@@ -745,14 +749,16 @@ func unmapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 }
 
 func destroyWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
-	i := slices.IndexFunc(clients, func(c *client) bool {
-		return c.win == window
-	})
-	if i == -1 {
-		return
+	var i int
+	var c *client
+	for i, c = range clients {
+		if c.win == window {
+			goto found
+		}
 	}
+	return
 
-	c := clients[i]
+found:
 	freeClientPixmap(conn, c)
 	if c.damage != 0 {
 		_ = damage.Destroy(conn, c.damage).Check()
@@ -764,7 +770,7 @@ func destroyWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 		ws.refreshBoth()
 	}
 
-	clients = slices.Delete(clients, i, i+1)
+	clients = append(clients[:i], clients[i+1:]...)
 	allDamage = true
 }
 
@@ -842,21 +848,33 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 }
 
 func restackClientOnly(window, target xproto.Window) {
-	i := slices.IndexFunc(clients, func(c *client) bool { return c.win == window })
+	i := -1
+	for idx, c := range clients {
+		if c.win == window {
+			i = idx
+			break
+		}
+	}
 	if i == -1 {
 		return
 	}
 	c := clients[i]
-	clients = slices.Delete(clients, i, i+1)
+	clients = append(clients[:i], clients[i+1:]...)
 
 	if target == 0 {
 		clients = append(clients, c)
 	} else {
-		j := slices.IndexFunc(clients, func(c *client) bool { return c.win == target })
+		j := -1
+		for idx, c := range clients {
+			if c.win == target {
+				j = idx
+				break
+			}
+		}
 		if j == -1 {
 			clients = append(clients, c)
 		} else {
-			clients = slices.Insert(clients, j, c)
+			clients = append(clients[:j], append([]*client{c}, clients[j:]...)...)
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"slices"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -52,9 +51,10 @@ func (cw *CompositorWidget) EnsureWindow(id uint32) *WindowImage {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
 
-	i := slices.IndexFunc(cw.images, func(wi *WindowImage) bool { return wi.ID == id })
-	if i != -1 {
-		return cw.images[i]
+	for _, wi := range cw.images {
+		if wi.ID == id {
+			return wi
+		}
 	}
 
 	img := canvas.NewImageFromImage(nil)
@@ -71,11 +71,12 @@ func (cw *CompositorWidget) RemoveWindow(id uint32) {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
 
-	i := slices.IndexFunc(cw.images, func(wi *WindowImage) bool { return wi.ID == id })
-	if i == -1 {
-		return
+	for i, wi := range cw.images {
+		if wi.ID == id {
+			cw.images = append(cw.images[:i], cw.images[i+1:]...)
+			return
+		}
 	}
-	cw.images = slices.Delete(cw.images, i, i+1)
 }
 
 // GetWindow returns the window image for a given ID.
@@ -83,11 +84,12 @@ func (cw *CompositorWidget) GetWindow(id uint32) *WindowImage {
 	cw.mu.RLock()
 	defer cw.mu.RUnlock()
 
-	i := slices.IndexFunc(cw.images, func(wi *WindowImage) bool { return wi.ID == id })
-	if i == -1 {
-		return nil
+	for _, wi := range cw.images {
+		if wi.ID == id {
+			return wi
+		}
 	}
-	return cw.images[i]
+	return nil
 }
 
 // Reorder reorders images to match the given ID list (top-first order).
