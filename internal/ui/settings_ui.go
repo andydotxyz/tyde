@@ -223,10 +223,11 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 	d.populateOrderList(orderList, addItem)
 
 	addButton.OnTapped = func() {
-		newAppPicker("Choose Application", func(data appie.AppData, _ int) {
+		p := newAppPicker(func(data appie.AppData, _ int) {
 			d.launcherIcons = append(d.launcherIcons, data.Name())
 			d.populateOrderList(orderList, addItem)
-		}).Show()
+		})
+		p.show()
 	}
 
 	bar := container.NewHScroll(orderList)

@@ -247,6 +247,10 @@ func (x *x11WM) Run() {
 func (x *x11WM) SetOverlayActive(active bool) {
 	x.updateRootInputShape(active)
 	x.updateFrameInputShapes(active)
+
+	if active && x.rootID != 0 {
+		xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, x.rootID, xproto.TimeCurrentTime)
+	}
 }
 
 func (x *x11WM) updateFrameInputShapes(overlayActive bool) {

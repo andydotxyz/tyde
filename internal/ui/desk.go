@@ -266,7 +266,11 @@ func newHoverCatch(content fyne.CanvasObject, bg *backdrop) *hoverCatch {
 // ShowOverlayWithBackdrop shows an overlay with click-outside and mouse-out dismiss.
 // catchSize defines the hover-sensitive area (use content size + room for submenus).
 // Returns the combined object (backdrop + content) for use with HideOverlay.
-func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, contentOffset ...fyne.Position) fyne.CanvasObject {
+func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, contentOffset fyne.Position) fyne.CanvasObject {
+	return l.showOverlayWithBackdrop(content, size, catchSize, pos, nil, contentOffset)
+}
+
+func (l *desktop) showOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, focus fyne.Focusable, contentOffset fyne.Position) fyne.CanvasObject {
 	var combined fyne.CanvasObject
 	dismiss := func() {
 		l.HideOverlay(combined)
@@ -276,17 +280,13 @@ func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 	catch := newHoverCatch(content, bg)
 	catch.Resize(catchSize)
 	catch.Move(pos)
-	offset := fyne.NewPos(0, 0)
-	if len(contentOffset) > 0 {
-		offset = contentOffset[0]
-	}
-	content.Move(offset)
+	content.Move(contentOffset)
 	content.Resize(size)
 	combined = container.NewStack(bg, container.NewWithoutLayout(catch))
 
 	// Size the combined to fill the full window
 	winSize := l.root.Canvas().Size()
-	l.ShowOverlay(combined, winSize, fyne.NewPos(0, 0))
+	l.showOverlay(combined, winSize, fyne.NewPos(0, 0), focus)
 	return combined
 }
 
@@ -294,6 +294,10 @@ func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 // The root window's input shape is expanded and frame input shapes are cleared
 // so that Fyne receives mouse events for the overlay.
 func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position) {
+	l.showOverlay(content, size, pos, nil)
+}
+
+func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position, focus fyne.Focusable) {
 	fyne.Do(func() {
 		content.Resize(size)
 		content.Move(pos)
@@ -302,6 +306,10 @@ func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyn
 
 		if is, ok := l.wm.(inputShaper); ok {
 			is.SetOverlayActive(true)
+		}
+
+		if focus != nil {
+			l.root.Canvas().Focus(focus)
 		}
 	})
 }

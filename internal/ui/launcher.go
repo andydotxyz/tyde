@@ -1,18 +1,23 @@
 package ui
 
 import (
-	"time"
+	"image/color"
 
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/fynedesk"
 	wmTheme "fyshos.com/fynedesk/theme"
+)
+
+const (
+	launcherWidth      = 350
+	launcherMaxResults = 5
 )
 
 var appExec *picker
@@ -39,7 +44,6 @@ func (e *appEntry) TypedKey(ev *fyne.KeyEvent) {
 }
 
 type picker struct {
-	win      fyne.Window
 	desk     fynedesk.Desktop
 	callback func(data appie.AppData, actionID int)
 	showMods bool
@@ -48,10 +52,21 @@ type picker struct {
 	appList     *fyne.Container
 	appScroll   *container.Scroll
 	activeIndex int
+
+	bg       *canvas.Rectangle
+	fullSize fyne.Size
+
+	overlay  fyne.CanvasObject
+	onClosed func()
 }
 
 func (l *picker) close() {
-	l.win.Close()
+	if l.overlay != nil {
+		l.desk.HideOverlay(l.overlay)
+	}
+	if l.onClosed != nil {
+		l.onClosed()
+	}
 }
 
 func (l *picker) pickSelected() {
@@ -85,6 +100,32 @@ func (l *picker) updateAppListMatching(input string) {
 	l.appScroll.ScrollToTop()
 	l.appList.Objects = l.appButtonListMatching(input)
 	l.appList.Refresh()
+	l.updateBgSize()
+}
+
+func (l *picker) updateBgSize() {
+	if l.bg == nil {
+		return
+	}
+
+	pad := l.entry.Theme().Size(theme.SizeNamePadding)
+	entryHeight := l.entry.MinSize().Height
+	h := entryHeight + pad*2
+
+	if len(l.appList.Objects) > 0 {
+		btnHeight := l.appList.Objects[0].(*widget.Button).MinSize().Height
+		count := len(l.appList.Objects)
+		if count > launcherMaxResults {
+			count = launcherMaxResults
+		}
+		h += float32(count) * (btnHeight + pad)
+	}
+	if h > l.fullSize.Height {
+		h = l.fullSize.Height
+	}
+
+	l.bg.Resize(fyne.NewSize(l.fullSize.Width, h))
+	l.bg.Refresh()
 }
 
 func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
@@ -99,7 +140,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 		appData := data // capture for goroutine below
 		app := widget.NewButtonWithIcon(appData.Name(), wmTheme.BrokenImageIcon, func() {
 			l.callback(appData, -1)
-			l.win.Close()
+			l.close()
 		})
 		app.Alignment = widget.ButtonAlignLeading
 
@@ -110,7 +151,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 			actionID := id // capture for goroutine below
 			app := widget.NewButtonWithIcon(data.Name()+" : "+action.Name(), wmTheme.BrokenImageIcon, func() {
 				l.callback(appData, actionID)
-				l.win.Close()
+				l.close()
 			})
 			app.Alignment = widget.ButtonAlignLeading
 
@@ -134,7 +175,9 @@ func (l *picker) loadIcons(dataRange []appie.AppData, appList []fyne.CanvasObjec
 	for i, data := range dataRange {
 		app := appList[i].(*widget.Button)
 		icon := data.Icon(iconTheme, 32)
-		app.SetIcon(icon)
+		fyne.Do(func() {
+			app.SetIcon(icon)
+		})
 	}
 }
 
@@ -150,7 +193,7 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 		for _, item := range suggest.LaunchSuggestions(input) {
 			launchData := item // capture for goroutine below
 			button := widget.NewButtonWithIcon(item.Title(), item.Icon(), func() {
-				l.win.Close()
+				l.close()
 				launchData.Launch()
 			})
 
@@ -161,30 +204,10 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 	return suggestList
 }
 
-func (l *picker) Show() {
-	l.win.Show()
-}
-
-func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
-	var win fyne.Window
-	if d, ok := fyne.CurrentApp().Driver().(deskDriver.Driver); ok {
-		win = d.CreateSplashWindow()
-		win.SetPadded(true)
-		win.SetTitle(title)
-	} else {
-		win = fyne.CurrentApp().NewWindow(title)
-	}
-
-	win.Canvas().SetOnTypedKey(func(ev *fyne.KeyEvent) {
-		if ev.Name == fyne.KeyEscape {
-			win.Close()
-			return
-		}
-	})
-
+func newAppPicker(callback func(appie.AppData, int)) *picker {
 	appList := container.NewVBox()
 	appScroller := container.NewScroll(appList)
-	l := &picker{win: win, desk: fynedesk.Instance(), appList: appList, appScroll: appScroller, callback: callback}
+	l := &picker{desk: fynedesk.Instance(), appList: appList, appScroll: appScroller, callback: callback}
 
 	entry := &appEntry{pick: l}
 	entry.ExtendBaseWidget(entry)
@@ -192,6 +215,8 @@ func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
 	entry.OnChanged = func(input string) {
 		appList.Objects = nil
 		if input == "" {
+			l.appList.Refresh()
+			l.updateBgSize()
 			return
 		}
 
@@ -199,33 +224,36 @@ func newAppPicker(title string, callback func(appie.AppData, int)) *picker {
 	}
 	l.entry = entry
 
-	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
-		win.Close()
-	})
-
-	fyne.Do(func() {
-		ideal := fyne.NewSize(300,
-			cancel.MinSize().Height*4+theme.Padding()*6+entry.MinSize().Height)
-		win.SetContent(container.NewBorder(entry, cancel, nil, nil, appScroller))
-		win.Resize(ideal)
-		win.CenterOnScreen()
-		win.Canvas().Focus(entry)
-
-		// TODO consider if there is a bug upstream in the window handling here or in Fyne
-		go func() {
-			retries := 3
-			for retries > 0 {
-				time.Sleep(time.Millisecond * 20)
-				fyne.Do(func() {
-					win.Resize(ideal)
-					win.CenterOnScreen()
-				})
-
-				retries--
-			}
-		}()
-	})
 	return l
+}
+
+func (l *picker) show() {
+	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
+	bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
+	l.bg = canvas.NewRectangle(bgCol)
+	th := l.entry.Theme()
+	pad := theme.Padding()
+	l.bg.CornerRadius = th.Size(theme.SizeNameInputRadius) + pad
+
+	inner := container.NewBorder(l.entry, nil, nil, nil, l.appScroll)
+	content := container.NewStack(container.NewWithoutLayout(l.bg), container.NewPadded(inner))
+
+	d := l.desk.(*desktop)
+	primary := d.Screens().Primary()
+	scale := primary.CanvasScale()
+	originX, originY := screenOrigin(d.Screens())
+	pW := float32(primary.X-originX+primary.Width) / scale
+	pH := float32(primary.Y-originY+primary.Height) / scale
+
+	entryHeight := l.entry.MinSize().Height
+	l.fullSize = fyne.NewSize(launcherWidth,
+		entryHeight*float32(launcherMaxResults+1)+pad*float32(launcherMaxResults+4)-3)
+	pos := fyne.NewPos((pW-l.fullSize.Width)/2, (pH-l.fullSize.Height)/2)
+
+	// Start bg at entry-only height
+	l.bg.Resize(fyne.NewSize(l.fullSize.Width, entryHeight+pad*2))
+
+	l.overlay = d.showOverlayWithBackdrop(content, l.fullSize, l.fullSize, pos, l.entry, fyne.Position{})
 }
 
 // ShowAppLauncher opens a new application launcher, closing an old one if it existed.
@@ -235,7 +263,7 @@ func ShowAppLauncher() {
 		return
 	}
 
-	appExec = newAppPicker("Application Launcher "+SkipTaskbarHint, func(app appie.AppData, actionID int) {
+	appExec = newAppPicker(func(app appie.AppData, actionID int) {
 		var err error
 		if actionID == -1 {
 			err = fynedesk.Instance().RunApp(app)
@@ -248,8 +276,8 @@ func ShowAppLauncher() {
 		}
 	})
 	appExec.showMods = true
-	appExec.win.SetOnClosed(func() {
+	appExec.onClosed = func() {
 		appExec = nil
-	})
-	appExec.Show()
+	}
+	appExec.show()
 }

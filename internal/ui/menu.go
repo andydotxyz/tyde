@@ -45,7 +45,7 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func())
 			if app.Hidden() {
 				continue
 			}
-			btn := w.newAppButtonOverlay(app, dismiss)
+			btn := w.newAppButton(app, dismiss)
 			items = append(items, btn)
 			defer w.loadIcon(app, btn)
 		}
@@ -107,7 +107,7 @@ func (w *widgetPanel) askLogout() {
 	pY := float32(primary.Y-originY) / scale
 	size := fyne.NewSize(280, 150)
 	pos := fyne.NewPos(pX+(pW-size.Width)/2, pY+(pH-size.Height)/2)
-	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(logoutContent, size, size, pos)
+	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(logoutContent, size, size, pos, fyne.Position{})
 }
 
 func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
@@ -175,7 +175,7 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	pBottom := float32(primary.Y-originY+primary.Height) / scale
 	pos := fyne.NewPos(pRight-300, pBottom-360)
 	menuSize := fyne.NewSize(300, 360)
-	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos)
+	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos, fyne.Position{})
 }
 
 func (w *widgetPanel) newAppButton(app appie.AppData, dismiss func()) *widget.Button {
