@@ -1,0 +1,131 @@
+package launcher
+
+import (
+	_ "embed"
+	"image/color"
+	"strings"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+
+	"fyshos.com/fynedesk"
+)
+
+var largeTypeAliases = []string{"largetype", "large", "big", "bigtype", "type"}
+
+var largeTypeMeta = fynedesk.ModuleMetadata{
+	Name:        "Launcher: Large Type",
+	NewInstance: newLargeType,
+}
+
+//go:embed largetype.svg
+var resourceLargeTypeSvgData []byte
+
+var resourceLargeType = &fyne.StaticResource{
+	StaticName:    "largetype.svg",
+	StaticContent: resourceLargeTypeSvgData,
+}
+
+type largeType struct{}
+
+func (l *largeType) Destroy() {
+}
+
+func (l *largeType) Metadata() fynedesk.ModuleMetadata {
+	return largeTypeMeta
+}
+
+func (l *largeType) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+	lower := strings.ToLower(input)
+
+	for _, alias := range largeTypeAliases {
+		prefix := alias + " "
+		if strings.HasPrefix(lower, prefix) {
+			text := input[len(prefix):]
+			return []fynedesk.LaunchSuggestion{&largeTypeItem{text: text}}
+		}
+		if strings.HasPrefix(alias, lower) {
+			return []fynedesk.LaunchSuggestion{&largeTypeItem{}}
+		}
+	}
+
+	return nil
+}
+
+func newLargeType() fynedesk.Module {
+	return &largeType{}
+}
+
+type largeTypeItem struct {
+	text string
+}
+
+func (i *largeTypeItem) Icon() fyne.Resource {
+	return theme.NewThemedResource(resourceLargeType)
+}
+
+func (i *largeTypeItem) Title() string {
+	return "Large Type: " + i.text
+}
+
+func (i *largeTypeItem) Launch() {
+	desk := fynedesk.Instance()
+	screen := desk.Screens().Primary()
+	scale := screen.CanvasScale()
+
+	screenW := float32(screen.Width) / scale
+	screenH := float32(screen.Height) / scale
+	screenX := float32(screen.X) / scale
+	screenY := float32(screen.Y) / scale
+
+	label := canvas.NewText(i.text, theme.Color(theme.ColorNameForeground))
+	label.TextSize = 120
+	label.Alignment = fyne.TextAlignCenter
+	label.TextStyle = fyne.TextStyle{Bold: true}
+
+	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
+	bg := canvas.NewRectangle(&color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xd0})
+
+	var overlay fyne.CanvasObject
+	dismiss := &largeTypeTappable{onTap: func() {
+		desk.HideOverlay(overlay)
+	}}
+	dismiss.ExtendBaseWidget(dismiss)
+	overlay = container.NewStack(bg, dismiss, container.NewCenter(label))
+
+	size := fyne.NewSize(screenW, screenH)
+	pos := fyne.NewPos(screenX, screenY)
+	desk.ShowOverlay(overlay, size, pos)
+	fyne.Do(func() {
+		desk.Root().Canvas().Focus(dismiss)
+	})
+}
+
+// largeTypeTappable is a transparent widget that dismisses the overlay on tap.
+type largeTypeTappable struct {
+	widget.BaseWidget
+	onTap func()
+}
+
+func (t *largeTypeTappable) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+}
+
+func (t *largeTypeTappable) Tapped(_ *fyne.PointEvent) {
+	if t.onTap != nil {
+		t.onTap()
+	}
+}
+
+func (t *largeTypeTappable) FocusGained()   {}
+func (t *largeTypeTappable) FocusLost()     {}
+func (t *largeTypeTappable) TypedRune(rune) {}
+
+func (t *largeTypeTappable) TypedKey(_ *fyne.KeyEvent) {
+	if t.onTap != nil {
+		t.onTap()
+	}
+}
