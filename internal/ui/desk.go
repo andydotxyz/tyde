@@ -136,6 +136,10 @@ func (l *desktop) ShowSettings() {
 }
 
 func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if esp, ok := l.screens.(*embeddedScreensProvider); ok {
+		esp.UpdatePrimarySize(int(size.Width), int(size.Height))
+	}
+
 	// Calculate the window origin (top-left of the bounding box of all screens)
 	originX, originY := 0, 0
 	for _, screen := range l.screens.Screens() {

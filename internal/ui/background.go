@@ -82,6 +82,12 @@ func (b *background) screenWallpapers() []fyne.CanvasObject {
 		wallpapers.Add(img)
 	}
 
+	// In embedded mode the window can be resized, so wrap wallpapers in a
+	// stack so they stretch to fill the background rather than keeping
+	// the initial hardcoded size.
+	if _, ok := screens.(*embeddedScreensProvider); ok {
+		return []fyne.CanvasObject{container.NewStack(wallpapers.Objects...)}
+	}
 	return []fyne.CanvasObject{wallpapers}
 }
 
