@@ -575,10 +575,6 @@ func wmTitle(c *client) string {
 }
 
 func computeTranslucency(conn *xgb.Conn, c *client) float64 {
-	if strings.Contains(wmTitle(c), "Terminal Overlay") {
-		return 0.2
-	}
-
 	// Check if this is the top visible window
 	isTop := true
 	idx := -1
@@ -591,9 +587,6 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 	if idx > 0 {
 		for j := idx - 1; j >= 0; j-- {
 			if clients[j].skipped {
-				continue
-			}
-			if strings.Contains(wmTitle(clients[j]), "FyneDesk:skip") {
 				continue
 			}
 			if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
@@ -669,8 +662,7 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 	}
 
 	// Skip the Fyne Desktop root window, skip-hinted windows, and screensavers.
-	if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
-		isScreensaver(name, attr, geom) {
+	if strings.Contains(name, ui.RootWindowName) || isScreensaver(name, attr, geom) {
 		c.skipped = true
 		_ = composite.UnredirectWindowChecked(conn, window, composite.RedirectManual).Check()
 	}
@@ -708,8 +700,7 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 	if !c.skipped {
 		name, _ := windowTitle(conn, c.win)
 		geom := &c.geom
-		if strings.Contains(name, "Fyne Desktop") || strings.Contains(name, "FyneDesk:skip") ||
-			isScreensaver(name, &c.attributes, geom) {
+		if strings.Contains(name, ui.RootWindowName) || isScreensaver(name, &c.attributes, geom) {
 			c.skipped = true
 			_ = composite.UnredirectWindowChecked(conn, c.win, composite.RedirectManual).Check()
 			if c.damage != 0 {
