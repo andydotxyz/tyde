@@ -310,58 +310,17 @@ func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
 }
 
 // updateRootInputShape sets the root window's X11 input shape.
-// When fullScreen is true, the root accepts input everywhere.
-// When false, it accepts input only in panel areas (left bar and right widget panel).
-func (x *x11WM) updateRootInputShape(fullScreen bool) {
+// The root window always accepts input everywhere — it sits below all
+// frame windows in the stacking order, so frames naturally receive events
+// in their areas. Frame input shapes (managed by updateFrameInputShapes)
+// exclude panel regions so that panels always remain clickable.
+func (x *x11WM) updateRootInputShape(_ bool) {
 	if x.rootID == 0 {
 		return
 	}
 
-	if fullScreen {
-		// Reset input shape to default (full window)
-		shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, x.rootID, 0, 0, xproto.PixmapNone)
-		return
-	}
-
-	inst := fynedesk.Instance()
-	if inst == nil {
-		return
-	}
-	primary := inst.Screens().Primary()
-	if primary == nil {
-		return
-	}
-
-	cbX, _, cbW, _ := inst.ContentBoundsPixels(primary)
-	screenW := uint16(primary.Width)
-	screenH := uint16(primary.Height)
-	offX := int16(primary.X)
-	offY := int16(primary.Y)
-
-	var rects []xproto.Rectangle
-	// Left bar area (if present)
-	if cbX > 0 {
-		rects = append(rects, xproto.Rectangle{
-			X: offX, Y: offY,
-			Width: uint16(cbX), Height: screenH,
-		})
-	}
-	// Right widget panel area
-	rightEdge := uint16(cbX) + uint16(cbW)
-	if rightEdge < screenW {
-		rects = append(rects, xproto.Rectangle{
-			X: offX + int16(rightEdge), Y: offY,
-			Width: screenW - rightEdge, Height: screenH,
-		})
-	}
-
-	if len(rects) == 0 {
-		// No panels — make root fully input-transparent
-		rects = append(rects, xproto.Rectangle{X: 0, Y: 0, Width: 0, Height: 0})
-	}
-
-	shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
-		0, x.rootID, 0, 0, rects)
+	// Reset input shape to default (full window)
+	shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, x.rootID, 0, 0, xproto.PixmapNone)
 }
 
 func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
