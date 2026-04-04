@@ -1,25 +1,23 @@
 package launcher
 
 import (
+	"image/color"
 	"time"
 
 	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
 	wmTheme "fyshos.com/fynedesk/theme"
 	"github.com/fyne-io/terminal"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 )
 
 const (
-	delay     = time.Second / 25
-	termTitle = "Terminal Overlay " + ui.SkipTaskbarHint
-	height    = 240
-	step      = 40
+	delay  = time.Second / 25
+	height = 240
+	step   = 40
 )
 
 var termMeta = fynedesk.ModuleMetadata{
@@ -28,9 +26,10 @@ var termMeta = fynedesk.ModuleMetadata{
 }
 
 type term struct {
-	shown bool
-	win   fynedesk.Window
-	ui    fyne.Window
+	shown   bool
+	running bool
+	content fyne.CanvasObject
+	console *terminal.Terminal
 }
 
 func (t *term) Destroy() {
@@ -49,121 +48,104 @@ func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
 }
 
 func (t *term) createTerm() {
-	win := fyne.CurrentApp().Driver().(desktop.Driver).CreateSplashWindow()
-	win.SetTitle(termTitle)
-
-	bg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
+	bg := canvas.NewRectangle(withTransparency(theme.Color(theme.ColorNameBackground)))
 	img := canvas.NewImageFromResource(theme.NewDisabledResource(theme.ComputerIcon()))
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(200, 200))
 	over := canvas.NewRectangle(wmTheme.WidgetPanelBackground())
 	matchTheme(bg, over)
 
-	console := terminal.New()
-	win.SetContent(container.NewStack(bg, img, over, console))
-	win.Canvas().Focus(console)
-	t.ui = win
-
-	go func() {
-		err := console.RunLocalShell()
-		if err != nil {
-			fyne.LogError("Failed to open terminal", err)
-		}
-		t.hide() // terminal exited
-
-		t.createTerm() // reset for next usage
-	}()
-}
-
-func (t *term) getHandle() fynedesk.Window {
-	// TODO a better way to capture window frame without showing it and waiting...
-	// t.ui.Resize(fyne.NewSize(0, 0))
-	fyne.Do(t.ui.Show)
-
-	i := 0
-	for {
-		time.Sleep(time.Second / 50)
-
-		for _, w := range fynedesk.Instance().WindowManager().Windows() {
-			if w.Properties().Title() == termTitle {
-				return w
-			}
-		}
-
-		i++
-		if i > 50 {
-			return nil // something went wrong
-		}
-	}
+	t.console = terminal.New()
+	t.content = container.NewStack(bg, img, over, t.console)
 }
 
 func (t *term) hide() {
 	screen := fynedesk.Instance().Screens().Primary()
-	left := float32(screen.X) / screen.Scale
-	y := float32(screen.Y) / screen.Scale
-	end := float32(screen.Y)/screen.Scale - height
+	scale := screen.CanvasScale()
+	left := float32(screen.X) / scale
+	y := float32(screen.Y) / scale
+	end := float32(screen.Y)/scale - height
 	for y > end {
-		t.win.Move(fyne.NewPos(left, y))
+		currY := y
+		fyne.Do(func() {
+			t.content.Move(fyne.NewPos(left, currY))
+		})
 		time.Sleep(delay)
 		y -= step
 	}
-	t.win.Move(fyne.NewPos(left, end))
 
-	t.ui.Hide()
 	t.shown = false
+	fynedesk.Instance().HideOverlay(t.content)
 }
 
 func (t *term) show() {
 	screen := fynedesk.Instance().Screens().Primary()
-	t.win.Resize(fyne.NewSize(float32(screen.Width)/screen.Scale, height))
-	//	t.ui.Show()
-	t.win.RaiseToTop()
+	scale := screen.CanvasScale()
+	w := float32(screen.Width) / scale
+	left := float32(screen.X) / scale
+	y := float32(screen.Y)/scale - height
+	end := float32(screen.Y) / scale
+	size := fyne.NewSize(w, height)
 
-	left := float32(screen.X) / screen.Scale
-	y := float32(screen.Y)/screen.Scale - height
-	end := float32(screen.Y) / screen.Scale
+	fynedesk.Instance().ShowOverlay(t.content, size, fyne.NewPos(left, y))
+
+	if !t.running {
+		t.running = true
+		go func() {
+			err := t.console.RunLocalShell()
+			if err != nil {
+				fyne.LogError("Failed to open terminal", err)
+			}
+			t.running = false
+			if t.shown {
+				t.hide()
+			}
+			t.createTerm() // reset for next usage
+		}()
+	}
+
 	for y < end {
-		t.win.Resize(fyne.NewSize(float32(screen.Width)/screen.Scale, height)) // force it ASAP
-		t.win.Move(fyne.NewPos(left, y))
+		currY := y
+		fyne.Do(func() {
+			t.content.Resize(size)
+			t.content.Move(fyne.NewPos(left, currY))
+		})
 		time.Sleep(delay)
 		y += step
 	}
-	t.win.Move(fyne.NewPos(left, end))
+	fyne.Do(func() {
+		t.content.Move(fyne.NewPos(left, end))
+		fynedesk.Instance().Root().Canvas().Focus(t.console)
+	})
 	t.shown = true
 }
 
 func (t *term) toggle() {
-	if t.ui == nil {
-		t.createTerm() // lazy load UI
+	if t.content == nil {
+		t.createTerm()
 	}
 
 	if !t.shown {
-		go func() {
-			t.win = t.getHandle()
-
-			if t.win != nil {
-				fyne.Do(func() {
-					t.win.Pin()
-					t.show()
-				})
-			}
-		}()
+		go t.show()
 	} else {
-		t.hide()
-		t.win = nil
+		go t.hide()
 	}
 }
 
 func matchTheme(bg, over *canvas.Rectangle) {
 	fyne.CurrentApp().Settings().AddListener(func(_ fyne.Settings) {
-		bg.FillColor = theme.Color(theme.ColorNameBackground)
+		bg.FillColor = withTransparency(theme.Color(theme.ColorNameBackground))
 		bg.Refresh()
 		over.FillColor = wmTheme.WidgetPanelBackground()
 		over.Refresh()
 	})
 }
 
+func withTransparency(c color.Color) color.Color {
+	r, g, b, _ := c.RGBA()
+	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xa0}
+}
+
 func newTerm() fynedesk.Module {
-	// don't load UI until it is first called on
 	return &term{}
 }
