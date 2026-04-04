@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	_ "embed"
 	"image/color"
 	"time"
 
@@ -23,6 +24,14 @@ const (
 var termMeta = fynedesk.ModuleMetadata{
 	Name:        "Terminal Overlay",
 	NewInstance: newTerm,
+}
+
+//go:embed terminal.svg
+var resourceTerminalSvgData []byte
+
+var resourceTerminal = &fyne.StaticResource{
+	StaticName:    "terminal.svg",
+	StaticContent: resourceTerminalSvgData,
 }
 
 type term struct {
@@ -48,15 +57,15 @@ func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
 }
 
 func (t *term) createTerm() {
-	bg := canvas.NewRectangle(withTransparency(theme.Color(theme.ColorNameBackground)))
-	img := canvas.NewImageFromResource(theme.NewDisabledResource(theme.ComputerIcon()))
+	bg := canvas.NewRectangle(withTransparency(theme.Color(theme.ColorNameOverlayBackground)))
+	img := canvas.NewImageFromResource(theme.NewThemedResource(resourceTerminal))
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(200, 200))
 	over := canvas.NewRectangle(wmTheme.WidgetPanelBackground())
 	matchTheme(bg, over)
 
 	t.console = terminal.New()
-	t.content = container.NewStack(bg, img, over, t.console)
+	t.content = container.NewStack(img, bg, over, t.console)
 }
 
 func (t *term) hide() {
@@ -134,7 +143,7 @@ func (t *term) toggle() {
 
 func matchTheme(bg, over *canvas.Rectangle) {
 	fyne.CurrentApp().Settings().AddListener(func(_ fyne.Settings) {
-		bg.FillColor = withTransparency(theme.Color(theme.ColorNameBackground))
+		bg.FillColor = withTransparency(theme.Color(theme.ColorNameOverlayBackground))
 		bg.Refresh()
 		over.FillColor = wmTheme.WidgetPanelBackground()
 		over.Refresh()
@@ -143,7 +152,7 @@ func matchTheme(bg, over *canvas.Rectangle) {
 
 func withTransparency(c color.Color) color.Color {
 	r, g, b, _ := c.RGBA()
-	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xa0}
+	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x99}
 }
 
 func newTerm() fynedesk.Module {
