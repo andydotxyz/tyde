@@ -242,15 +242,13 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 			var repaint bool
 
 			if err != nil {
-				var badDamageError *damage.BadDamageError
+				var badDamageError damage.BadDamageError
 				if errors.As(err, &badDamageError) {
 					repaint = true
-				}
-
-				if err != nil {
+				} else {
 					fyne.LogError("error waiting for event", err)
-					continue
 				}
+				continue
 			}
 
 			switch e := ev.(type) {

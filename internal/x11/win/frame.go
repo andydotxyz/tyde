@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/BurntSushi/xgb/shape"
@@ -56,6 +57,7 @@ type frame struct {
 	pendingGeometry chan *configureGeometry
 	pendingMu       sync.Mutex
 	transparency    int
+	closed          atomic.Bool
 
 	canvas test.WindowlessCanvas
 	client *client
@@ -356,7 +358,9 @@ func (f *frame) createPixmaps(depth byte) error {
 	bgColor := uint32(uint8(backR))<<16 | uint32(uint8(backG))<<8 | uint32(uint8(backB))
 
 	f.rectGC, _ = xproto.NewGcontextId(f.client.wm.Conn())
-	xproto.CreateGC(f.client.wm.Conn(), f.rectGC, xproto.Drawable(f.client.id), xproto.GcForeground, []uint32{bgColor})
+	if err := xproto.CreateGCChecked(f.client.wm.Conn(), f.rectGC, xproto.Drawable(f.client.id), xproto.GcForeground, []uint32{bgColor}).Check(); err != nil {
+		return err // frame window was destroyed
+	}
 
 	f.borderTopGC, _ = xproto.NewGcontextId(f.client.wm.Conn())
 	xproto.CreateGC(f.client.wm.Conn(), f.borderTopGC, xproto.Drawable(f.borderTop), xproto.GcForeground, []uint32{bgColor})
@@ -368,38 +372,52 @@ func (f *frame) createPixmaps(depth byte) error {
 
 func (f *frame) decorate(force bool) {
 	depth := f.client.wm.X().Screen().RootDepth
-	refresh := force
 
-	if refresh {
-		f.freePixmaps()
-	}
-	if f.borderTop == 0 {
-		err := f.createPixmaps(depth)
-		if err != nil {
-			fyne.LogError("New Pixmap Error", err)
+	fyne.Do(func() {
+		if f.closed.Load() {
 			return
 		}
-		refresh = true
-	}
 
-	if refresh || f.canvas == nil {
-		f.drawDecoration(f.borderTop, f.borderTopGC, f.borderTopRight, f.borderTopRightGC, depth)
-	}
+		refresh := force
 
+		if refresh {
+			f.freePixmaps()
+		}
+		if f.borderTop == 0 {
+			err := f.createPixmaps(depth)
+			if err != nil {
+				fyne.LogError("New Pixmap Error", err)
+				return
+			}
+			refresh = true
+		}
+
+		if refresh || f.canvas == nil {
+			f.drawDecorationSync(f.borderTop, f.borderTopGC, f.borderTopRight, f.borderTopRightGC, depth)
+		}
+
+		f.applyDecorationToFrame()
+	})
+}
+
+func (f *frame) applyDecorationToFrame() {
 	heightPix := x11.TitleHeight(x11.XWin(f.client))
 	rect := xproto.Rectangle{X: 0, Y: 0, Width: f.width, Height: f.height}
-	xproto.PolyFillRectangleChecked(f.client.wm.Conn(), xproto.Drawable(f.client.id), f.rectGC, []xproto.Rectangle{rect})
+	if err := xproto.PolyFillRectangleChecked(f.client.wm.Conn(), xproto.Drawable(f.client.id), f.rectGC, []xproto.Rectangle{rect}).Check(); err != nil {
+		return // frame window was destroyed
+	}
 
 	rightWidthPix := f.topRightPixelWidth()
-	// minWidth := f.canvas.Content().MinSize().Width
-	widthPix := f.width // uint16(minWidth*f.canvas.Scale()) - rightWidthPix
+	widthPix := f.width
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTop), xproto.Drawable(f.client.id), f.borderTopGC,
 		0, 0, 0, 0, widthPix, heightPix)
 	xproto.CopyArea(f.client.wm.Conn(), xproto.Drawable(f.borderTopRight), xproto.Drawable(f.client.id), f.borderTopRightGC,
 		0, 0, int16(f.width-rightWidthPix), 0, rightWidthPix, heightPix)
 }
 
-func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pidTopRight xproto.Pixmap, drawTopRight xproto.Gcontext, depth byte) {
+// drawDecorationSync renders the window border into pixmaps and copies them to the frame.
+// Must be called from the main thread (via fyne.Do) to avoid font cache races.
+func (f *frame) drawDecorationSync(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pidTopRight xproto.Pixmap, drawTopRight xproto.Gcontext, depth byte) {
 	screen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
 	scale := screen.CanvasScale()
 
@@ -408,6 +426,9 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 		!windowSizeCanMaximize(f.client.wm.X(), f.client) {
 		canMaximize = false
 	}
+
+	heightPix := x11.TitleHeight(x11.XWin(f.client))
+	rightWidthPix := f.topRightPixelWidth()
 
 	if f.canvas == nil {
 		cnv := software.NewCanvas()
@@ -429,8 +450,6 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 	}
 	f.canvas.SetScale(scale)
 
-	heightPix := x11.TitleHeight(x11.XWin(f.client))
-	rightWidthPix := f.topRightPixelWidth()
 	minWidth := f.canvas.Content().MinSize().Width
 	winPixWidth := f.borderTopWidth + rightWidthPix
 	winPtWidth := float32(winPixWidth) / scale
@@ -439,7 +458,6 @@ func (f *frame) drawDecoration(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pi
 	widthPix := uint16(drawWidth*f.canvas.Scale()) - rightWidthPix
 	img := f.canvas.Capture()
 
-	// Draw in pixel rows, so we don't overflow count usable by PutImageChecked
 	for i := uint16(0); i < heightPix; i++ {
 		f.copyDecorationPixels(uint32(widthPix), 1, 0, uint32(i), img, pidTop, drawTop, depth)
 	}
@@ -843,30 +861,33 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 	}
 
 	<-ctx.Done()
-	if f.clickCount == 2 {
-		obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
-			func(obj fyne.CanvasObject) bool {
-				_, ok := obj.(fyne.DoubleTappable)
-				return ok
-			},
-		)
-		if obj != nil {
-			obj.(fyne.DoubleTappable).DoubleTapped(&fyne.PointEvent{})
-		}
-	} else {
-		obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
-			func(obj fyne.CanvasObject) bool {
-				_, ok := obj.(fyne.Tappable)
-				return ok
-			},
-		)
-		if obj != nil {
-			obj.(fyne.Tappable).Tapped(&fyne.PointEvent{})
-		}
-	}
-
+	clickCount := f.clickCount
 	f.clickCount = 0
 	f.cancelFunc = nil
+
+	fyne.Do(func() {
+		if clickCount == 2 {
+			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+				func(obj fyne.CanvasObject) bool {
+					_, ok := obj.(fyne.DoubleTappable)
+					return ok
+				},
+			)
+			if obj != nil {
+				obj.(fyne.DoubleTappable).DoubleTapped(&fyne.PointEvent{})
+			}
+		} else {
+			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+				func(obj fyne.CanvasObject) bool {
+					_, ok := obj.(fyne.Tappable)
+					return ok
+				},
+			)
+			if obj != nil {
+				obj.(fyne.Tappable).Tapped(&fyne.PointEvent{})
+			}
+		}
+	})
 }
 
 // Notify the child window that it's geometry has changed to update menu positions etc.

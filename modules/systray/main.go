@@ -141,14 +141,19 @@ func NewTray() fynedesk.Module {
 				newOwner := v.Body[2]
 				if newOwner == "" {
 					if item, ok := t.nodes[dbus.Sender(name.(string))]; ok {
-						t.box.Remove(item.ico)
-						t.box.Refresh()
+						fyne.Do(func() {
+							t.box.Remove(item.ico)
+							t.box.Refresh()
+						})
 					}
 				}
 			case "org.kde.StatusNotifierItem.NewIcon":
 				item, ok := t.nodes[dbus.Sender(v.Sender)]
 				if ok {
-					t.updateIcon(item)
+					icon := t.fetchIcon(item)
+					fyne.Do(func() {
+						item.ico.SetIcon(icon)
+					})
 				}
 			default:
 				log.Println("Also", v.Name)
@@ -191,12 +196,17 @@ func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) (e
 		ico.Importance = widget.LowImportance
 		item = &node{ico, ni}
 		t.nodes[sender] = item
-		t.box.Add(ico)
+		fyne.Do(func() {
+			t.box.Add(ico)
+		})
 	}
 
 	t.nodes[sender].ni = ni
-	t.updateIcon(item)
-	t.box.Refresh()
+	icon := t.fetchIcon(item)
+	fyne.Do(func() {
+		item.ico.SetIcon(icon)
+		t.box.Refresh()
+	})
 
 	return nil
 }
@@ -322,7 +332,7 @@ func (t *tray) showMenu(sender string, name dbus.ObjectPath, from fyne.CanvasObj
 	fynedesk.Instance().WindowManager().ShowOverlay(w, size, pos)
 }
 
-func (t *tray) updateIcon(i *node) {
+func (t *tray) fetchIcon(i *node) fyne.Resource {
 	ic, _ := i.ni.GetIconPixmap(t.conn.Context())
 	if len(ic) > 0 {
 		img := pixelsToImage(ic[0])
@@ -330,27 +340,26 @@ func (t *tray) updateIcon(i *node) {
 		resourceID++
 		w := &bytes.Buffer{}
 		_ = png.Encode(w, img)
-		i.ico.SetIcon(fyne.NewStaticResource(unique, w.Bytes()))
-	} else {
-		name, _ := i.ni.GetIconName(t.conn.Context())
-		path, _ := i.ni.GetIconThemePath(t.conn.Context())
-		fullPath := ""
-		if path != "" {
-			fullPath = filepath.Join(path, name+".png")
-			if _, err := os.Stat(fullPath); err != nil { // not found, search instead
-				fullPath = appie.FdoLookupIconPathInTheme("64", filepath.Join(path, "hicolor"), "", name)
-			}
-		} else {
-			fullPath = appie.FdoLookupIconPath("", 64, name)
-		}
-		img, err := os.ReadFile(fullPath)
-		if err != nil {
-			fyne.LogError("Failed to load status icon", err)
-			i.ico.SetIcon(wmtheme.BrokenImageIcon)
-		} else {
-			i.ico.SetIcon(fyne.NewStaticResource(name, img))
-		}
+		return fyne.NewStaticResource(unique, w.Bytes())
 	}
+
+	name, _ := i.ni.GetIconName(t.conn.Context())
+	path, _ := i.ni.GetIconThemePath(t.conn.Context())
+	fullPath := ""
+	if path != "" {
+		fullPath = filepath.Join(path, name+".png")
+		if _, err := os.Stat(fullPath); err != nil { // not found, search instead
+			fullPath = appie.FdoLookupIconPathInTheme("64", filepath.Join(path, "hicolor"), "", name)
+		}
+	} else {
+		fullPath = appie.FdoLookupIconPath("", 64, name)
+	}
+	img, err := os.ReadFile(fullPath)
+	if err != nil {
+		fyne.LogError("Failed to load status icon", err)
+		return wmtheme.BrokenImageIcon
+	}
+	return fyne.NewStaticResource(name, img)
 }
 
 func createPropSpec() map[string]map[string]*prop.Prop {

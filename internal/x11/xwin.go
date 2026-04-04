@@ -21,6 +21,7 @@ type XWin interface {
 	Geometry() (int, int, uint, uint)
 
 	Expose()
+	MarkDestroyed()
 	Refresh()
 	SettingsChanged()
 

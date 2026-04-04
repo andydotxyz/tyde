@@ -561,7 +561,7 @@ func (x *x11WM) configureRoots() {
 		maxX = max(maxX, screen.X+screen.Width)
 		maxY = max(maxY, screen.Y+screen.Height)
 
-		if screen == fynedesk.Instance().Screens().Primary() {
+		if x.rootID != 0 && screen == fynedesk.Instance().Screens().Primary() {
 			priX, priY, priW, priH := 0, 0, 0, 0
 			geom, err := xproto.GetGeometry(x.x.Conn(), xproto.Drawable(x.rootID)).Reply()
 			if err == nil {
@@ -687,8 +687,9 @@ func (x *x11WM) destroyWindow(win xproto.Window) {
 	windowClientListUpdate(x)
 	windowClientListStackingUpdate(x)
 
-	xproto.DestroyWindow(x.x.Conn(), c.FrameID())
-	xproto.DestroyWindow(x.x.Conn(), c.ChildID())
+	c.MarkDestroyed()
+	_ = xproto.DestroyWindowChecked(x.x.Conn(), c.FrameID()).Check()
+	_ = xproto.DestroyWindowChecked(x.x.Conn(), c.ChildID()).Check()
 }
 
 func (x *x11WM) exposeWindow(win xproto.Window) {
@@ -745,8 +746,11 @@ func (x *x11WM) hideWindow(win xproto.Window) {
 		return
 	}
 	xproto.UnmapWindow(x.x.Conn(), c.FrameID())
+	c.MarkDestroyed()
 	if !c.Iconic() {
-		x.RemoveWindow(c)
+		fyne.Do(func() {
+			x.RemoveWindow(c)
+		})
 	}
 }
 
