@@ -565,15 +565,6 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 	}
 }
 
-// wmTitle returns the WM window title for a compositor client, or "".
-func wmTitle(c *client) string {
-	w := wmWindow(c)
-	if w == nil {
-		return ""
-	}
-	return w.Properties().Title()
-}
-
 func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 	// Check if this is the top visible window
 	isTop := true
