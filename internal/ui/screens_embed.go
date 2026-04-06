@@ -38,7 +38,14 @@ func (esp *embeddedScreensProvider) ScreenForGeometry(x int, y int, width int, h
 	return esp.Screens()[0]
 }
 
-// NewEmbeddedScreensProvider returns a screen provider for use in embedded desktop mode
+// UpdatePrimarySize updates the virtual screen dimensions to match the window size.
+func (esp *embeddedScreensProvider) UpdatePrimarySize(w, h int) {
+	s := esp.Primary()
+	s.Width = w
+	s.Height = h
+}
+
+// newEmbeddedScreensProvider returns a screen provider for use in embedded desktop mode
 func newEmbeddedScreensProvider() fynedesk.ScreenList {
 	screen := &fynedesk.Screen{Name: "(Embedded)", X: 0, Y: 0, Width: 1280, Height: 1024, Scale: 1.0}
 	return &embeddedScreensProvider{active: screen, screens: []*fynedesk.Screen{screen}}

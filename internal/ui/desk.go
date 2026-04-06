@@ -23,8 +23,6 @@ import (
 const (
 	// RootWindowName is the base string that all root windows will have in their title and is used to identify root windows.
 	RootWindowName = "Fyne Desktop"
-	// SkipTaskbarHint should be added to the title of normal windows that should be skipped like the X11 SkipTaskbar hint.
-	SkipTaskbarHint = "FyneDesk:skip"
 )
 
 type desktop struct {
@@ -136,6 +134,10 @@ func (l *desktop) ShowSettings() {
 }
 
 func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if esp, ok := l.screens.(*embeddedScreensProvider); ok {
+		esp.UpdatePrimarySize(int(size.Width), int(size.Height))
+	}
+
 	// Calculate the window origin (top-left of the bounding box of all screens)
 	originX, originY := 0, 0
 	for _, screen := range l.screens.Screens() {

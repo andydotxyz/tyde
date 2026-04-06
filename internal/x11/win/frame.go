@@ -143,12 +143,6 @@ func newFrame(c *client) *frame {
 
 	title := "FyneDesk Border"
 	childTitle := c.props.Title()
-	if strings.Contains(childTitle, "Terminal Overlay") {
-		title = "Terminal Overlay"
-	}
-	if strings.Contains(childTitle, "FyneDesk:skip") {
-		title += " FyneDesk:skip"
-	}
 	if strings.Contains(strings.ToLower(childTitle), "screensaver") ||
 		strings.Contains(strings.ToLower(childTitle), "screen saver") ||
 		strings.Contains(strings.ToLower(childTitle), saver.WindowTitle) {
