@@ -87,14 +87,14 @@ func (i *largeTypeItem) Launch() {
 	label.TextStyle = fyne.TextStyle{Bold: true}
 
 	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
-	bg := canvas.NewRectangle(&color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0xd0})
+	bg := canvas.NewRectangle(&color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x80})
 
 	var overlay fyne.CanvasObject
 	dismiss := &largeTypeTappable{onTap: func() {
 		desk.HideOverlay(overlay)
 	}}
 	dismiss.ExtendBaseWidget(dismiss)
-	overlay = container.NewStack(bg, dismiss, container.NewCenter(label))
+	overlay = container.NewStack(canvas.NewBlur(5), bg, dismiss, container.NewCenter(label))
 
 	size := fyne.NewSize(screenW, screenH)
 	pos := fyne.NewPos(screenX, screenY)
