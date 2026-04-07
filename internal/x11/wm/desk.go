@@ -880,11 +880,11 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 	// RaiseToTop may skip the X11 restack when the internal client list
 	// hasn't been updated yet (AddWindow is queued via fyne.Do), and
 	// Focus() sends an async client message that GLFW may override.
-	xproto.ConfigureWindow(x.x.Conn(), c.(x11.XWin).FrameID(),
+	xproto.ConfigureWindow(x.x.Conn(), c.FrameID(),
 		xproto.ConfigWindowStackMode, []uint32{uint32(xproto.StackModeAbove)})
 	c.Focus()
 	xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot,
-		c.(x11.XWin).ChildID(), xproto.TimeCurrentTime)
+		c.ChildID(), xproto.TimeCurrentTime)
 	windowClientListUpdate(x)
 	windowClientListStackingUpdate(x)
 }
