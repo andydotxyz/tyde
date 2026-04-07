@@ -78,8 +78,6 @@ func (i *largeTypeItem) Launch() {
 
 	screenW := float32(screen.Width) / scale
 	screenH := float32(screen.Height) / scale
-	screenX := float32(screen.X) / scale
-	screenY := float32(screen.Y) / scale
 
 	label := canvas.NewText(i.text, theme.Color(theme.ColorNameForeground))
 	label.TextSize = 120
@@ -97,7 +95,7 @@ func (i *largeTypeItem) Launch() {
 	overlay = container.NewStack(canvas.NewBlur(5), bg, dismiss, container.NewCenter(label))
 
 	size := fyne.NewSize(screenW, screenH)
-	pos := fyne.NewPos(screenX, screenY)
+	pos := fyne.NewPos(0, 0)
 	desk.ShowOverlay(overlay, size, pos)
 	fyne.Do(func() {
 		desk.Root().Canvas().Focus(dismiss)
