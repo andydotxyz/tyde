@@ -59,9 +59,8 @@ func (n *notification) show(list *fyne.Container) {
 		inst := fynedesk.Instance()
 		primary := inst.Screens().Primary()
 		scale := primary.CanvasScale()
-		originX, originY := screenOrigin(inst.Screens())
-		pRight := float32(primary.X-originX+primary.Width) / scale
-		pos := fyne.NewPos(pRight-width-offset-wmtheme.NarrowBarWidth, float32(primary.Y-originY)/scale+offset)
+		pRight := float32(primary.Width) / scale
+		pos := fyne.NewPos(pRight-width-offset-wmtheme.NarrowBarWidth, offset)
 		inst.ShowOverlay(n.overlay, fyne.NewSize(width, height), pos)
 	} else {
 		fyne.Do(func() {

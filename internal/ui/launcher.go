@@ -241,9 +241,8 @@ func (l *picker) show() {
 	d := l.desk.(*desktop)
 	primary := d.Screens().Primary()
 	scale := primary.CanvasScale()
-	originX, originY := screenOrigin(d.Screens())
-	midX := float32(primary.X-originX+primary.Width/2) / scale
-	midY := float32(primary.Y-originY+primary.Height/2) / scale
+	midX := float32(primary.Width/2) / scale
+	midY := float32(primary.Height/2) / scale
 
 	entryHeight := l.entry.MinSize().Height
 	l.fullSize = fyne.NewSize(launcherWidth,

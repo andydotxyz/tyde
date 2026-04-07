@@ -244,12 +244,9 @@ func (s *Switcher) Show() {
 
 	primary := inst.Screens().Primary()
 	scale := primary.CanvasScale()
-	originX, originY := screenOrigin(inst.Screens())
-	pX := float32(primary.X-originX) / scale
-	pY := float32(primary.Y-originY) / scale
 	pW := float32(primary.Width) / scale
 	pH := float32(primary.Height) / scale
-	pos := fyne.NewPos(pX+(pW-size.Width)/2, pY+(pH-size.Height)/2)
+	pos := fyne.NewPos((pW-size.Width)/2, (pH-size.Height)/2)
 
 	inst.ShowOverlay(s.content, size, pos)
 }

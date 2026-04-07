@@ -177,6 +177,7 @@ func newFrame(c *client) *frame {
 	}
 
 	windowStateSet(c.wm.X(), c.win, icccm.StateNormal)
+	c.frame = framed // set early so ScreenForWindow can resolve the correct screen
 	framed.show()
 	framed.applyTheme(true)
 	framed.notifyInnerGeometry()

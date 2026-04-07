@@ -14,7 +14,6 @@ import (
 
 type background struct {
 	widget.BaseWidget
-	compositor *CompositorWidget
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
@@ -23,7 +22,7 @@ func (b *background) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (b *background) loadModules() []fyne.CanvasObject {
-	objects := b.screenWallpapers()
+	objects := []fyne.CanvasObject{container.NewStack(loadWallpaper())}
 
 	// Add screen area modules (e.g. desktop files)
 	for _, m := range fynedesk.Instance().Modules() {
@@ -34,61 +33,7 @@ func (b *background) loadModules() []fyne.CanvasObject {
 		}
 	}
 
-	// Compositor on top so windows are drawn over desktop content
-	if b.compositor != nil {
-		objects = append(objects, b.compositor)
-	}
-
 	return objects
-}
-
-// screenWallpapers creates one wallpaper image per screen, positioned correctly
-// within the multi-screen window, mirroring the X root background layout.
-func (b *background) screenWallpapers() []fyne.CanvasObject {
-	inst := fynedesk.Instance()
-	if inst == nil {
-		return nil
-	}
-
-	screens := inst.Screens()
-	if screens == nil {
-		return nil
-	}
-
-	// Find the window origin (top-left of all screens bounding box)
-	originX, originY := 0, 0
-	for _, screen := range screens.Screens() {
-		if screen.X < originX {
-			originX = screen.X
-		}
-		if screen.Y < originY {
-			originY = screen.Y
-		}
-	}
-
-	scale := screens.Primary().CanvasScale()
-	wallpapers := container.NewWithoutLayout()
-
-	for _, screen := range screens.Screens() {
-		img := loadWallpaper()
-		img.Move(fyne.NewPos(
-			float32(screen.X-originX)/scale,
-			float32(screen.Y-originY)/scale,
-		))
-		img.Resize(fyne.NewSize(
-			float32(screen.Width)/scale,
-			float32(screen.Height)/scale,
-		))
-		wallpapers.Add(img)
-	}
-
-	// In embedded mode the window can be resized, so wrap wallpapers in a
-	// stack so they stretch to fill the background rather than keeping
-	// the initial hardcoded size.
-	if _, ok := screens.(*embeddedScreensProvider); ok {
-		return []fyne.CanvasObject{container.NewStack(wallpapers.Objects...)}
-	}
-	return []fyne.CanvasObject{wallpapers}
 }
 
 func (b *background) updateBackground(_ string) {
@@ -115,8 +60,8 @@ func loadWallpaper() fyne.CanvasObject {
 	return src.Load(set.Theme(), set.ThemeVariant())
 }
 
-func newBackground(compositor *CompositorWidget) *background {
-	ret := &background{compositor: compositor}
+func newBackground() *background {
+	ret := &background{}
 	ret.ExtendBaseWidget(ret)
 	return ret
 }

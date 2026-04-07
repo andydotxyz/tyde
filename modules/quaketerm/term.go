@@ -69,15 +69,12 @@ func (t *term) createTerm() {
 }
 
 func (t *term) hide() {
-	screen := fynedesk.Instance().Screens().Primary()
-	scale := screen.CanvasScale()
-	left := float32(screen.X) / scale
-	y := float32(screen.Y) / scale
-	end := float32(screen.Y)/scale - height
+	var y float32
+	end := -float32(height)
 	for y > end {
 		currY := y
 		fyne.Do(func() {
-			t.content.Move(fyne.NewPos(left, currY))
+			t.content.Move(fyne.NewPos(0, currY))
 		})
 		time.Sleep(delay)
 		y -= step
@@ -91,12 +88,11 @@ func (t *term) show() {
 	screen := fynedesk.Instance().Screens().Primary()
 	scale := screen.CanvasScale()
 	w := float32(screen.Width) / scale
-	left := float32(screen.X) / scale
-	y := float32(screen.Y)/scale - height
-	end := float32(screen.Y) / scale
+	y := -float32(height)
+	var end float32
 	size := fyne.NewSize(w, height)
 
-	fynedesk.Instance().ShowOverlay(t.content, size, fyne.NewPos(left, y))
+	fynedesk.Instance().ShowOverlay(t.content, size, fyne.NewPos(0, y))
 
 	if !t.running {
 		t.running = true
@@ -117,13 +113,13 @@ func (t *term) show() {
 		currY := y
 		fyne.Do(func() {
 			t.content.Resize(size)
-			t.content.Move(fyne.NewPos(left, currY))
+			t.content.Move(fyne.NewPos(0, currY))
 		})
 		time.Sleep(delay)
 		y += step
 	}
 	fyne.Do(func() {
-		t.content.Move(fyne.NewPos(left, end))
+		t.content.Move(fyne.NewPos(0, end))
 		fynedesk.Instance().Root().Canvas().Focus(t.console)
 	})
 	t.shown = true

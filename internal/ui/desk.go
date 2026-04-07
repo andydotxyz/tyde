@@ -25,6 +25,24 @@ const (
 	RootWindowName = "Fyne Desktop"
 )
 
+// screenWindow holds the Fyne window and per-screen widgets for a single monitor.
+type screenWindow struct {
+	screen            *fynedesk.Screen
+	win               fyne.Window
+	compositor        *CompositorWidget
+	compositorOverlay *CompositorWidget
+	bg                *background
+	overlay           *fyne.Container
+}
+
+// ScreenCompositors groups the compositor widgets for a single screen,
+// passed to the platform compositor so it can route windows per-monitor.
+type ScreenCompositors struct {
+	Screen  *fynedesk.Screen
+	Normal  *CompositorWidget
+	Overlay *CompositorWidget
+}
+
 type desktop struct {
 	wm.ShortcutHandler
 	app      fyne.App
@@ -38,17 +56,15 @@ type desktop struct {
 	showMenu    func(*fyne.Menu, fyne.Position)
 	moduleCache []fynedesk.Module
 
-	bar               *bar
-	widgets           *widgetPanel
-	mouse             fyne.CanvasObject
-	overlay           *fyne.Container
-	root              fyne.Window
-	desk              int
-	deskAnim          *fyne.Animation
-	deskAnimTargets   map[fynedesk.Window]fyne.Position // where the in-flight animation is heading
-	compositor        *CompositorWidget
-	compositorOverlay *CompositorWidget
-	compositorDone    chan struct{}
+	bar             *bar
+	widgets         *widgetPanel
+	mouse           fyne.CanvasObject
+	screenWindows   []*screenWindow
+	primaryWin      *screenWindow
+	desk            int
+	deskAnim        *fyne.Animation
+	deskAnimTargets map[fynedesk.Window]fyne.Position // where the in-flight animation is heading
+	compositorDone  chan struct{}
 }
 
 func (l *desktop) Desktop() int {
@@ -138,50 +154,34 @@ func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		esp.UpdatePrimarySize(int(size.Width), int(size.Height))
 	}
 
-	// Calculate the window origin (top-left of the bounding box of all screens)
-	originX, originY := 0, 0
-	for _, screen := range l.screens.Screens() {
-		if screen.X < originX {
-			originX = screen.X
+	// Each window covers exactly one screen, so origin is always 0,0.
+	pW := size.Width
+	pH := size.Height
+
+	// objects order: background, [compositor], bar, widgets, [compositorOverlay], overlay, mouse
+	// Size all full-window layers (everything except bar and widgets) to fill.
+	for _, o := range objects {
+		if o == l.bar || o == l.widgets || o == l.mouse {
+			continue
 		}
-		if screen.Y < originY {
-			originY = screen.Y
-		}
+		o.Resize(size)
+		o.Move(fyne.NewPos(0, 0))
 	}
-
-	// Position background, bar and widgets on the primary screen only.
-	// Coordinates are relative to the window origin.
-	primary := l.screens.Primary()
-	scale := primary.CanvasScale()
-
-	pX := float32(primary.X-originX) / scale
-	pY := float32(primary.Y-originY) / scale
-	pW := float32(primary.Width) / scale
-	pH := float32(primary.Height) / scale
-
-	bg := objects[0].(*background)
-	bg.Resize(size)
 
 	if l.Settings().NarrowLeftLauncher() {
 		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, pH))
-		l.bar.Move(fyne.NewPos(pX, pY))
+		l.bar.Move(fyne.NewPos(0, 0))
 	} else {
 		barHeight := l.bar.MinSize().Height
 		l.bar.Resize(fyne.NewSize(pW, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
-		l.bar.Move(fyne.NewPos(pX, pY+pH-barHeight))
+		l.bar.Move(fyne.NewPos(0, pH-barHeight))
 	}
 	l.bar.Refresh()
 
 	widgetsWidth := l.widgets.MinSize().Width
 	l.widgets.Resize(fyne.NewSize(widgetsWidth, pH))
-	l.widgets.Move(fyne.NewPos(pX+pW-widgetsWidth, pY))
+	l.widgets.Move(fyne.NewPos(pW-widgetsWidth, 0))
 	l.widgets.Refresh()
-
-	// Size overlay objects (between widgets and mouse) to the full window
-	for i := 3; i < len(objects)-1; i++ {
-		objects[i].Resize(size)
-		objects[i].Move(fyne.NewPos(0, 0))
-	}
 }
 
 func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
@@ -189,7 +189,10 @@ func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
 }
 
 func (l *desktop) Root() fyne.Window {
-	return l.root
+	if l.primaryWin == nil {
+		return nil
+	}
+	return l.primaryWin.win
 }
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
@@ -287,7 +290,7 @@ func (l *desktop) showOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 	combined = container.NewStack(bg, container.NewWithoutLayout(catch))
 
 	// Size the combined to fill the full window
-	winSize := l.root.Canvas().Size()
+	winSize := l.primaryWin.win.Canvas().Size()
 	l.showOverlay(combined, winSize, fyne.NewPos(0, 0), focus)
 	return combined
 }
@@ -300,18 +303,20 @@ func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyn
 }
 
 func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position, focus fyne.Focusable) {
+	overlay := l.primaryWin.overlay
+	win := l.primaryWin.win
 	fyne.Do(func() {
 		content.Resize(size)
 		content.Move(pos)
-		l.overlay.Add(content)
-		l.overlay.Refresh()
+		overlay.Add(content)
+		overlay.Refresh()
 
 		if is, ok := l.wm.(inputShaper); ok {
 			is.SetOverlayActive(true)
 		}
 
 		if focus != nil {
-			l.root.Canvas().Focus(focus)
+			win.Canvas().Focus(focus)
 		}
 	})
 }
@@ -319,11 +324,12 @@ func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyn
 // HideOverlay removes content from the desktop overlay layer.
 // When no overlays remain, input shapes are restored to normal.
 func (l *desktop) HideOverlay(content fyne.CanvasObject) {
+	overlay := l.primaryWin.overlay
 	fyne.Do(func() {
-		l.overlay.Remove(content)
-		l.overlay.Refresh()
+		overlay.Remove(content)
+		overlay.Refresh()
 
-		if len(l.overlay.Objects) == 0 {
+		if len(overlay.Objects) == 0 {
 			if is, ok := l.wm.(inputShaper); ok {
 				is.SetOverlayActive(false)
 			}
@@ -332,51 +338,141 @@ func (l *desktop) HideOverlay(content fyne.CanvasObject) {
 }
 
 func (l *desktop) updateBackgrounds(path string) {
-	root := l.root.Content().(*fyne.Container).Objects[0]
-	if back, ok := root.(*background); ok {
-		back.updateBackground(path)
-	} else { // embed mode has another container
-		root.(*fyne.Container).Objects[0].(*background).updateBackground(path)
+	for _, sw := range l.screenWindows {
+		if sw.bg != nil {
+			sw.bg.updateBackground(path)
+		}
 	}
 }
 
-func (l *desktop) createPrimaryContent() fyne.CanvasObject {
+func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	l.bar = newBar(l)
 	l.widgets = newWidgetPanel(l)
 	l.mouse = newMouse()
 	l.mouse.Hide()
 
-	// Order: background (wallpapers + files + compositor) -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
-	objects := []fyne.CanvasObject{newBackground(l.compositor), l.bar, l.widgets}
+	sw.bg = newBackground()
+
+	// Order: background -> compositor -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
+	objects := []fyne.CanvasObject{sw.bg}
+
+	// Normal compositor for regular windows below desktop chrome
+	if sw.compositor != nil {
+		objects = append(objects, sw.compositor)
+	}
+
+	objects = append(objects, l.bar, l.widgets)
 
 	// Compositor overlay for fullscreen windows above desktop chrome
-	if l.compositorOverlay != nil {
-		objects = append(objects, l.compositorOverlay)
+	if sw.compositorOverlay != nil {
+		objects = append(objects, sw.compositorOverlay)
 	}
 
 	// UI overlay for menus, dialogs, switcher, notifications
-	l.overlay = container.NewWithoutLayout()
-	objects = append(objects, l.overlay, l.mouse)
+	sw.overlay = container.NewWithoutLayout()
+	objects = append(objects, sw.overlay, l.mouse)
 	return container.New(l, objects...)
 }
 
-func (l *desktop) createRoot(screens fynedesk.ScreenList) fyne.Window {
-	win := l.newDesktopWindowFull()
+// secondaryLayout is a simple layout for non-primary screen windows (no bar/widgets).
+type secondaryLayout struct{}
 
-	win.SetContent(l.createPrimaryContent())
+func (s *secondaryLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objects {
+		o.Resize(size)
+		o.Move(fyne.NewPos(0, 0))
+	}
+}
 
-	return win
+func (s *secondaryLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(640, 480)
+}
+
+func (l *desktop) createSecondaryContent(sw *screenWindow) fyne.CanvasObject {
+	sw.bg = newBackground()
+
+	objects := []fyne.CanvasObject{sw.bg}
+
+	// Normal compositor for regular windows
+	if sw.compositor != nil {
+		objects = append(objects, sw.compositor)
+	}
+
+	// Compositor overlay for fullscreen windows
+	if sw.compositorOverlay != nil {
+		objects = append(objects, sw.compositorOverlay)
+	}
+
+	sw.overlay = container.NewWithoutLayout()
+	objects = append(objects, sw.overlay)
+	return container.New(&secondaryLayout{}, objects...)
 }
 
 func (l *desktop) setupRoot() {
-	if l.root == nil {
-		l.root = l.createRoot(l.screens)
+	primary := l.screens.Primary()
+
+	// Build or update screenWindow for each screen
+	existingByName := make(map[string]*screenWindow, len(l.screenWindows))
+	for _, sw := range l.screenWindows {
+		existingByName[sw.screen.Name] = sw
 	}
 
-	// Size the root window to cover all screens so the compositor can render windows on any display
-	w, h := l.RootSizePixels()
-	scale := l.screens.Primary().CanvasScale()
-	l.root.Resize(fyne.NewSize(float32(w)/scale, float32(h)/scale))
+	var newWindows []*screenWindow
+	for _, screen := range l.screens.Screens() {
+		sw := existingByName[screen.Name]
+		if sw != nil {
+			// Update screen pointer (geometry may have changed)
+			sw.screen = screen
+			if sw.compositor != nil {
+				sw.compositor.Screen = screen
+			}
+			if sw.compositorOverlay != nil {
+				sw.compositorOverlay.Screen = screen
+			}
+			delete(existingByName, screen.Name)
+		} else {
+			// Create new screenWindow
+			sw = &screenWindow{screen: screen}
+			if l.compositorDone != nil {
+				sw.compositor = NewCompositorWidget(screen)
+				sw.compositorOverlay = NewCompositorWidget(screen)
+			}
+			win := l.app.NewWindow(RootWindowName + screen.Name)
+			win.SetPadded(false)
+			sw.win = win
+
+			if screen == primary {
+				win.SetMaster()
+				win.SetOnClosed(func() {
+					if l.compositorDone != nil {
+						close(l.compositorDone)
+					}
+					l.wm.Close()
+				})
+				win.SetContent(l.createPrimaryContent(sw))
+			} else {
+				win.SetContent(l.createSecondaryContent(sw))
+			}
+		}
+
+		newWindows = append(newWindows, sw)
+		if screen == primary {
+			l.primaryWin = sw
+		}
+	}
+
+	// Close windows for disconnected screens
+	for _, sw := range existingByName {
+		sw.win.Close()
+	}
+
+	l.screenWindows = newWindows
+
+	// Resize each window to cover its screen
+	for _, sw := range l.screenWindows {
+		scale := sw.screen.CanvasScale()
+		sw.win.Resize(fyne.NewSize(float32(sw.screen.Width)/scale, float32(sw.screen.Height)/scale))
+	}
 }
 
 func (l *desktop) RecentApps() []appie.AppData {
@@ -610,12 +706,9 @@ func (l *desktop) Screens() fynedesk.ScreenList {
 	return l.screens
 }
 
-// NewDesktop creates a new desktop in fullscreen for main usage.
-// The WindowManager passed in will be used to manage the screen it is loaded on.
-// An ApplicationProvider is used to lookup application icons from the operating system.
 // CompositorRunFunc is a function that runs a platform compositor using the
-// provided widgets. It blocks until done is closed.
-type CompositorRunFunc func(done chan struct{}, normal, overlay *CompositorWidget) error
+// provided per-screen widgets. It blocks until done is closed.
+type CompositorRunFunc func(done chan struct{}, screens []ScreenCompositors) error
 
 // NewDesktop creates the full desktop environment with window management.
 // If compositorRun is non-nil, the compositor is started in a background goroutine.
@@ -623,8 +716,6 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 	desk := newDesktop(app, mgr, icons)
 	desk.run = desk.runFull
 	if compositorRun != nil {
-		desk.compositor = NewCompositorWidget()
-		desk.compositorOverlay = NewCompositorWidget()
 		desk.compositorDone = make(chan struct{})
 	}
 	screenProvider.AddChangeListener(desk.setupRoot)
@@ -634,7 +725,8 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 
 	if compositorRun != nil {
 		go func() {
-			if err := compositorRun(desk.compositorDone, desk.compositor, desk.compositorOverlay); err != nil {
+			screens := desk.screenCompositors()
+			if err := compositorRun(desk.compositorDone, screens); err != nil {
 				fyne.LogError("Compositor failed", err)
 			}
 		}()
@@ -647,6 +739,21 @@ func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, 
 	return desk
 }
 
+// screenCompositors returns the per-screen compositor widget pairs.
+func (l *desktop) screenCompositors() []ScreenCompositors {
+	var out []ScreenCompositors
+	for _, sw := range l.screenWindows {
+		if sw.compositor != nil {
+			out = append(out, ScreenCompositors{
+				Screen:  sw.screen,
+				Normal:  sw.compositor,
+				Overlay: sw.compositorOverlay,
+			})
+		}
+	}
+	return out
+}
+
 // NewEmbeddedDesktop creates a new windowed desktop for test purposes.
 // An ApplicationProvider is used to lookup application icons from the operating system.
 // If run during CI for testing it will return an in-memory window using the
@@ -657,9 +764,15 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
 
-	desk.root = desk.newDesktopWindowEmbed()
-	over := wm.setWindow(desk.root)
-	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), over))
+	win := desk.newDesktopWindowEmbed()
+	sw := &screenWindow{
+		screen: desk.screens.Primary(),
+		win:    win,
+	}
+	desk.screenWindows = []*screenWindow{sw}
+	desk.primaryWin = sw
+	over := wm.setWindow(win)
+	win.SetContent(container.NewStack(desk.createPrimaryContent(sw), over))
 	return desk
 }
 
