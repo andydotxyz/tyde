@@ -392,12 +392,18 @@ func (c *client) QueueMoveResizeGeometry(x int, y int, width uint, height uint) 
 }
 
 func (c *client) RaiseAbove(win fynedesk.Window) {
-	topID := c.wm.RootID()
-	if win != nil {
-		topID = win.(*client).id
+	c.Focus()
+
+	if win == nil {
+		// No sibling specified — raise to the top of the stack.
+		// With per-screen root windows, sibling-based stacking relative
+		// to a single root can place the frame behind another screen's root.
+		xproto.ConfigureWindow(c.wm.Conn(), c.id, xproto.ConfigWindowStackMode,
+			[]uint32{uint32(xproto.StackModeAbove)})
+		return
 	}
 
-	c.Focus()
+	topID := win.(*client).id
 	if c.id == topID {
 		return
 	}

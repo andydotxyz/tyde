@@ -40,6 +40,7 @@ type client struct {
 	opaqueType   opaqueType
 	damaged      bool
 	skipped      bool // Fyne Desktop window or other skipped windows
+	fullscreened bool // unredirected for fullscreen bypass
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
 
 	geom       xproto.GetGeometryReply
@@ -142,12 +143,12 @@ func setup(conn *xgb.Conn) error {
 }
 
 // Run starts the X11 compositor event loop. It captures window content and
-// renders it into the provided widgets. The normal widget shows regular windows;
+// renders it into per-screen widgets. The normal widget shows regular windows;
 // the overlay widget shows fullscreen windows above desktop chrome.
 // Run blocks until done is closed.
 //
 //gocyclo:ignore
-func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidget) error {
+func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 	c, err := xgbutil.NewConn()
 	if err != nil {
 		return err
@@ -156,11 +157,18 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 	conn := c.Conn()
 	defer conn.Close()
 
-	ws := &widgets{normal: w, overlay: overlay}
+	ws := &widgets{}
+	for _, sc := range screenComps {
+		ws.screens = append(ws.screens, screenWidgets{
+			screen:  sc.Screen,
+			normal:  sc.Normal,
+			overlay: sc.Overlay,
+		})
+	}
 
 	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
-	x11.VisualMoveCallback = func(winID uint32, x, y int16, width, height uint16) {
+	x11.VisualMoveCallback = func(winID uint32, absX, absY int16, width, height uint16) {
 		win := xproto.Window(winID)
 
 		// Mark the client as visually moving so refreshWindows skips recapture
@@ -168,19 +176,53 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 			c.visualMoving = true
 		}
 
-		for _, target := range []*ui.CompositorWidget{ws.normal, ws.overlay} {
-			wi := target.GetWindow(winID)
-			if wi == nil {
-				continue
+		// Route the window to all screens it overlaps, remove from others
+		for i := range ws.screens {
+			sw := &ws.screens[i]
+			if intersectsScreen(absX, absY, width, height, sw.screen) {
+				// Find or create the window image in this screen's widget
+				for _, target := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
+					wi := target.GetWindow(winID)
+					if wi == nil {
+						// Check the other widget on this screen
+						continue
+					}
+					localX := absX - int16(sw.screen.X)
+					localY := absY - int16(sw.screen.Y)
+					wi.X = localX
+					wi.Y = localY
+					wi.W = width
+					wi.H = height
+					scale := sw.screen.CanvasScale()
+					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				}
+				// If not in any widget on this screen yet, ensure it
+				if sw.normal.GetWindow(winID) == nil && sw.overlay.GetWindow(winID) == nil {
+					wi := sw.normal.EnsureWindow(winID)
+					// Copy image from another screen that has it
+					copyImageFromOtherScreen(ws, winID, wi, sw)
+					localX := absX - int16(sw.screen.X)
+					localY := absY - int16(sw.screen.Y)
+					wi.X = localX
+					wi.Y = localY
+					wi.W = width
+					wi.H = height
+					scale := sw.screen.CanvasScale()
+					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+					wi.Img.Resize(fyne.NewSize(float32(width)/scale, float32(height)/scale))
+					sw.normal.Refresh()
+				}
+			} else {
+				// Remove from this screen if present
+				if sw.normal.GetWindow(winID) != nil {
+					sw.normal.RemoveWindow(winID)
+					sw.normal.Refresh()
+				}
+				if sw.overlay.GetWindow(winID) != nil {
+					sw.overlay.RemoveWindow(winID)
+					sw.overlay.Refresh()
+				}
 			}
-			wi.X = x
-			wi.Y = y
-			wi.W = width
-			wi.H = height
-
-			scale := screenScale()
-			wi.Img.Move(fyne.NewPos(float32(x)/scale, float32(y)/scale))
-			return
 		}
 	}
 
@@ -218,10 +260,14 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
 			continue
 		}
-		ws.targetFor(c).EnsureWindow(uint32(c.win))
+		if isFullscreenClient(c) {
+			updateFullscreen(conn, ws, c)
+		} else {
+			ensureWindowOnScreens(ws, c)
+		}
 	}
 	syncOrder(ws)
-	ws.refreshBoth()
+	ws.refreshAll()
 
 	// Initial capture of all visible windows
 	refreshWindows(conn, ws)
@@ -293,7 +339,7 @@ func Run(done chan struct{}, w *ui.CompositorWidget, overlay *ui.CompositorWidge
 				}
 				if e.Atom == netWmStateAtom {
 					if cl := getClientFromWindow(e.Window); cl != nil {
-						updateFullscreen(ws, cl)
+						updateFullscreen(conn, ws, cl)
 					}
 				}
 			case damage.NotifyEvent:
@@ -353,26 +399,84 @@ func setupRoot(conn *xgb.Conn) error {
 	return nil
 }
 
-// widgets pairs the normal and overlay compositor widgets.
-type widgets struct {
+// screenWidgets holds the compositor widgets for a single screen.
+type screenWidgets struct {
+	screen  *fynedesk.Screen
 	normal  *ui.CompositorWidget
 	overlay *ui.CompositorWidget
 }
 
-// targetFor returns the appropriate widget for a client based on fullscreen state.
-func (ws *widgets) targetFor(c *client) *ui.CompositorWidget {
-	if checkFullscreen(c) {
-		return ws.overlay
-	}
-	return ws.normal
+// widgets holds per-screen compositor widget pairs.
+type widgets struct {
+	screens []screenWidgets
 }
 
-// refreshBoth refreshes both widgets via fyne.Do.
-func (ws *widgets) refreshBoth() {
+// targetFor returns the appropriate widget type name for a client based on fullscreen state.
+func isFullscreenClient(c *client) bool {
+	return checkFullscreen(c)
+}
+
+// screensForClient returns the screen widgets whose screens overlap the client's geometry.
+func (ws *widgets) screensForClient(c *client) []*screenWidgets {
+	var result []*screenWidgets
+	for i := range ws.screens {
+		if intersectsScreen(c.geom.X, c.geom.Y,
+			c.geom.Width+c.geom.BorderWidth*2, c.geom.Height+c.geom.BorderWidth*2,
+			ws.screens[i].screen) {
+			result = append(result, &ws.screens[i])
+		}
+	}
+	if len(result) == 0 && len(ws.screens) > 0 {
+		// Fallback: assign to nearest screen (use ScreenForGeometry)
+		inst := fynedesk.Instance()
+		if inst != nil {
+			s := inst.Screens().ScreenForGeometry(int(c.geom.X), int(c.geom.Y),
+				int(c.geom.Width), int(c.geom.Height))
+			for i := range ws.screens {
+				if ws.screens[i].screen == s {
+					result = append(result, &ws.screens[i])
+					break
+				}
+			}
+		}
+	}
+	return result
+}
+
+// refreshAll refreshes all screen widgets via fyne.Do.
+func (ws *widgets) refreshAll() {
 	fyne.Do(func() {
-		ws.normal.Refresh()
-		ws.overlay.Refresh()
+		for i := range ws.screens {
+			ws.screens[i].normal.Refresh()
+			ws.screens[i].overlay.Refresh()
+		}
 	})
+}
+
+// intersectsScreen returns whether a rectangle overlaps a screen.
+func intersectsScreen(x, y int16, w, h uint16, screen *fynedesk.Screen) bool {
+	return int(x) < screen.X+screen.Width &&
+		int(x)+int(w) > screen.X &&
+		int(y) < screen.Y+screen.Height &&
+		int(y)+int(h) > screen.Y
+}
+
+// copyImageFromOtherScreen copies the canvas.Image data from another screen's
+// widget entry for the same window ID into the target WindowImage.
+func copyImageFromOtherScreen(ws *widgets, winID uint32, target *ui.WindowImage, exclude *screenWidgets) {
+	for i := range ws.screens {
+		sw := &ws.screens[i]
+		if sw == exclude {
+			continue
+		}
+		for _, w := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
+			if src := w.GetWindow(winID); src != nil && src.Img.Image != nil {
+				target.Img.Image = src.Img.Image
+				target.Img.Translucency = src.Img.Translucency
+				return
+			}
+		}
+	}
 }
 
 // wmWindow returns the WM's Window for a compositor client, or nil.
@@ -397,63 +501,91 @@ func checkFullscreen(c *client) bool {
 }
 
 // updateFullscreen checks whether a client's fullscreen state changed and
-// moves it between the normal and overlay widgets if needed.
-func updateFullscreen(ws *widgets, c *client) {
-	target := ws.targetFor(c)
+// unredirects/redirects the window so that fullscreen windows bypass compositing.
+func updateFullscreen(conn *xgb.Conn, ws *widgets, c *client) {
+	if c.skipped {
+		return // root window or screensaver — don't touch
+	}
+
 	winID := uint32(c.win)
+	isFS := isFullscreenClient(c)
 
-	// Already in the correct widget — nothing to do.
-	if target.GetWindow(winID) != nil {
-		return
+	if isFS && !c.fullscreened {
+		// Unredirect: let X11 display the window directly, bypassing compositing.
+		removeWindowFromAllScreens(ws, winID)
+		freeClientPixmap(conn, c)
+		if c.damage != 0 {
+			_ = damage.Destroy(conn, c.damage)
+			c.damage = 0
+		}
+		_ = composite.UnredirectWindowChecked(conn, c.win, composite.RedirectManual).Check()
+		c.fullscreened = true
+	} else if !isFS && c.fullscreened {
+		// Re-redirect: bring the window back under compositing.
+		_ = composite.RedirectWindowChecked(conn, c.win, composite.RedirectManual).Check()
+		c.fullscreened = false
+		if c.damage == 0 {
+			dmg, err := damage.NewDamageId(conn)
+			if err == nil {
+				if err = damage.CreateChecked(conn, dmg, xproto.Drawable(c.win), damage.ReportLevelNonEmpty).Check(); err == nil {
+					c.damage = dmg
+				}
+			}
+		}
+		ensureWindowOnScreens(ws, c)
+		c.damaged = true
+		allDamage = true
+		syncOrder(ws)
+		ws.refreshAll()
 	}
-
-	// Move from the other widget to the correct one.
-	var from *ui.CompositorWidget
-	if target == ws.overlay {
-		from = ws.normal
-	} else {
-		from = ws.overlay
-	}
-
-	from.RemoveWindow(winID)
-	target.EnsureWindow(winID)
-	c.damaged = true
-	allDamage = true
-	syncOrder(ws)
-	ws.refreshBoth()
 }
 
-// syncOrder rebuilds the image ordering in both widgets to match the clients list.
+// syncOrder rebuilds the image ordering in all screen widgets to match the clients list.
 func syncOrder(ws *widgets) {
 	order := make([]uint32, len(clients))
 	for i, c := range clients {
 		order[i] = uint32(c.win)
 	}
-	ws.normal.Reorder(order)
-	ws.overlay.Reorder(order)
+	for i := range ws.screens {
+		ws.screens[i].normal.Reorder(order)
+		ws.screens[i].overlay.Reorder(order)
+	}
 }
 
-func screenScale() float32 {
-	inst := fynedesk.Instance()
-	if inst == nil {
-		return 1
+// ensureWindowOnScreens adds a window to all screen widgets that overlap its geometry.
+func ensureWindowOnScreens(ws *widgets, c *client) {
+	winID := uint32(c.win)
+	isFS := isFullscreenClient(c)
+	for _, sw := range ws.screensForClient(c) {
+		if isFS {
+			sw.overlay.EnsureWindow(winID)
+		} else {
+			sw.normal.EnsureWindow(winID)
+		}
 	}
-	return inst.Screens().Primary().CanvasScale()
+}
+
+// removeWindowFromAllScreens removes a window from all screen widgets.
+func removeWindowFromAllScreens(ws *widgets, winID uint32) {
+	for i := range ws.screens {
+		ws.screens[i].normal.RemoveWindow(winID)
+		ws.screens[i].overlay.RemoveWindow(winID)
+	}
 }
 
 // refreshWindows captures all damaged windows and updates the Fyne widgets.
 func refreshWindows(conn *xgb.Conn, ws *widgets) {
 	type captured struct {
-		wi           *ui.WindowImage
+		c            *client
 		img          *image.NRGBA
 		translucency float64
-		x, y         int16
-		w, h         uint16
+		totalW       uint16
+		totalH       uint16
 	}
-	var updates []captured
+	var caps []captured
 
 	for _, c := range clients {
-		if !c.damaged || c.skipped || c.visualMoving {
+		if !c.damaged || c.skipped || c.fullscreened || c.visualMoving {
 			continue
 		}
 		if c.attributes.MapState != xproto.MapStateViewable {
@@ -485,47 +617,63 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		}
 		w := wmWindow(c)
 		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
-			roundCorners(img, int(5*screenScale()))
+			// Use primary screen scale for corner rounding as a reasonable default
+			scale := float32(1)
+			if len(ws.screens) > 0 {
+				scale = ws.screens[0].screen.CanvasScale()
+			}
+			roundCorners(img, int(5*scale))
 		}
 
-		target := ws.targetFor(c)
-		wi := target.GetWindow(uint32(c.win))
-		if wi == nil {
-			continue
-		}
-
-		updates = append(updates, captured{
-			wi:           wi,
+		caps = append(caps, captured{
+			c:            c,
 			img:          img,
 			translucency: computeTranslucency(conn, c),
-			x:            c.geom.X,
-			y:            c.geom.Y,
-			w:            totalW,
-			h:            totalH,
+			totalW:       totalW,
+			totalH:       totalH,
 		})
 	}
 
-	if len(updates) == 0 {
+	if len(caps) == 0 {
 		return
 	}
 
-	scale := screenScale()
 	fyne.Do(func() {
-		for _, u := range updates {
-			u.wi.Img.Image = u.img
-			u.wi.Img.Translucency = u.translucency
-			// Set position/size if not yet initialized (first capture).
-			// After that, position is managed by configureClient and
-			// VisualMoveCallback — don't overwrite during drag.
-			if u.wi.W == 0 {
-				u.wi.X = u.x
-				u.wi.Y = u.y
-				u.wi.W = u.w
-				u.wi.H = u.h
-				u.wi.Img.Move(fyne.NewPos(float32(u.x)/scale, float32(u.y)/scale))
-				u.wi.Img.Resize(fyne.NewSize(float32(u.w)/scale, float32(u.h)/scale))
+		for _, cap := range caps {
+			c := cap.c
+			winID := uint32(c.win)
+			isFS := isFullscreenClient(c)
+
+			for _, sw := range ws.screensForClient(c) {
+				var target *ui.CompositorWidget
+				if isFS {
+					target = sw.overlay
+				} else {
+					target = sw.normal
+				}
+				wi := target.GetWindow(winID)
+				if wi == nil {
+					continue
+				}
+
+				wi.Img.Image = cap.img
+				wi.Img.Translucency = cap.translucency
+
+				localX := c.geom.X - int16(sw.screen.X)
+				localY := c.geom.Y - int16(sw.screen.Y)
+				scale := sw.screen.CanvasScale()
+
+				// Set position/size if not yet initialized (first capture).
+				if wi.W == 0 {
+					wi.X = localX
+					wi.Y = localY
+					wi.W = cap.totalW
+					wi.H = cap.totalH
+					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+					wi.Img.Resize(fyne.NewSize(float32(cap.totalW)/scale, float32(cap.totalH)/scale))
+				}
+				canvas.Refresh(wi.Img)
 			}
-			canvas.Refresh(u.wi.Img)
 		}
 	})
 }
@@ -540,17 +688,23 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 	var updates []update
 
 	for _, c := range clients {
-		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
+		if c.skipped || c.fullscreened || c.attributes.MapState != xproto.MapStateViewable {
 			continue
 		}
-		w := ws.targetFor(c)
-		wi := w.GetWindow(uint32(c.win))
-		if wi == nil {
-			continue
-		}
+		winID := uint32(c.win)
 		translucency := computeTranslucency(conn, c)
-		if wi.Img.Translucency != translucency {
-			updates = append(updates, update{wi, translucency})
+
+		for i := range ws.screens {
+			sw := &ws.screens[i]
+			for _, target := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
+				wi := target.GetWindow(winID)
+				if wi == nil {
+					continue
+				}
+				if wi.Img.Translucency != translucency {
+					updates = append(updates, update{wi, translucency})
+				}
+			}
 		}
 	}
 
@@ -559,8 +713,7 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 			for _, u := range updates {
 				u.wi.Img.Translucency = u.translucency
 			}
-			ws.normal.Refresh()
-			ws.overlay.Refresh()
+			ws.refreshAll()
 		})
 	}
 }
@@ -611,8 +764,14 @@ func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xp
 	}
 
 	// Override-redirect windows covering a full screen are likely screensavers
-	if attr.OverrideRedirect && geom.Width >= rootWidth && geom.Height >= rootHeight {
-		return true
+	if attr.OverrideRedirect {
+		if inst := fynedesk.Instance(); inst != nil {
+			for _, screen := range inst.Screens().Screens() {
+				if geom.Width >= uint16(screen.Width) && geom.Height >= uint16(screen.Height) {
+					return true
+				}
+			}
+		}
 	}
 
 	return false
@@ -704,9 +863,9 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 	freeClientPixmap(conn, c)
 
 	if ws != nil && !c.skipped {
-		ws.targetFor(c).EnsureWindow(uint32(c.win))
+		ensureWindowOnScreens(ws, c)
 		syncOrder(ws)
-		ws.refreshBoth()
+		ws.refreshAll()
 	}
 
 	allDamage = true
@@ -723,8 +882,8 @@ func unmapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) {
 	freeClientPixmap(conn, c)
 
 	if ws != nil && !c.skipped {
-		ws.targetFor(c).RemoveWindow(uint32(c.win))
-		ws.refreshBoth()
+		removeWindowFromAllScreens(ws, uint32(c.win))
+		ws.refreshAll()
 	}
 
 	allDamage = true
@@ -748,8 +907,8 @@ found:
 	}
 
 	if ws != nil && !c.skipped {
-		ws.targetFor(c).RemoveWindow(uint32(c.win))
-		ws.refreshBoth()
+		removeWindowFromAllScreens(ws, uint32(c.win))
+		ws.refreshAll()
 	}
 
 	clients = append(clients[:i], clients[i+1:]...)
@@ -793,36 +952,90 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 		return nil
 	}
 
-	syncOrder(ws)
-	ws.refreshBoth()
+	updateFullscreen(conn, ws, client)
+	if client.fullscreened {
+		return nil
+	}
 
-	updateFullscreen(ws, client)
-
-	{
-		w := ws.targetFor(client)
-		wi := w.GetWindow(uint32(client.win))
-		if wi != nil {
-			totalW := client.geom.Width + client.geom.BorderWidth*2
-			totalH := client.geom.Height + client.geom.BorderWidth*2
-
-			if resized {
-				fyne.Do(func() {
-					wi.X = client.geom.X
-					wi.Y = client.geom.Y
-					wi.W = totalW
-					wi.H = totalH
-					w.Refresh()
-				})
-				client.damaged = true
-				allDamage = true
-			} else {
-				wi.X = client.geom.X
-				wi.Y = client.geom.Y
-				scale := screenScale()
-				fyne.Do(func() {
-					wi.Img.Move(fyne.NewPos(float32(client.geom.X)/scale, float32(client.geom.Y)/scale))
-				})
+	// Update screen membership: remove from screens the window no longer overlaps,
+	// add to screens it now overlaps.
+	winID := uint32(client.win)
+	isFS := isFullscreenClient(client)
+	overlapping := ws.screensForClient(client)
+	overlapSet := make(map[*screenWidgets]bool, len(overlapping))
+	for _, sw := range overlapping {
+		overlapSet[sw] = true
+	}
+	screenChanged := false
+	for i := range ws.screens {
+		sw := &ws.screens[i]
+		hasNormal := sw.normal.GetWindow(winID) != nil
+		hasOverlay := sw.overlay.GetWindow(winID) != nil
+		if !overlapSet[sw] {
+			if hasNormal {
+				sw.normal.RemoveWindow(winID)
 			}
+			if hasOverlay {
+				sw.overlay.RemoveWindow(winID)
+			}
+		} else if !hasNormal && !hasOverlay {
+			// Window appeared on a new screen — create the entry and
+			// copy image data from whichever screen previously had it.
+			var wi *ui.WindowImage
+			if isFS {
+				wi = sw.overlay.EnsureWindow(winID)
+			} else {
+				wi = sw.normal.EnsureWindow(winID)
+			}
+			copyImageFromOtherScreen(ws, winID, wi, sw)
+			screenChanged = true
+		}
+	}
+
+	if screenChanged {
+		// Force recapture so the new screen gets a fresh image
+		client.damaged = true
+		allDamage = true
+	}
+
+	syncOrder(ws)
+	ws.refreshAll()
+
+	totalW := client.geom.Width + client.geom.BorderWidth*2
+	totalH := client.geom.Height + client.geom.BorderWidth*2
+
+	for _, sw := range overlapping {
+		var target *ui.CompositorWidget
+		if isFS {
+			target = sw.overlay
+		} else {
+			target = sw.normal
+		}
+		wi := target.GetWindow(winID)
+		if wi == nil {
+			continue
+		}
+
+		localX := client.geom.X - int16(sw.screen.X)
+		localY := client.geom.Y - int16(sw.screen.Y)
+
+		if resized || screenChanged {
+			fyne.Do(func() {
+				wi.X = localX
+				wi.Y = localY
+				wi.W = totalW
+				wi.H = totalH
+				target.Refresh()
+			})
+			client.damaged = true
+			allDamage = true
+		} else {
+			wi.X = localX
+			wi.Y = localY
+			scale := sw.screen.CanvasScale()
+			fyne.Do(func() {
+				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+			})
 		}
 	}
 
@@ -866,7 +1079,7 @@ func restackWin(ws *widgets, window, target xproto.Window) {
 
 	if ws != nil {
 		syncOrder(ws)
-		ws.refreshBoth()
+		ws.refreshAll()
 	}
 }
 

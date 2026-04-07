@@ -13,21 +13,6 @@ import (
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
-func (l *desktop) newDesktopWindowFull() fyne.Window {
-	desk := l.app.NewWindow(RootWindowName)
-	desk.SetPadded(false)
-
-	desk.SetMaster()
-	desk.SetOnClosed(func() {
-		if l.compositorDone != nil {
-			close(l.compositorDone)
-		}
-		l.wm.Close()
-	})
-
-	return desk
-}
-
 func (l *desktop) runFull() {
 	debug.SetPanicOnFault(true)
 
@@ -39,7 +24,14 @@ func (l *desktop) runFull() {
 		}
 	}()
 
-	l.root.ShowAndRun()
+	// Show secondary windows before starting the event loop on primary
+	for _, sw := range l.screenWindows {
+		if sw != l.primaryWin {
+			sw.win.Show()
+		}
+	}
+
+	l.primaryWin.win.ShowAndRun()
 }
 
 func (l *desktop) showMenuFull(menu *fyne.Menu, pos fyne.Position) {
@@ -73,7 +65,7 @@ func (l *desktop) showMenuFull(menu *fyne.Menu, pos fyne.Position) {
 	// Check if submenus would overflow the right edge of the canvas — if so,
 	// the catch area extends to the left and the menu content is offset within it.
 	// This mirrors Fyne's own submenu flip logic which checks against the full canvas width.
-	canvasWidth := l.root.Canvas().Size().Width
+	canvasWidth := l.primaryWin.win.Canvas().Size().Width
 	contentOffset := fyne.NewPos(0, 0)
 	if childWidth > 0 && pos.X+size.Width+childWidth > canvasWidth {
 		pos.X -= childWidth

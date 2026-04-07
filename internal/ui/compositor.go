@@ -26,13 +26,14 @@ type WindowImage struct {
 type CompositorWidget struct {
 	widget.BaseWidget
 
+	Screen *fynedesk.Screen // the screen this widget renders on
 	mu     sync.RWMutex
 	images []*WindowImage // Fyne draw order: first = bottom, last = top
 }
 
-// NewCompositorWidget creates a new compositor widget.
-func NewCompositorWidget() *CompositorWidget {
-	w := &CompositorWidget{}
+// NewCompositorWidget creates a new compositor widget for the given screen.
+func NewCompositorWidget(screen *fynedesk.Screen) *CompositorWidget {
+	w := &CompositorWidget{Screen: screen}
 	w.ExtendBaseWidget(w)
 	return w
 }
@@ -137,7 +138,10 @@ func (r *compositorRenderer) Refresh() {
 	r.widget.mu.RLock()
 	defer r.widget.mu.RUnlock()
 
-	scale := screenScale()
+	scale := float32(1)
+	if r.widget.Screen != nil {
+		scale = r.widget.Screen.CanvasScale()
+	}
 
 	objs := make([]fyne.CanvasObject, len(r.widget.images))
 	for i, wi := range r.widget.images {
@@ -148,12 +152,5 @@ func (r *compositorRenderer) Refresh() {
 
 	// Update the stable container's objects in place — never replace the container itself.
 	r.cont.Objects = objs
-}
-
-func screenScale() float32 {
-	inst := fynedesk.Instance()
-	if inst == nil {
-		return 1
-	}
-	return inst.Screens().Primary().CanvasScale()
+	r.cont.Refresh()
 }

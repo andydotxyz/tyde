@@ -68,7 +68,7 @@ func (s *stack) RemoveWindow(win fynedesk.Window) {
 	} else {
 		// focus root
 		if wm := fynedesk.Instance().WindowManager().(*x11WM); wm.X() != nil {
-			err := ewmh.ActiveWindowReq(wm.X(), wm.rootID)
+			err := ewmh.ActiveWindowReq(wm.X(), wm.RootID())
 			if err != nil {
 				fyne.LogError("There was an error trying to remove the window ", err)
 			}

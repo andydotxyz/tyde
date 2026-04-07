@@ -15,11 +15,11 @@ func (l *desktop) newDesktopWindowEmbed() fyne.Window {
 }
 
 func (l *desktop) runEmbed() {
-	l.root.ShowAndRun()
+	l.primaryWin.win.ShowAndRun()
 }
 
 func (l *desktop) showMenuEmbed(menu *fyne.Menu, pos fyne.Position) {
-	wid := widget.NewPopUpMenu(menu, l.root.Canvas())
+	wid := widget.NewPopUpMenu(menu, l.primaryWin.win.Canvas())
 	wid.Resize(fyne.NewSize(wmtheme.WidgetPanelWidth, wid.MinSize().Height))
 	wid.ShowAtPosition(pos)
 }

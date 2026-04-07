@@ -17,7 +17,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
@@ -102,11 +101,8 @@ func (w *widgetPanel) askLogout() {
 	scale := primary.CanvasScale()
 	pW := float32(primary.Width) / scale
 	pH := float32(primary.Height) / scale
-	originX, originY := screenOrigin(w.desk.Screens())
-	pX := float32(primary.X-originX) / scale
-	pY := float32(primary.Y-originY) / scale
 	size := fyne.NewSize(280, 150)
-	pos := fyne.NewPos(pX+(pW-size.Width)/2, pY+(pH-size.Height)/2)
+	pos := fyne.NewPos((pW-size.Width)/2, (pH-size.Height)/2)
 	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(logoutContent, size, size, pos, fyne.Position{})
 }
 
@@ -170,9 +166,8 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 
 	primary := w.desk.Screens().Primary()
 	scale := primary.CanvasScale()
-	originX, originY := screenOrigin(w.desk.Screens())
-	pRight := float32(primary.X-originX+primary.Width) / scale
-	pBottom := float32(primary.Y-originY+primary.Height) / scale
+	pRight := float32(primary.Width) / scale
+	pBottom := float32(primary.Height) / scale
 	pos := fyne.NewPos(pRight-300, pBottom-360)
 	menuSize := fyne.NewSize(300, 360)
 	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos, fyne.Position{})
@@ -193,17 +188,4 @@ func (w *widgetPanel) loadIcon(app appie.AppData, btn *widget.Button) {
 	fyne.Do(func() {
 		btn.SetIcon(iconRes)
 	})
-}
-
-func screenOrigin(screens fynedesk.ScreenList) (int, int) {
-	originX, originY := 0, 0
-	for _, screen := range screens.Screens() {
-		if screen.X < originX {
-			originX = screen.X
-		}
-		if screen.Y < originY {
-			originY = screen.Y
-		}
-	}
-	return originX, originY
 }
