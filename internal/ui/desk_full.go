@@ -10,7 +10,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	wmtheme "fyshos.com/fynedesk/theme"
 )
 
 func (l *desktop) runFull() {
@@ -36,7 +35,7 @@ func (l *desktop) runFull() {
 
 func (l *desktop) showMenuFull(menu *fyne.Menu, pos fyne.Position) {
 	menuSize := widget.NewMenu(menu).MinSize()
-	size := fyne.NewSize(wmtheme.WidgetPanelWidth, menuSize.Height)
+	size := menuSize
 
 	// Measure child menus to calculate the total hover-catch area.
 	// The submenu appears to the right by default but Fyne flips it
