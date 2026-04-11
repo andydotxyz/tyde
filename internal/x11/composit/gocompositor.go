@@ -176,33 +176,33 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			c.visualMoving = true
 		}
 
-		// Route the window to all screens it overlaps, remove from others
+		// Update position on all screens that have a cached entry, and
+		// add to new screens if the window now overlaps them.
 		for i := range ws.screens {
 			sw := &ws.screens[i]
-			if intersectsScreen(absX, absY, width, height, sw.screen) {
-				// Find or create the window image in this screen's widget
-				for _, target := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
-					wi := target.GetWindow(winID)
-					if wi == nil {
-						// Check the other widget on this screen
-						continue
-					}
-					localX := absX - int16(sw.screen.X)
-					localY := absY - int16(sw.screen.Y)
-					wi.X = localX
-					wi.Y = localY
-					wi.W = width
-					wi.H = height
-					scale := sw.screen.CanvasScale()
-					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+			localX := absX - int16(sw.screen.X)
+			localY := absY - int16(sw.screen.Y)
+
+			// Always update position for existing cached entries so
+			// windows animate smoothly even as they leave the screen.
+			for _, target := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
+				wi := target.GetWindow(winID)
+				if wi == nil {
+					continue
 				}
-				// If not in any widget on this screen yet, ensure it
+				wi.X = localX
+				wi.Y = localY
+				wi.W = width
+				wi.H = height
+				scale := sw.screen.CanvasScale()
+				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+			}
+
+			// If the window newly overlaps this screen and has no entry, create one.
+			if intersectsScreen(absX, absY, width, height, sw.screen) {
 				if sw.normal.GetWindow(winID) == nil && sw.overlay.GetWindow(winID) == nil {
 					wi := sw.normal.EnsureWindow(winID)
-					// Copy image from another screen that has it
 					copyImageFromOtherScreen(ws, winID, wi, sw)
-					localX := absX - int16(sw.screen.X)
-					localY := absY - int16(sw.screen.Y)
 					wi.X = localX
 					wi.Y = localY
 					wi.W = width
@@ -211,16 +211,6 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
 					wi.Img.Resize(fyne.NewSize(float32(width)/scale, float32(height)/scale))
 					sw.normal.Refresh()
-				}
-			} else {
-				// Remove from this screen if present
-				if sw.normal.GetWindow(winID) != nil {
-					sw.normal.RemoveWindow(winID)
-					sw.normal.Refresh()
-				}
-				if sw.overlay.GetWindow(winID) != nil {
-					sw.overlay.RemoveWindow(winID)
-					sw.overlay.Refresh()
 				}
 			}
 		}
@@ -962,23 +952,12 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 	winID := uint32(client.win)
 	isFS := isFullscreenClient(client)
 	overlapping := ws.screensForClient(client)
-	overlapSet := make(map[*screenWidgets]bool, len(overlapping))
-	for _, sw := range overlapping {
-		overlapSet[sw] = true
-	}
 	screenChanged := false
 	for i := range ws.screens {
 		sw := &ws.screens[i]
 		hasNormal := sw.normal.GetWindow(winID) != nil
 		hasOverlay := sw.overlay.GetWindow(winID) != nil
-		if !overlapSet[sw] {
-			if hasNormal {
-				sw.normal.RemoveWindow(winID)
-			}
-			if hasOverlay {
-				sw.overlay.RemoveWindow(winID)
-			}
-		} else if !hasNormal && !hasOverlay {
+		if !hasNormal && !hasOverlay {
 			// Window appeared on a new screen — create the entry and
 			// copy image data from whichever screen previously had it.
 			var wi *ui.WindowImage
