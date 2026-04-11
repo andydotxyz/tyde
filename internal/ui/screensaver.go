@@ -82,7 +82,7 @@ func watchDBus() {
 	name := "org.freedesktop.ScreenSaver"
 	r, err := conn.RequestName(name, dbus.NameFlagDoNotQueue)
 	if err != nil || r != dbus.RequestNameReplyPrimaryOwner {
-		fyne.LogError("could not watch DBus screensaver, another is registered", err)
+		fyne.LogError("Could not watch DBus screensaver, another is registered", err)
 		return
 	}
 
