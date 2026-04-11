@@ -112,7 +112,7 @@ func (c *Border) showMenu(_ fyne.CanvasObject) {
 		}),
 		max,
 		fyne.NewMenuItemSeparator(),
-		c.makeDesktopMenu(menuPos),
+		c.makeDesktopMenu(),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Close", func() {
 			c.win.Close()
@@ -121,7 +121,7 @@ func (c *Border) showMenu(_ fyne.CanvasObject) {
 	fynedesk.Instance().ShowMenuAt(menu, menuPos)
 }
 
-func (c *Border) makeDesktopMenu(pos fyne.Position) *fyne.MenuItem {
+func (c *Border) makeDesktopMenu() *fyne.MenuItem {
 	desks := make([]*fyne.MenuItem, 4)
 	for i := 0; i < 4; i++ {
 		deskID := i
@@ -143,10 +143,8 @@ func (c *Border) makeDesktopMenu(pos fyne.Position) *fyne.MenuItem {
 	if c.win.Pinned() {
 		pin.Checked = true
 	}
-	desks = append(desks, pin)
 
-	return fyne.NewMenuItem("Move to Desktop...", func() {
-		fynedesk.Instance().ShowMenuAt(fyne.NewMenu("", desks...),
-			pos.Add(fyne.NewSize(40, 120)))
-	})
+	item := fyne.NewMenuItem("Move to Desktop...", nil)
+	item.ChildMenu = fyne.NewMenu("", append(desks, pin)...)
+	return item
 }

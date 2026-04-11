@@ -118,9 +118,9 @@ func NewTray() fynedesk.Module {
 	}
 	// End TODO
 
-	hostErr := t.RegisterStatusNotifierHost(conn.Names()[0], "")
+	hostErr := t.RegisterStatusNotifierHost(conn.Names()[0])
 	if hostErr != nil {
-		fyne.LogError("Failed to register our host with the notifier watcher, maybe no watcher running? %v", hostErr)
+		fyne.LogError("Failed to register our systray host, another may already be running", hostErr)
 		return t
 	}
 
@@ -163,7 +163,7 @@ func NewTray() fynedesk.Module {
 func (t *tray) Destroy() {
 }
 
-func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) (err *dbus.Error) {
+func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) error {
 	ni := notifier.NewStatusNotifierItem(t.conn.Object(string(sender), dbus.ObjectPath(service)))
 
 	item, ok := t.nodes[sender]
@@ -201,17 +201,11 @@ func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) (e
 	return nil
 }
 
-func (t *tray) RegisterStatusNotifierHost(service string, sender dbus.Sender) (err *dbus.Error) {
-	log.Println("Register Host", service, sender)
-
-	e := watcher.Emit(t.conn, &watcher.StatusNotifierWatcher_StatusNotifierHostRegisteredSignal{
+func (t *tray) RegisterStatusNotifierHost(service string) error {
+	return watcher.Emit(t.conn, &watcher.StatusNotifierWatcher_StatusNotifierHostRegisteredSignal{
 		Path: dbus.ObjectPath(service),
 		Body: &watcher.StatusNotifierWatcher_StatusNotifierHostRegisteredSignalBody{},
 	})
-	if e != nil {
-		fyne.LogError("it was not emit the notification ", err)
-	}
-	return nil
 }
 
 func (t *tray) Metadata() fynedesk.ModuleMetadata {

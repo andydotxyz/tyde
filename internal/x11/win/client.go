@@ -139,17 +139,26 @@ func (c *client) SetDesktop(id int) {
 	display := d.Screens().ScreenForWindow(c)
 	off := offPix / display.Scale
 
+	type moveNotifier interface {
+		NotifyWindowMoved(fynedesk.Window)
+	}
+
 	start := c.Position()
 	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
 		newY := start.Y - off*f
-
-		c.Move(fyne.NewPos(start.X, newY))
-
-		type moveNotifier interface {
-			NotifyWindowMoved(win fynedesk.Window)
+		pos := fyne.NewPos(start.X, newY)
+		if f >= 1.0 {
+			c.Move(pos) // final frame: sync X11
+		} else {
+			// Update frame position so Position() returns the
+			// intermediate value for pager preview updates.
+			screen := d.Screens().ScreenForWindow(c)
+			c.frame.x = int16(pos.X * screen.CanvasScale())
+			c.frame.y = int16(pos.Y * screen.CanvasScale())
+			c.MoveVisual(pos)
 		}
-		if mover, ok := fynedesk.Instance().WindowManager().(moveNotifier); ok {
-			mover.NotifyWindowMoved(c)
+		if mn, ok := c.wm.(moveNotifier); ok {
+			mn.NotifyWindowMoved(c)
 		}
 	}).Start()
 }
@@ -223,6 +232,22 @@ func (c *client) Move(pos fyne.Position) {
 	targetX := int16(pos.X * screen.CanvasScale())
 	targetY := int16(pos.Y * screen.CanvasScale())
 	c.frame.updateGeometry(targetX, targetY, c.frame.width, c.frame.height, false)
+}
+
+// MoveVisual updates only the compositor visual without X11 ConfigureWindow calls.
+// Used for smooth animations. Call Move() after to sync the actual X11 position.
+func (c *client) MoveVisual(pos fyne.Position) {
+	if c.frame == nil {
+		return
+	}
+	if x11.VisualMoveCallback == nil {
+		c.Move(pos)
+		return
+	}
+	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	targetX := int16(pos.X * screen.CanvasScale())
+	targetY := int16(pos.Y * screen.CanvasScale())
+	x11.VisualMoveCallback(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
 }
 
 func (c *client) NotifyBorderChange() {
@@ -367,12 +392,18 @@ func (c *client) QueueMoveResizeGeometry(x int, y int, width uint, height uint) 
 }
 
 func (c *client) RaiseAbove(win fynedesk.Window) {
-	topID := c.wm.RootID()
-	if win != nil {
-		topID = win.(*client).id
+	c.Focus()
+
+	if win == nil {
+		// No sibling specified — raise to the top of the stack.
+		// With per-screen root windows, sibling-based stacking relative
+		// to a single root can place the frame behind another screen's root.
+		xproto.ConfigureWindow(c.wm.Conn(), c.id, xproto.ConfigWindowStackMode,
+			[]uint32{uint32(xproto.StackModeAbove)})
+		return
 	}
 
-	c.Focus()
+	topID := win.(*client).id
 	if c.id == topID {
 		return
 	}
@@ -487,11 +518,7 @@ func (c *client) positionNewWindow() {
 
 	x, y, w, h := int(attrs.X), int(attrs.Y), uint(attrs.Width), uint(attrs.Height)
 	hasPosition := x != 0 || y != 0
-	if c.Properties().Title() == "FyneDesk Menu" {
-		primary := fynedesk.Instance().Screens().Primary()
-		x = primary.Width - int(w)
-		y = primary.Height - int(h)
-	} else if !requestPosition && !hasPosition || !c.positionIsValid(x, y) {
+	if !requestPosition && !hasPosition || !c.positionIsValid(x, y) {
 		decorated := !windowBorderless(c.wm.X(), c.win)
 		x, y, w, h = wm.PositionForNewWindow(c, int(attrs.X), int(attrs.Y), uint(attrs.Width), uint(attrs.Height),
 			decorated, fynedesk.Instance().Screens())

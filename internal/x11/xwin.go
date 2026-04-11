@@ -42,3 +42,7 @@ type XWin interface {
 
 	QueueMoveResizeGeometry(int, int, uint, uint)
 }
+
+// VisualMoveCallback is set by the compositor to allow visual-only position
+// updates during window drag without expensive X11 ConfigureWindow calls.
+var VisualMoveCallback func(winID uint32, x, y int16, w, h uint16)

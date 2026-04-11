@@ -1,12 +1,12 @@
 package ui
 
 import (
+	"image/color"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -20,7 +20,7 @@ type notification struct {
 	message *wm.Notification
 
 	renderer fyne.CanvasObject
-	popup    fyne.Window
+	overlay  fyne.CanvasObject // used for narrow panel mode (overlay)
 }
 
 func (n *notification) show(list *fyne.Container) {
@@ -35,31 +35,38 @@ func (n *notification) show(list *fyne.Container) {
 	})
 	closer.Importance = widget.LowImportance
 
-	var icon fyne.CanvasObject
+	var ico fyne.CanvasObject
 	if n.message.Icon != nil {
 		img := canvas.NewImageFromResource(n.message.Icon)
 		pad := theme.SizeForWidget(theme.SizeNamePadding, title)
 		img.SetMinSize(fyne.NewSquareSize(closer.MinSize().Height - pad*2))
-		icon = container.New(layout.NewCustomPaddedLayout(pad, pad, pad, 0), img)
+		ico = container.New(layout.NewCustomPaddedLayout(pad, pad, pad, 0), img)
 	}
 	n.renderer = container.NewVBox(
-		container.NewBorder(nil, nil, icon, closer, title), text)
+		container.NewBorder(nil, nil, ico, closer, title), text)
 
 	if fynedesk.Instance().Settings().NarrowWidgetPanel() {
-		// TODO move away from window when we have overlay proper as this takes focus...
-		n.popup = fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
-		n.popup.SetContent(n.renderer)
+		r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
+		bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
+		bg := canvas.NewRectangle(bgCol)
+		n.overlay = container.NewStack(bg, container.NewPadded(n.renderer))
 
 		width := float32(270)
 		offset := float32(10)
 		n.renderer.Resize(fyne.NewSize(width, 0))
+		height := n.renderer.MinSize().Height + theme.Padding()*2
 
-		winSize := fynedesk.Instance().Root().Canvas().Size()
-		pos := fyne.NewPos(winSize.Width-width-offset-wmtheme.NarrowBarWidth, offset)
-		fynedesk.Instance().WindowManager().ShowOverlay(n.popup, fyne.NewSize(width, n.renderer.MinSize().Height), pos)
+		inst := fynedesk.Instance()
+		primary := inst.Screens().Primary()
+		scale := primary.CanvasScale()
+		pRight := float32(primary.Width) / scale
+		pos := fyne.NewPos(pRight-width-offset-wmtheme.NarrowBarWidth, offset)
+		inst.ShowOverlay(n.overlay, fyne.NewSize(width, height), pos)
 	} else {
-		list.Objects = append(list.Objects, n.renderer)
-		list.Refresh()
+		fyne.Do(func() {
+			list.Objects = append(list.Objects, n.renderer)
+			list.Refresh()
+		})
 	}
 
 	go func() {
@@ -71,21 +78,23 @@ func (n *notification) show(list *fyne.Container) {
 
 func (n *notification) hide(list *fyne.Container) {
 	if fynedesk.Instance().Settings().NarrowWidgetPanel() {
-		n.popup.Hide()
+		if n.overlay != nil {
+			fynedesk.Instance().HideOverlay(n.overlay)
+		}
 		return
 	}
 
-	var items []fyne.CanvasObject
-	for _, item := range list.Objects {
-		if item == n.renderer {
-			continue
+	fyne.Do(func() {
+		var items []fyne.CanvasObject
+		for _, item := range list.Objects {
+			if item == n.renderer {
+				continue
+			}
+			items = append(items, item)
 		}
-
-		items = append(items, item)
-	}
-
-	list.Objects = items
-	list.Refresh()
+		list.Objects = items
+		list.Refresh()
+	})
 }
 
 type notifications struct {

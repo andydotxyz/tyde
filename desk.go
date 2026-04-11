@@ -23,6 +23,8 @@ type Desktop interface {
 
 	AddShortcut(shortcut *Shortcut, handler func())
 	ShowMenuAt(menu *fyne.Menu, pos fyne.Position)
+	ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position)
+	HideOverlay(content fyne.CanvasObject)
 	Root() fyne.Window
 
 	Desktop() int

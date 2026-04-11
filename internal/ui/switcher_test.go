@@ -10,8 +10,7 @@ import (
 )
 
 func testWindows() []fynedesk.Window {
-	desk := &desktop{}
-	desk.settings = test.NewSettings()
+	desk := test.NewDesktop()
 	fynedesk.SetInstance(desk)
 	return []fynedesk.Window{
 		test.NewWindow("App1"),
@@ -25,7 +24,7 @@ func TestShowAppSwitcher(t *testing.T) {
 	s := NewAppSwitcher(wins, test.NewAppProvider())
 	s.Show()
 
-	assert.NotNil(t, s.win)
+	assert.NotNil(t, s.content)
 	assert.Equal(t, 1, s.currentIndex())
 }
 
@@ -34,7 +33,7 @@ func TestShowAppSwitcherReverse(t *testing.T) {
 	s := NewAppSwitcherReverse(wins, test.NewAppProvider())
 	s.Show()
 
-	assert.NotNil(t, s.win)
+	assert.NotNil(t, s.content)
 	assert.Equal(t, len(wins)-1, s.currentIndex())
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/BurntSushi/xgb"
 	"github.com/BurntSushi/xgb/randr"
 	"github.com/BurntSushi/xgb/screensaver"
+	"github.com/BurntSushi/xgb/shape"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 	"github.com/BurntSushi/xgbutil/ewmh"
@@ -58,7 +59,7 @@ type x11WM struct {
 	currentBindings []*fynedesk.Shortcut
 
 	died         bool
-	rootID       xproto.Window
+	rootIDs      map[string]xproto.Window
 	menuSize     fyne.Size
 	menuPos      fyne.Position
 	transientMap map[xproto.Window][]xproto.Window
@@ -118,6 +119,7 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 	mgr := &x11WM{x: conn}
 	root := conn.RootWin()
 	mgr.takeSelectionOwnership()
+	mgr.rootIDs = make(map[string]xproto.Window)
 	mgr.transientMap = make(map[xproto.Window][]xproto.Window)
 
 	eventMask := xproto.EventMaskPropertyChange |
@@ -165,6 +167,7 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 	}
 
 	x11.LoadCursors(conn)
+	_ = shape.Init(conn.Conn())
 	mgr.initScreensaver()
 
 	a.Settings().AddListener(func(_ fyne.Settings) {
@@ -235,6 +238,103 @@ func (x *x11WM) Conn() *xgb.Conn {
 func (x *x11WM) Run() {
 	x.setupBindings()
 	go x.runLoop()
+}
+
+// SetOverlayActive updates X11 input shapes on the root and all frame windows.
+// When active is true, the root accepts input everywhere and frames become input-transparent,
+// so that Fyne overlay content receives all mouse events.
+// When active is false, the root accepts input only in panel areas and frames resume
+// normal input shapes (excluding panels).
+func (x *x11WM) SetOverlayActive(active bool) {
+	x.updateRootInputShape(active)
+	x.updateFrameInputShapes(active)
+
+	if active {
+		// Focus the primary root window so overlays receive keyboard events
+		if primary := x.RootID(); primary != 0 {
+			xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, primary, xproto.TimeCurrentTime)
+		}
+	}
+}
+
+func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
+	inst := fynedesk.Instance()
+	if inst == nil {
+		return
+	}
+
+	emptyRect := []xproto.Rectangle{{X: 0, Y: 0, Width: 0, Height: 0}}
+	for _, win := range x.clients {
+		xwin := win.(x11.XWin)
+		frameID := xwin.FrameID()
+
+		if overlayActive {
+			shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+				0, frameID, 0, 0, emptyRect)
+			continue
+		}
+
+		// Restore normal input shape: full frame clipped to content bounds
+		screen := inst.Screens().ScreenForWindow(win)
+		if screen == nil || screen != inst.Screens().Primary() {
+			// Non-primary screens have no panels; reset to default shape
+			shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, frameID, 0, 0, xproto.PixmapNone)
+			continue
+		}
+
+		cbX, cbY, cbW, cbH := inst.ContentBoundsPixels(screen)
+		fx, fy, fw, fh := xwin.Geometry()
+
+		cx1 := int(cbX) + screen.X
+		cy1 := int(cbY) + screen.Y
+		cx2 := cx1 + int(cbW)
+		cy2 := cy1 + int(cbH)
+
+		ix1 := max(fx, cx1)
+		iy1 := max(fy, cy1)
+		ix2 := min(fx+int(fw), cx2)
+		iy2 := min(fy+int(fh), cy2)
+
+		var rects []xproto.Rectangle
+		if ix1 < ix2 && iy1 < iy2 {
+			rects = append(rects, xproto.Rectangle{
+				X:      int16(ix1 - fx),
+				Y:      int16(iy1 - fy),
+				Width:  uint16(ix2 - ix1),
+				Height: uint16(iy2 - iy1),
+			})
+		}
+		if len(rects) == 0 {
+			rects = emptyRect
+		}
+
+		shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+			0, frameID, 0, 0, rects)
+	}
+}
+
+// updateRootInputShape sets the input shape on all root windows.
+// The primary root accepts input everywhere (for panels and desktop interaction).
+// Secondary roots accept no input — they are purely visual; all mouse events
+// on secondary screens should go to the X11 frame windows above them.
+func (x *x11WM) updateRootInputShape(_ bool) {
+	inst := fynedesk.Instance()
+	var primaryName string
+	if inst != nil && inst.Screens().Primary() != nil {
+		primaryName = inst.Screens().Primary().Name
+	}
+
+	emptyRect := []xproto.Rectangle{{X: 0, Y: 0, Width: 0, Height: 0}}
+	for name, rootID := range x.rootIDs {
+		if name == primaryName {
+			// Primary root: accept input everywhere (for bar, widgets, desktop)
+			shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, rootID, 0, 0, xproto.PixmapNone)
+		} else {
+			// Secondary roots: no input — frames handle all events
+			shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
+				0, rootID, 0, 0, emptyRect)
+		}
+	}
 }
 
 func (x *x11WM) ShowOverlay(w fyne.Window, s fyne.Size, p fyne.Position) {
@@ -475,45 +575,58 @@ func (x *x11WM) configureRoots() {
 		maxX = max(maxX, screen.X+screen.Width)
 		maxY = max(maxY, screen.Y+screen.Height)
 
-		if screen == fynedesk.Instance().Screens().Primary() {
-			priX, priY, priW, priH := 0, 0, 0, 0
-			geom, err := xproto.GetGeometry(x.x.Conn(), xproto.Drawable(x.rootID)).Reply()
-			if err == nil {
-				priX, priY = int(geom.X), int(geom.Y)
-				priW, priH = int(geom.Width), int(geom.Height)
-			}
-			if screen.X == priX && screen.Y == priY && screen.Width == priW && screen.Height == priH {
-				continue
-			}
-
-			notifyEv := xproto.ConfigureNotifyEvent{
-				Event: x.rootID, Window: x.rootID, AboveSibling: 0,
-				X: int16(screen.X), Y: int16(screen.Y), Width: uint16(screen.Width), Height: uint16(screen.Height),
-				BorderWidth: 0, OverrideRedirect: false,
-			}
-			xproto.SendEvent(x.x.Conn(), false, x.rootID, xproto.EventMaskStructureNotify, string(notifyEv.Bytes()))
-
-			// we need to trigger a move so that the correct scale is picked up
-			xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
-				xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
-				[]uint32{uint32(screen.X + 1), uint32(screen.Y + 1), uint32(screen.Width - 2), uint32(screen.Height - 2)})
-
-			// and then set the correct location
-			xproto.ConfigureWindow(x.x.Conn(), x.rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
-				xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
-				[]uint32{uint32(screen.X), uint32(screen.Y), uint32(screen.Width), uint32(screen.Height)})
+		rootID := x.rootIDs[screen.Name]
+		if rootID == 0 {
+			continue
 		}
+
+		// Check if this root is already at the right geometry
+		priX, priY, priW, priH := 0, 0, 0, 0
+		geom, err := xproto.GetGeometry(x.x.Conn(), xproto.Drawable(rootID)).Reply()
+		if err == nil {
+			priX, priY = int(geom.X), int(geom.Y)
+			priW, priH = int(geom.Width), int(geom.Height)
+		}
+		if screen.X == priX && screen.Y == priY && screen.Width == priW && screen.Height == priH {
+			continue
+		}
+
+		notifyEv := xproto.ConfigureNotifyEvent{
+			Event: rootID, Window: rootID, AboveSibling: 0,
+			X: int16(screen.X), Y: int16(screen.Y), Width: uint16(screen.Width), Height: uint16(screen.Height),
+			BorderWidth: 0, OverrideRedirect: false,
+		}
+		xproto.SendEvent(x.x.Conn(), false, rootID, xproto.EventMaskStructureNotify, string(notifyEv.Bytes()))
+
+		// Trigger a move so that the correct scale is picked up
+		xproto.ConfigureWindow(x.x.Conn(), rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
+			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
+			[]uint32{uint32(screen.X + 1), uint32(screen.Y + 1), uint32(screen.Width - 2), uint32(screen.Height - 2)})
+
+		// Then set the correct location
+		xproto.ConfigureWindow(x.x.Conn(), rootID, xproto.ConfigWindowX|xproto.ConfigWindowY|
+			xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
+			[]uint32{uint32(screen.X), uint32(screen.Y), uint32(screen.Width), uint32(screen.Height)})
+	}
+
+	// Always ensure root windows stay at the bottom of the X11 stack.
+	// Fyne/GLFW may re-raise them during window creation or configuration.
+	for _, rootID := range x.rootIDs {
+		xproto.ConfigureWindow(x.x.Conn(), rootID,
+			xproto.ConfigWindowStackMode, []uint32{uint32(xproto.StackModeBelow)})
 	}
 
 	rootWidth := maxX - minX
 	rootHeight := maxY - minY
 
-	err := ewmh.DesktopGeometrySet(x.x, &ewmh.DesktopGeometry{Width: rootWidth, Height: rootHeight}) // The size will grow when virtual desktops are supported
+	x.updateRootInputShape(false) // reapply input shape after resize
+
+	err := ewmh.DesktopGeometrySet(x.x, &ewmh.DesktopGeometry{Width: rootWidth, Height: rootHeight})
 	if err != nil {
 		fyne.LogError("", err)
 	}
 
-	err = ewmh.WorkareaSet(x.x, []ewmh.Workarea{{X: 0, Y: 0, Width: uint(rootWidth), Height: uint(rootHeight)}}) // The array will grow when virtual desktops are supported
+	err = ewmh.WorkareaSet(x.x, []ewmh.Workarea{{X: 0, Y: 0, Width: uint(rootWidth), Height: uint(rootHeight)}})
 	if err != nil {
 		fyne.LogError("", err)
 	}
@@ -527,6 +640,15 @@ func (x *x11WM) notifyConfigure(ev xproto.ConfigureNotifyEvent) {
 }
 
 func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEvent) {
+	// Check if this is a root window first — Fyne/GLFW may send configure
+	// requests (including restacking) that we must intercept to keep roots below.
+	for _, rootID := range x.rootIDs {
+		if rootID == win {
+			x.configureRoots()
+			return
+		}
+	}
+
 	c := x.clientForWin(win)
 	xcoord := ev.X
 	ycoord := ev.Y
@@ -558,7 +680,8 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 
 	name := x11.WindowName(x.x, win)
 	if x.isRootTitle(name) {
-		x.rootID = win
+		screenName := screenNameFromRootTitle(name)
+		x.rootIDs[screenName] = win
 
 		x.configureRoots() // we added a root window, so reconfigure
 		return
@@ -621,6 +744,17 @@ func (x *x11WM) frameExisting() {
 		if x.isRootTitle(name) {
 			continue
 		}
+		// Also skip by window ID — the title may not be set yet
+		isRoot := false
+		for _, rootID := range x.rootIDs {
+			if rootID == child {
+				isRoot = true
+				break
+			}
+		}
+		if isRoot {
+			continue
+		}
 		attrs, err := xproto.GetWindowAttributes(x.x.Conn(), child).Reply()
 		if err != nil {
 			fyne.LogError("Get Window Attributes Error", err)
@@ -634,7 +768,18 @@ func (x *x11WM) frameExisting() {
 }
 
 func (x *x11WM) RootID() xproto.Window {
-	return x.rootID
+	if fynedesk.Instance() == nil {
+		return 0
+	}
+	primary := fynedesk.Instance().Screens().Primary()
+	if primary == nil {
+		return 0
+	}
+	return x.rootIDs[primary.Name]
+}
+
+func (x *x11WM) RootIDForScreen(screenName string) xproto.Window {
+	return x.rootIDs[screenName]
 }
 
 func (x *x11WM) NotifyWindowMoved(win fynedesk.Window) {
@@ -692,14 +837,18 @@ func (x *x11WM) setInitialWindowAttributes(win xproto.Window) {
 func (x *x11WM) setupBindings() {
 	fynedesk.Instance().Settings().AddChangeListener(func(_ fynedesk.DeskSettings) {
 		// this uses the state from the previous bind call
-		x.unbindShortcuts(x.rootID)
+		for _, rootID := range x.rootIDs {
+			x.unbindShortcuts(rootID)
+		}
 		for _, c := range x.clients {
 			x.unbindShortcuts(c.(x11.XWin).ChildID())
 		}
 		x.currentBindings = nil
 
 		// this call sets up the new cache of shortcuts
-		x.bindShortcuts(x.rootID)
+		for _, rootID := range x.rootIDs {
+			x.bindShortcuts(rootID)
+		}
 		for _, c := range x.clients {
 			x.bindShortcuts(c.(x11.XWin).ChildID())
 		}
@@ -727,7 +876,15 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 		x.AddWindow(c)
 	})
 	c.RaiseToTop()
+	// Ensure the frame is above all root windows and has focus.
+	// RaiseToTop may skip the X11 restack when the internal client list
+	// hasn't been updated yet (AddWindow is queued via fyne.Do), and
+	// Focus() sends an async client message that GLFW may override.
+	xproto.ConfigureWindow(x.x.Conn(), c.FrameID(),
+		xproto.ConfigWindowStackMode, []uint32{uint32(xproto.StackModeAbove)})
 	c.Focus()
+	xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot,
+		c.ChildID(), xproto.TimeCurrentTime)
 	windowClientListUpdate(x)
 	windowClientListStackingUpdate(x)
 }
@@ -741,16 +898,36 @@ func (x *x11WM) setupX11DPIHints() {
 }
 
 func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
+	// If the parent is a frame (not the X root), the window is already
+	// reparented — just map it. This avoids re-framing a window when
+	// frame.show() maps the client inside a frame with SubstructureRedirect.
+	if parent != x.x.RootWin() {
+		xproto.MapWindow(x.x.Conn(), win)
+		return
+	}
+
 	name := x11.WindowName(x.x, win)
 	if x.isRootTitle(name) {
+		screenName := screenNameFromRootTitle(name)
+		x.rootIDs[screenName] = win
+
 		err := xproto.MapWindowChecked(x.x.Conn(), win).Check()
 		if err != nil {
 			fyne.LogError("Show Window Error", err)
 		}
 		xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowStackMode, []uint32{xproto.StackModeBelow})
+		x.configureRoots() // position all roots at their screen geometry immediately
 		_ = ewmh.WmWindowTypeSet(x.x, win, []string{windowTypeDesktop})
 		x.bindShortcuts(win)
-		if !x.framedExisting {
+
+		// Only frame existing windows once ALL root windows have been shown.
+		// If we frame too early, secondary root windows may not have their
+		// title set yet and would be accidentally framed as client windows.
+		expectedRoots := 1
+		if inst := fynedesk.Instance(); inst != nil {
+			expectedRoots = len(inst.Screens().Screens())
+		}
+		if !x.framedExisting && len(x.rootIDs) >= expectedRoots {
 			x.framedExisting = true
 			go x.frameExisting()
 		}

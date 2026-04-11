@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"math"
 	"os/exec"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/fynedesk"
 	"fyshos.com/fynedesk/internal/notify"
@@ -21,9 +23,25 @@ import (
 const (
 	// RootWindowName is the base string that all root windows will have in their title and is used to identify root windows.
 	RootWindowName = "Fyne Desktop"
-	// SkipTaskbarHint should be added to the title of normal windows that should be skipped like the X11 SkipTaskbar hint.
-	SkipTaskbarHint = "FyneDesk:skip"
 )
+
+// screenWindow holds the Fyne window and per-screen widgets for a single monitor.
+type screenWindow struct {
+	screen            *fynedesk.Screen
+	win               fyne.Window
+	compositor        *CompositorWidget
+	compositorOverlay *CompositorWidget
+	bg                *background
+	overlay           *fyne.Container
+}
+
+// ScreenCompositors groups the compositor widgets for a single screen,
+// passed to the platform compositor so it can route windows per-monitor.
+type ScreenCompositors struct {
+	Screen  *fynedesk.Screen
+	Normal  *CompositorWidget
+	Overlay *CompositorWidget
+}
 
 type desktop struct {
 	wm.ShortcutHandler
@@ -38,11 +56,15 @@ type desktop struct {
 	showMenu    func(*fyne.Menu, fyne.Position)
 	moduleCache []fynedesk.Module
 
-	bar     *bar
-	widgets *widgetPanel
-	mouse   fyne.CanvasObject
-	root    fyne.Window
-	desk    int
+	bar             *bar
+	widgets         *widgetPanel
+	mouse           fyne.CanvasObject
+	screenWindows   []*screenWindow
+	primaryWin      *screenWindow
+	desk            int
+	deskAnim        *fyne.Animation
+	deskAnimTargets map[fynedesk.Window]fyne.Position // where the in-flight animation is heading
+	compositorDone  chan struct{}
 }
 
 func (l *desktop) Desktop() int {
@@ -51,6 +73,14 @@ func (l *desktop) Desktop() int {
 
 func (l *desktop) SetDesktop(id int) {
 	diff := id - l.desk
+	prevTargets := l.deskAnimTargets
+
+	// Stop any in-flight animation; the new one takes over.
+	if l.deskAnim != nil {
+		l.deskAnim.Stop()
+		l.deskAnim = nil
+	}
+
 	l.desk = id
 
 	_, height := l.RootSizePixels()
@@ -58,33 +88,61 @@ func (l *desktop) SetDesktop(id int) {
 	wins := l.wm.Windows()
 
 	starts := make([]fyne.Position, len(wins))
-	deltas := make([]fyne.Delta, len(wins))
+	targets := make(map[fynedesk.Window]fyne.Position, len(wins))
 	for i, win := range wins {
-		starts[i] = win.Position()
+		// If the previous animation was heading somewhere, start from
+		// that target rather than the current (mid-flight) position.
+		if prev, ok := prevTargets[win]; ok {
+			starts[i] = prev
+		} else {
+			starts[i] = win.Position()
+		}
 
 		display := l.Screens().ScreenForWindow(win)
 		off := offPix / display.Scale
-		deltas[i] = fyne.NewDelta(0, off)
+		targets[win] = fyne.NewPos(starts[i].X, starts[i].Y+off)
 	}
 
-	fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
-		for i, item := range l.wm.Windows() {
+	type visualMover interface {
+		MoveVisual(fyne.Position)
+	}
+
+	l.deskAnimTargets = targets
+	var a *fyne.Animation
+	a = fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
+		if l.deskAnim != a {
+			return // superseded by a newer animation
+		}
+		for i, item := range wins {
 			if item.Pinned() {
 				continue
 			}
 
-			newX := starts[i].X + deltas[i].DX*f
-			newY := starts[i].Y + deltas[i].DY*f
+			target := targets[item]
+			newX := starts[i].X + (target.X-starts[i].X)*f
+			newY := starts[i].Y + (target.Y-starts[i].Y)*f
+			pos := fyne.NewPos(newX, newY)
 
-			item.Move(fyne.NewPos(newX, newY))
+			if f >= 1.0 {
+				item.Move(pos)
+				if i == len(wins)-1 {
+					l.deskAnim = nil
+					l.deskAnimTargets = nil
+					for _, m := range l.Modules() {
+						if desk, ok := m.(notify.DesktopNotify); ok {
+							desk.DesktopChangeNotify(id)
+						}
+					}
+				}
+			} else if vm, ok := item.(visualMover); ok {
+				vm.MoveVisual(pos)
+			} else {
+				item.Move(pos)
+			}
 		}
-	}).Start()
-
-	for _, m := range l.Modules() {
-		if desk, ok := m.(notify.DesktopNotify); ok {
-			desk.DesktopChangeNotify(id)
-		}
-	}
+	})
+	l.deskAnim = a
+	a.Start()
 }
 
 func (l *desktop) ShowSettings() {
@@ -92,21 +150,37 @@ func (l *desktop) ShowSettings() {
 }
 
 func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	bg := objects[0].(*background)
-	bg.Resize(size)
+	if esp, ok := l.screens.(*embeddedScreensProvider); ok {
+		esp.UpdatePrimarySize(int(size.Width), int(size.Height))
+	}
+
+	// Each window covers exactly one screen, so origin is always 0,0.
+	pW := size.Width
+	pH := size.Height
+
+	// objects order: background, [compositor], bar, widgets, [compositorOverlay], overlay, mouse
+	// Size all full-window layers (everything except bar and widgets) to fill.
+	for _, o := range objects {
+		if o == l.bar || o == l.widgets || o == l.mouse {
+			continue
+		}
+		o.Resize(size)
+		o.Move(fyne.NewPos(0, 0))
+	}
+
 	if l.Settings().NarrowLeftLauncher() {
-		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, size.Height))
+		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, pH))
 		l.bar.Move(fyne.NewPos(0, 0))
 	} else {
 		barHeight := l.bar.MinSize().Height
-		l.bar.Resize(fyne.NewSize(size.Width, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
-		l.bar.Move(fyne.NewPos(0, size.Height-barHeight))
+		l.bar.Resize(fyne.NewSize(pW, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
+		l.bar.Move(fyne.NewPos(0, pH-barHeight))
 	}
 	l.bar.Refresh()
 
 	widgetsWidth := l.widgets.MinSize().Width
-	l.widgets.Resize(fyne.NewSize(widgetsWidth, size.Height))
-	l.widgets.Move(fyne.NewPos(size.Width-widgetsWidth, 0))
+	l.widgets.Resize(fyne.NewSize(widgetsWidth, pH))
+	l.widgets.Move(fyne.NewPos(pW-widgetsWidth, 0))
 	l.widgets.Refresh()
 }
 
@@ -115,46 +189,290 @@ func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
 }
 
 func (l *desktop) Root() fyne.Window {
-	return l.root
+	if l.primaryWin == nil {
+		return nil
+	}
+	return l.primaryWin.win
 }
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 	l.showMenu(menu, pos)
 }
 
-func (l *desktop) updateBackgrounds(path string) {
-	root := l.root.Content().(*fyne.Container).Objects[0]
-	if back, ok := root.(*background); ok {
-		back.updateBackground(path)
-	} else { // embed mode has another container
-		root.(*fyne.Container).Objects[0].(*background).updateBackground(path)
+// inputShaper is implemented by window managers that can update X11 input shapes
+// on the root and frame windows to control which areas receive mouse events.
+type inputShaper interface {
+	SetOverlayActive(active bool)
+}
+
+// backdrop is a full-screen widget that dismisses an overlay on tap or mouse-in
+// (mouse-in on the backdrop means the cursor left the overlay content).
+// Mouse-out dismiss only activates after the mouse has been inside the content at least once.
+type backdrop struct {
+	widget.BaseWidget
+	onDismiss func()
+	armed     bool // true after mouse has entered the content area
+}
+
+func (b *backdrop) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+}
+
+func (b *backdrop) Tapped(*fyne.PointEvent) {
+	if b.onDismiss != nil {
+		b.onDismiss()
 	}
 }
 
-func (l *desktop) createPrimaryContent() fyne.CanvasObject {
+func (b *backdrop) MouseIn(*deskDriver.MouseEvent) {
+	// Only dismiss if the mouse was previously inside the content
+	if b.armed && b.onDismiss != nil {
+		b.onDismiss()
+	}
+}
+
+func (b *backdrop) MouseMoved(*deskDriver.MouseEvent) {}
+func (b *backdrop) MouseOut()                         {}
+
+func newBackdrop(onDismiss func()) *backdrop {
+	b := &backdrop{onDismiss: onDismiss}
+	b.ExtendBaseWidget(b)
+	return b
+}
+
+// hoverCatch is a wrapper that absorbs hover events, preventing them from
+// falling through to the backdrop when the cursor is between child widgets.
+// It also arms the backdrop for mouse-out dismiss once the mouse enters.
+type hoverCatch struct {
+	widget.BaseWidget
+	content  fyne.CanvasObject
+	backdrop *backdrop
+}
+
+func (h *hoverCatch) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewWithoutLayout(h.content))
+}
+
+func (h *hoverCatch) MouseIn(*deskDriver.MouseEvent) {
+	if h.backdrop != nil {
+		h.backdrop.armed = true
+	}
+}
+
+func (h *hoverCatch) MouseMoved(*deskDriver.MouseEvent) {}
+func (h *hoverCatch) MouseOut()                         {}
+
+func newHoverCatch(content fyne.CanvasObject, bg *backdrop) *hoverCatch {
+	h := &hoverCatch{content: content, backdrop: bg}
+	h.ExtendBaseWidget(h)
+	return h
+}
+
+// ShowOverlayWithBackdrop shows an overlay with click-outside and mouse-out dismiss.
+// catchSize defines the hover-sensitive area (use content size + room for submenus).
+// Returns the combined object (backdrop + content) for use with HideOverlay.
+func (l *desktop) ShowOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, contentOffset fyne.Position) fyne.CanvasObject {
+	return l.showOverlayWithBackdrop(content, size, catchSize, pos, nil, contentOffset)
+}
+
+func (l *desktop) showOverlayWithBackdrop(content fyne.CanvasObject, size fyne.Size, catchSize fyne.Size, pos fyne.Position, focus fyne.Focusable, contentOffset fyne.Position) fyne.CanvasObject {
+	var combined fyne.CanvasObject
+	dismiss := func() {
+		l.HideOverlay(combined)
+	}
+
+	bg := newBackdrop(dismiss)
+	catch := newHoverCatch(content, bg)
+	catch.Resize(catchSize)
+	catch.Move(pos)
+	content.Move(contentOffset)
+	content.Resize(size)
+	combined = container.NewStack(bg, container.NewWithoutLayout(catch))
+
+	// Size the combined to fill the full window
+	winSize := l.primaryWin.win.Canvas().Size()
+	l.showOverlay(combined, winSize, fyne.NewPos(0, 0), focus)
+	return combined
+}
+
+// ShowOverlay adds content to the desktop overlay layer, above all chrome and windows.
+// The root window's input shape is expanded and frame input shapes are cleared
+// so that Fyne receives mouse events for the overlay.
+func (l *desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position) {
+	l.showOverlay(content, size, pos, nil)
+}
+
+func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position, focus fyne.Focusable) {
+	overlay := l.primaryWin.overlay
+	win := l.primaryWin.win
+	fyne.Do(func() {
+		content.Resize(size)
+		content.Move(pos)
+		overlay.Add(content)
+		overlay.Refresh()
+
+		if is, ok := l.wm.(inputShaper); ok {
+			is.SetOverlayActive(true)
+		}
+
+		if focus != nil {
+			win.Canvas().Focus(focus)
+		}
+	})
+}
+
+// HideOverlay removes content from the desktop overlay layer.
+// When no overlays remain, input shapes are restored to normal.
+func (l *desktop) HideOverlay(content fyne.CanvasObject) {
+	overlay := l.primaryWin.overlay
+	fyne.Do(func() {
+		overlay.Remove(content)
+		overlay.Refresh()
+
+		if len(overlay.Objects) == 0 {
+			if is, ok := l.wm.(inputShaper); ok {
+				is.SetOverlayActive(false)
+			}
+		}
+	})
+}
+
+func (l *desktop) updateBackgrounds(path string) {
+	for _, sw := range l.screenWindows {
+		if sw.bg != nil {
+			sw.bg.updateBackground(path)
+		}
+	}
+}
+
+func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	l.bar = newBar(l)
 	l.widgets = newWidgetPanel(l)
 	l.mouse = newMouse()
 	l.mouse.Hide()
 
-	return container.New(l, newBackground(), l.bar, l.widgets, l.mouse)
+	sw.bg = newBackground()
+
+	// Order: background -> compositor -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
+	objects := []fyne.CanvasObject{sw.bg}
+
+	// Normal compositor for regular windows below desktop chrome
+	if sw.compositor != nil {
+		objects = append(objects, sw.compositor)
+	}
+
+	objects = append(objects, l.bar, l.widgets)
+
+	// Compositor overlay for fullscreen windows above desktop chrome
+	if sw.compositorOverlay != nil {
+		objects = append(objects, sw.compositorOverlay)
+	}
+
+	// UI overlay for menus, dialogs, switcher, notifications
+	sw.overlay = container.NewWithoutLayout()
+	objects = append(objects, sw.overlay, l.mouse)
+	return container.New(l, objects...)
 }
 
-func (l *desktop) createRoot(screens fynedesk.ScreenList) fyne.Window {
-	win := l.newDesktopWindowFull()
+// secondaryLayout is a simple layout for non-primary screen windows (no bar/widgets).
+type secondaryLayout struct{}
 
-	win.SetContent(l.createPrimaryContent())
+func (s *secondaryLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objects {
+		o.Resize(size)
+		o.Move(fyne.NewPos(0, 0))
+	}
+}
 
-	return win
+func (s *secondaryLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(640, 480)
+}
+
+func (l *desktop) createSecondaryContent(sw *screenWindow) fyne.CanvasObject {
+	sw.bg = newBackground()
+
+	objects := []fyne.CanvasObject{sw.bg}
+
+	// Normal compositor for regular windows
+	if sw.compositor != nil {
+		objects = append(objects, sw.compositor)
+	}
+
+	// Compositor overlay for fullscreen windows
+	if sw.compositorOverlay != nil {
+		objects = append(objects, sw.compositorOverlay)
+	}
+
+	sw.overlay = container.NewWithoutLayout()
+	objects = append(objects, sw.overlay)
+	return container.New(&secondaryLayout{}, objects...)
 }
 
 func (l *desktop) setupRoot() {
-	if l.root == nil {
-		l.root = l.createRoot(l.screens)
+	primary := l.screens.Primary()
+
+	// Build or update screenWindow for each screen
+	existingByName := make(map[string]*screenWindow, len(l.screenWindows))
+	for _, sw := range l.screenWindows {
+		existingByName[sw.screen.Name] = sw
 	}
 
-	scale := l.screens.Primary().CanvasScale()
-	l.root.Resize(fyne.NewSize(float32(l.screens.Primary().Width)/scale, float32(l.screens.Primary().Height)/scale))
+	var newWindows []*screenWindow
+	for _, screen := range l.screens.Screens() {
+		sw := existingByName[screen.Name]
+		if sw != nil {
+			// Update screen pointer (geometry may have changed)
+			sw.screen = screen
+			if sw.compositor != nil {
+				sw.compositor.Screen = screen
+			}
+			if sw.compositorOverlay != nil {
+				sw.compositorOverlay.Screen = screen
+			}
+			delete(existingByName, screen.Name)
+		} else {
+			// Create new screenWindow
+			sw = &screenWindow{screen: screen}
+			if l.compositorDone != nil {
+				sw.compositor = NewCompositorWidget(screen)
+				sw.compositorOverlay = NewCompositorWidget(screen)
+			}
+			win := l.app.NewWindow(RootWindowName + screen.Name)
+			win.SetPadded(false)
+			sw.win = win
+
+			if screen == primary {
+				win.SetMaster()
+				win.SetOnClosed(func() {
+					if l.compositorDone != nil {
+						close(l.compositorDone)
+					}
+					l.wm.Close()
+				})
+				win.SetContent(l.createPrimaryContent(sw))
+			} else {
+				win.SetContent(l.createSecondaryContent(sw))
+			}
+		}
+
+		newWindows = append(newWindows, sw)
+		if screen == primary {
+			l.primaryWin = sw
+		}
+	}
+
+	// Close windows for disconnected screens
+	for _, sw := range existingByName {
+		sw.win.Close()
+	}
+
+	l.screenWindows = newWindows
+
+	// Resize each window to cover its screen
+	for _, sw := range l.screenWindows {
+		scale := sw.screen.CanvasScale()
+		sw.win.Resize(fyne.NewSize(float32(sw.screen.Width)/scale, float32(sw.screen.Height)/scale))
+	}
 }
 
 func (l *desktop) RecentApps() []appie.AppData {
@@ -388,21 +706,52 @@ func (l *desktop) Screens() fynedesk.ScreenList {
 	return l.screens
 }
 
-// NewDesktop creates a new desktop in fullscreen for main usage.
-// The WindowManager passed in will be used to manage the screen it is loaded on.
-// An ApplicationProvider is used to lookup application icons from the operating system.
-func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList) fynedesk.Desktop {
+// CompositorRunFunc is a function that runs a platform compositor using the
+// provided per-screen widgets. It blocks until done is closed.
+type CompositorRunFunc func(done chan struct{}, screens []ScreenCompositors) error
+
+// NewDesktop creates the full desktop environment with window management.
+// If compositorRun is non-nil, the compositor is started in a background goroutine.
+func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList, compositorRun CompositorRunFunc) fynedesk.Desktop {
 	desk := newDesktop(app, mgr, icons)
 	desk.run = desk.runFull
+	if compositorRun != nil {
+		desk.compositorDone = make(chan struct{})
+	}
 	screenProvider.AddChangeListener(desk.setupRoot)
 	desk.screens = screenProvider
 
 	desk.setupRoot()
+
+	if compositorRun != nil {
+		go func() {
+			screens := desk.screenCompositors()
+			if err := compositorRun(desk.compositorDone, screens); err != nil {
+				fyne.LogError("Compositor failed", err)
+			}
+		}()
+	}
+
 	wm.StartAuthAgent()
 	if desk.Settings().ScreenSaverType() == "XScreensaver" {
 		go desk.startXscreensaver()
 	}
 	return desk
+}
+
+// screenCompositors returns the per-screen compositor widget pairs.
+func (l *desktop) screenCompositors() []ScreenCompositors {
+	var out []ScreenCompositors
+	for _, sw := range l.screenWindows {
+		if sw.compositor != nil {
+			out = append(out, ScreenCompositors{
+				Screen:  sw.screen,
+				Normal:  sw.compositor,
+				Overlay: sw.compositorOverlay,
+			})
+		}
+	}
+	return out
 }
 
 // NewEmbeddedDesktop creates a new windowed desktop for test purposes.
@@ -415,9 +764,15 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	desk.run = desk.runEmbed
 	desk.showMenu = desk.showMenuEmbed
 
-	desk.root = desk.newDesktopWindowEmbed()
-	over := wm.setWindow(desk.root)
-	desk.root.SetContent(container.NewStack(desk.createPrimaryContent(), over))
+	win := desk.newDesktopWindowEmbed()
+	sw := &screenWindow{
+		screen: desk.screens.Primary(),
+		win:    win,
+	}
+	desk.screenWindows = []*screenWindow{sw}
+	desk.primaryWin = sw
+	over := wm.setWindow(win)
+	win.SetContent(container.NewStack(desk.createPrimaryContent(sw), over))
 	return desk
 }
 

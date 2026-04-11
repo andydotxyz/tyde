@@ -14,8 +14,6 @@ import (
 
 type background struct {
 	widget.BaseWidget
-
-	wallpaper *fyne.Container
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
@@ -24,65 +22,46 @@ func (b *background) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (b *background) loadModules() []fyne.CanvasObject {
-	objects := []fyne.CanvasObject{b.wallpaper}
+	objects := []fyne.CanvasObject{container.NewStack(loadWallpaper())}
 
+	// Add screen area modules (e.g. desktop files)
 	for _, m := range fynedesk.Instance().Modules() {
 		if deskMod, ok := m.(fynedesk.ScreenAreaModule); ok {
-			wid := deskMod.ScreenAreaWidget()
-			if wid == nil {
-				continue
+			if wid := deskMod.ScreenAreaWidget(); wid != nil {
+				objects = append(objects, wid)
 			}
-
-			objects = append(objects, wid)
 		}
 	}
 
 	return objects
 }
 
-func (b *background) updateBackground(path string) {
-	_, err := os.Stat(path)
-	if path == "" || err != nil {
-		set := fyne.CurrentApp().Settings()
-		src := backgrounds.Default()
-		b.wallpaper.Objects[0] = src.Load(set.Theme(), set.ThemeVariant())
-	} else {
-		bg := canvas.NewImageFromFile(path)
-		bg.ScaleMode = canvas.ImageScaleFastest
-		b.wallpaper.Objects[0] = bg
-	}
-	b.loadModules()
-	canvas.Refresh(b.wallpaper)
+func (b *background) updateBackground(_ string) {
 	b.Refresh()
 }
 
-func backgroundPath() string {
-	pathEnv := fynedesk.Instance().Settings().Background()
-	if pathEnv == "" {
-		return ""
+func loadWallpaper() fyne.CanvasObject {
+	path := ""
+	inst := fynedesk.Instance()
+	if inst != nil {
+		path = inst.Settings().Background()
 	}
 
-	if stat, err := os.Stat(pathEnv); os.IsNotExist(err) || !stat.Mode().IsRegular() {
-		return ""
+	if path != "" {
+		if stat, err := os.Stat(path); err == nil && stat.Mode().IsRegular() {
+			img := canvas.NewImageFromFile(path)
+			img.ScaleMode = canvas.ImageScaleFastest
+			return img
+		}
 	}
 
-	return pathEnv
+	set := fyne.CurrentApp().Settings()
+	src := backgrounds.Default()
+	return src.Load(set.Theme(), set.ThemeVariant())
 }
 
 func newBackground() *background {
-	var bg fyne.CanvasObject
-	imagePath := backgroundPath()
-	if imagePath != "" {
-		img := canvas.NewImageFromFile(imagePath)
-		img.ScaleMode = canvas.ImageScaleFastest
-		bg = img
-	} else {
-		set := fyne.CurrentApp().Settings()
-		b := backgrounds.Default()
-		bg = b.Load(set.Theme(), set.ThemeVariant())
-	}
-
-	ret := &background{wallpaper: container.NewStack(bg)}
+	ret := &background{}
 	ret.ExtendBaseWidget(ret)
 	return ret
 }

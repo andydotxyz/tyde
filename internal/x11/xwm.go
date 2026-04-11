@@ -19,4 +19,5 @@ type XWM interface {
 	Conn() *xgb.Conn
 
 	RootID() xproto.Window
+	RootIDForScreen(screenName string) xproto.Window
 }
