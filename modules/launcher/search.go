@@ -5,7 +5,7 @@ import (
 	"runtime/debug"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/theme"
+	wmTheme "fyshos.com/fynedesk/theme"
 
 	"fyshos.com/fynedesk"
 )
@@ -31,11 +31,6 @@ func (s *search) Metadata() fynedesk.ModuleMetadata {
 	return searchMeta
 }
 
-// isExpression will return true if input is a mathematical expression unless it just contains a number
-func (s *search) isExpression(input string) bool {
-	return true
-}
-
 // newCalcSuggest creates a new module that will show an option to search the web for an string.
 func newSearchSuggest() fynedesk.Module {
 	return &search{}
@@ -46,7 +41,7 @@ type searchItem struct {
 }
 
 func (s *searchItem) Icon() fyne.Resource {
-	return theme.SearchIcon()
+	return wmTheme.InternetIcon
 }
 
 func (s *searchItem) Title() string {
