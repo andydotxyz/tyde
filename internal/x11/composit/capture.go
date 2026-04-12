@@ -15,7 +15,9 @@ import (
 // capturePixmap reads the contents of an X pixmap into a Go NRGBA image.
 // If argb is true, the alpha channel from the pixmap is preserved;
 // otherwise alpha is set to 0xff (fully opaque).
-func capturePixmap(conn *xgb.Conn, drawable xproto.Drawable, w, h uint16, argb bool) *image.NRGBA {
+// If buf is non-nil and its dimensions match w×h, it is reused to avoid a
+// per-frame allocation; otherwise a new image is allocated.
+func capturePixmap(conn *xgb.Conn, drawable xproto.Drawable, w, h uint16, argb bool, buf *image.NRGBA) *image.NRGBA {
 	if w == 0 || h == 0 {
 		return nil
 	}
@@ -26,7 +28,10 @@ func capturePixmap(conn *xgb.Conn, drawable xproto.Drawable, w, h uint16, argb b
 		return nil
 	}
 
-	img := image.NewNRGBA(image.Rect(0, 0, int(w), int(h)))
+	img := buf
+	if img == nil || img.Rect.Dx() != int(w) || img.Rect.Dy() != int(h) || img.Stride != int(w)*4 {
+		img = image.NewNRGBA(image.Rect(0, 0, int(w), int(h)))
+	}
 	data := reply.Data
 	pix := img.Pix
 

@@ -47,6 +47,10 @@ type client struct {
 	attributes xproto.GetWindowAttributesReply
 	damage     damage.Damage
 	pixmap     xproto.Pixmap // cached NameWindowPixmap
+
+	// captureBuf holds the NRGBA buffer for a window to avoid allocating a
+	// fresh image per frame for stable-size windows (the common case).
+	captureBuf *image.NRGBA
 }
 
 var (
@@ -601,10 +605,12 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		totalW := c.geom.Width + c.geom.BorderWidth*2
 		totalH := c.geom.Height + c.geom.BorderWidth*2
 		isARGB := c.opaqueType == argb
-		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB)
+
+		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB, c.captureBuf)
 		if img == nil {
 			continue
 		}
+		c.captureBuf = img
 		w := wmWindow(c)
 		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
 			// Use primary screen scale for corner rounding as a reasonable default
