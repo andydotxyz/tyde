@@ -55,7 +55,7 @@ func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border
 	border.Alignment = buttonAlign
 
 	border.OnTappedIcon = func() {
-		border.showMenu(border) // TODO appIcon position (estimate)
+		border.showMenu()
 	}
 
 	border.Icon = ico
@@ -84,7 +84,7 @@ func (c *Border) SetIcon(icon fyne.Resource) {
 	c.Refresh()
 }
 
-func (c *Border) showMenu(_ fyne.CanvasObject) {
+func (c *Border) showMenu() {
 	name := c.win.Properties().Title()
 	if len(name) > 25 {
 		name = name[:25] + "..."
@@ -103,7 +103,11 @@ func (c *Border) showMenu(_ fyne.CanvasObject) {
 	}
 
 	pos := c.win.Position()
-	menuPos := pos.AddXY(c.win.Size().Width-32, 0)
+	x := c.win.Size().Width - 32
+	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
+		x = 0
+	}
+	menuPos := pos.AddXY(x, 0)
 	menu := fyne.NewMenu("",
 		title,
 		fyne.NewMenuItemSeparator(),
