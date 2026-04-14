@@ -53,12 +53,9 @@ func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 	}()
 
 	desk := fynedesk.Instance()
-	var barPad fyne.CanvasObject
-	if desk.Settings().NarrowLeftLauncher() {
-		r := canvas.NewRectangle(color.Transparent)
-		r.SetMinSize(fyne.NewSize(wmtheme.NarrowBarWidth, 1))
-		barPad = r
-	}
+	r := canvas.NewRectangle(color.Transparent)
+	r.SetMinSize(fyne.NewSize(wmtheme.NarrowBarWidth, 1))
+	barPad := r
 
 	rightIndent := wmtheme.WidgetPanelWidth
 	if desk.Settings().NarrowWidgetPanel() {

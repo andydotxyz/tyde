@@ -31,13 +31,8 @@ func TestDeskLayout_Layout(t *testing.T) {
 	assert.Equal(t, deskSize, bg.Size())
 	assert.Equal(t, deskSize.Width, l.widgets.Position().X+l.widgets.Size().Width)
 	assert.Equal(t, deskSize.Height, l.widgets.Size().Height)
-	if l.Settings().NarrowLeftLauncher() {
-		assert.Equal(t, deskSize.Width, wmTheme.NarrowBarWidth)
-		assert.Equal(t, deskSize.Height, l.bar.Size().Height)
-	} else {
-		assert.Equal(t, deskSize.Width, l.bar.Size().Width)
-		assert.Equal(t, deskSize.Height, l.bar.Position().Y+l.bar.Size().Height-1) // -1 rounding fix, desk.go:49
-	}
+	assert.Equal(t, deskSize.Width, wmTheme.NarrowBarWidth)
+	assert.Equal(t, deskSize.Height, l.bar.Size().Height)
 }
 
 func TestScaleVars_Up(t *testing.T) {

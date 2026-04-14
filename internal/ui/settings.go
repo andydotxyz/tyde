@@ -27,9 +27,9 @@ type deskSettings struct {
 	modifier    fyne.KeyModifier
 	moduleNames []string
 
-	narrowPanel, narrowLeftLauncher bool
-	screenSaverClock                bool
-	screenSaver, screenSaverLabel   string
+	narrowPanel                   bool
+	screenSaverClock              bool
+	screenSaver, screenSaverLabel string
 
 	listenerLock    sync.Mutex
 	changeListeners []func(fynedesk.DeskSettings)
@@ -73,10 +73,6 @@ func (d *deskSettings) ModuleNames() []string {
 
 func (d *deskSettings) NarrowWidgetPanel() bool {
 	return d.narrowPanel
-}
-
-func (d *deskSettings) NarrowLeftLauncher() bool {
-	return d.narrowLeftLauncher
 }
 
 func (d *deskSettings) ScreenSaverClock() bool {
@@ -183,12 +179,6 @@ func (d *deskSettings) setModuleNames(names []string) {
 	d.apply()
 }
 
-func (d *deskSettings) setNarrowLeftLauncher(narrow bool) {
-	d.narrowLeftLauncher = narrow
-	fyne.CurrentApp().Preferences().SetBool("launchernarrowleft", narrow)
-	d.apply()
-}
-
 func (d *deskSettings) setNarrowWidgetPanel(narrow bool) {
 	d.narrowPanel = narrow
 	fyne.CurrentApp().Preferences().SetBool("narrowpanel", narrow)
@@ -283,10 +273,9 @@ func (d *deskSettings) load() {
 		d.moduleNames = strings.Split(moduleNames, "|")
 	}
 	d.modifier = fyne.KeyModifier(fyne.CurrentApp().Preferences().IntWithFallback("keyboardmodifier", int(fyne.KeyModifierSuper)))
-	d.narrowLeftLauncher = fyne.CurrentApp().Preferences().BoolWithFallback("launchernarrowleft", true)
 	d.narrowPanel = fyne.CurrentApp().Preferences().BoolWithFallback("narrowpanel", true)
 
-	d.borderButtonPosition = fyne.CurrentApp().Preferences().StringWithFallback("borderbuttonposition", "Left")
+	d.borderButtonPosition = fyne.CurrentApp().Preferences().StringWithFallback("borderbuttonposition", "Right")
 	d.screenSaver = fyne.CurrentApp().Preferences().StringWithFallback("savertype", "FyshOS")
 	d.screenSaverClock = fyne.CurrentApp().Preferences().BoolWithFallback("saverclock", true)
 	d.screenSaverLabel = fyne.CurrentApp().Preferences().StringWithFallback("saverlabel", "FyneDesk")

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"image/color"
 	"testing"
 
 	"github.com/FyshOS/appie"
@@ -104,14 +103,8 @@ func TestAppBarBackground(t *testing.T) {
 	testBar.disableTaskbar = true
 
 	bg := test.WidgetRenderer(testBar).(*barRenderer).background
-	if testBar.desk.Settings().NarrowLeftLauncher() {
-		assert.Equal(t, wmTheme.WidgetPanelBackground(), bg.(*canvas.Rectangle).FillColor)
-		assert.Equal(t, wmTheme.NarrowBarWidth, bg.Size().Width)
-	} else {
-		assert.Equal(t, color.Transparent, bg.(*canvas.LinearGradient).EndColor)
-		assert.Equal(t, theme.Color(theme.ColorNameBackground), bg.(*canvas.LinearGradient).StartColor)
-		assert.Equal(t, testBar.iconSize+theme.Padding()*2, bg.Size().Width)
-	}
+	assert.Equal(t, wmTheme.WidgetPanelBackground(), bg.(*canvas.Rectangle).FillColor)
+	assert.Equal(t, wmTheme.NarrowBarWidth, bg.Size().Width)
 }
 
 func TestIconsAndIconThemeChange(t *testing.T) {

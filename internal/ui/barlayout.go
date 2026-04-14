@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
-	"fyshos.com/fynedesk"
 	wmtheme "fyshos.com/fynedesk/theme"
 )
 
@@ -38,50 +37,19 @@ func (bl *barLayout) setPointerPosition(position fyne.Position) {
 
 // Layout is called to pack all icons into a specified size.  It also handles the zooming effect of the icons.
 func (bl *barLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	narrow := fynedesk.Instance().Settings().NarrowLeftLauncher()
-	zoom := false
 	bg := objects[0]
 	objects = objects[1:]
 	x := theme.Padding()
-	if narrow {
-		bl.layoutNarrowBar(objects)
-	} else {
-		x, zoom = bl.layoutFullBar(size, objects)
-	}
+	bl.layoutNarrowBar(objects)
 
-	zoomLeft := x
-	tallHeight := bl.bar.iconSize * bl.bar.iconScale
 	for _, child := range objects {
-		width := child.Size().Width
 		height := child.Size().Height
 
-		if narrow {
-			child.Move(fyne.NewPos(theme.Padding(), x))
-			x += height + theme.Padding()
-		} else {
-			if zoom {
-				if _, ok := child.(*canvas.Rectangle); ok {
-					child.Move(fyne.NewPos(x, bl.bar.iconSize))
-				} else {
-					child.Move(fyne.NewPos(x, tallHeight-height))
-				}
-			} else {
-				child.Move(fyne.NewPos(x, 0))
-			}
-			x += width + theme.Padding()
-		}
+		child.Move(fyne.NewPos(theme.Padding(), x))
+		x += height + theme.Padding()
 	}
-	if narrow {
-		bg.Move(fyne.NewPos(0, 0))
-		bg.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, size.Height))
-	} else {
-		bg.Resize(fyne.NewSize(x-zoomLeft+theme.Padding(), bl.bar.iconSize))
-		if zoom {
-			bg.Move(fyne.NewPos(zoomLeft-theme.Padding(), bl.bar.iconSize))
-		} else {
-			bg.Move(fyne.NewPos(zoomLeft-theme.Padding(), 0))
-		}
-	}
+	bg.Move(fyne.NewPos(0, 0))
+	bg.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, size.Height))
 }
 
 // MinSize finds the smallest size that satisfies all the child objects.
@@ -90,17 +58,7 @@ func (bl *barLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 func (bl *barLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	barWidth := bl.calculateBarWidth(objects)
 
-	if fynedesk.Instance().Settings().NarrowLeftLauncher() {
-		return fyne.NewSize(wmtheme.NarrowBarWidth, barWidth)
-	}
-
-	barLeft := (bl.bar.Size().Width - barWidth) / 2
-	mouseX := bl.mousePosition.X
-	if !bl.bar.disableZoom && bl.mouseInside && mouseX >= barLeft && mouseX < barLeft+barWidth {
-		return fyne.NewSize(barWidth, bl.bar.iconSize*bl.bar.iconScale)
-	}
-
-	return fyne.NewSize(barWidth, bl.bar.iconSize)
+	return fyne.NewSize(wmtheme.NarrowBarWidth, barWidth)
 }
 
 func (bl *barLayout) calculateBarWidth(objects []fyne.CanvasObject) float32 {

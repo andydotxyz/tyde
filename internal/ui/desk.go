@@ -168,14 +168,8 @@ func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		o.Move(fyne.NewPos(0, 0))
 	}
 
-	if l.Settings().NarrowLeftLauncher() {
-		l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, pH))
-		l.bar.Move(fyne.NewPos(0, 0))
-	} else {
-		barHeight := l.bar.MinSize().Height
-		l.bar.Resize(fyne.NewSize(pW, barHeight+1)) // add 1 so rounding cannot trigger mouse out on bottom edge
-		l.bar.Move(fyne.NewPos(0, pH-barHeight))
-	}
+	l.bar.Resize(fyne.NewSize(wmtheme.NarrowBarWidth, pH))
+	l.bar.Move(fyne.NewPos(0, 0))
 	l.bar.Refresh()
 
 	widgetsWidth := l.widgets.MinSize().Width
@@ -535,10 +529,7 @@ func (l *desktop) ContentBoundsPixels(screen *fynedesk.Screen) (x, y, w, h uint3
 		pad = wmtheme.NarrowBarWidth
 	}
 	if l.screens.Primary() == screen {
-		bar := uint32(0)
-		if l.Settings().NarrowLeftLauncher() {
-			bar = uint32(wmtheme.NarrowBarWidth * screen.CanvasScale())
-		}
+		bar := uint32(wmtheme.NarrowBarWidth * screen.CanvasScale())
 		wid := uint32(pad * screen.CanvasScale())
 		return bar, 0, screenW - bar - wid, screenH
 	}
