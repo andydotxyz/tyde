@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"strings"
 
 	"github.com/FyshOS/appie"
 
@@ -182,7 +183,7 @@ func (l *picker) loadIcons(dataRange []appie.AppData, appList []fyne.CanvasObjec
 }
 
 func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
-	var suggestList []fyne.CanvasObject
+	var suggestList, searchList []fyne.CanvasObject
 
 	for _, m := range l.desk.Modules() {
 		suggest, ok := m.(fynedesk.LaunchSuggestionModule)
@@ -197,11 +198,18 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 				launchData.Launch()
 			})
 
-			suggestList = append(suggestList, button)
+			if strings.Contains(strings.ToLower(m.Metadata().Name), "search") {
+				searchList = append(searchList, button)
+			} else {
+				suggestList = append(suggestList, button)
+			}
 		}
 	}
 
-	return suggestList
+	if len(searchList) == 0 {
+		return searchList
+	}
+	return append(suggestList, searchList...)
 }
 
 func newAppPicker(callback func(appie.AppData, int)) *picker {

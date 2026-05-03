@@ -274,9 +274,9 @@ func (d *deskSettings) load() {
 		d.launcherZoomScale = 2.0
 	}
 
-	defaultModules := "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Convert units|Launcher: Open URLs|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
+	defaultModules := "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" { // testing
-		defaultModules = "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Open URLs|Network|Virtual Desktops"
+		defaultModules = "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Large Type|Launcher: Open URLs|Network|Virtual Desktops"
 	}
 	moduleNames := fyne.CurrentApp().Preferences().StringWithFallback("modulenames", defaultModules)
 	if moduleNames != "" {
