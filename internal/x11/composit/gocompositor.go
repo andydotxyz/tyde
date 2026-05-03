@@ -68,6 +68,12 @@ var (
 	atomAtom       xproto.Atom
 	wmNameAtom     xproto.Atom
 	stringAtom     xproto.Atom
+
+	windowTypeAtom xproto.Atom
+	tooltipAtom    xproto.Atom
+	popupMenuAtom  xproto.Atom
+	dropdownAtom   xproto.Atom
+	comboAtom      xproto.Atom
 )
 
 const (
@@ -142,6 +148,25 @@ func setup(conn *xgb.Conn) error {
 		return err
 	}
 	netWmStateAtom = stateAtomReply.Atom
+
+	// Cache window type atoms for overlay detection (tooltips, popups, etc.)
+	typeNames := []struct {
+		name string
+		dest *xproto.Atom
+	}{
+		{"_NET_WM_WINDOW_TYPE", &windowTypeAtom},
+		{"_NET_WM_WINDOW_TYPE_TOOLTIP", &tooltipAtom},
+		{"_NET_WM_WINDOW_TYPE_POPUP_MENU", &popupMenuAtom},
+		{"_NET_WM_WINDOW_TYPE_DROPDOWN_MENU", &dropdownAtom},
+		{"_NET_WM_WINDOW_TYPE_COMBO", &comboAtom},
+	}
+	for _, tn := range typeNames {
+		reply, err := xproto.InternAtom(conn, false, uint16(len(tn.name)), tn.name).Reply()
+		if err != nil {
+			return err
+		}
+		*tn.dest = reply.Atom
+	}
 
 	return nil
 }
@@ -724,13 +749,20 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 	}
 	if idx > 0 {
 		for j := idx - 1; j >= 0; j-- {
-			if clients[j].skipped {
+			above := clients[j]
+			if above.skipped {
 				continue
 			}
-			if ok, err := windowSkipped(conn, clients[j].win); err == nil && ok {
+			if above.attributes.OverrideRedirect {
 				continue
 			}
-			if clients[j].attributes.MapState == xproto.MapStateViewable {
+			if ok, err := windowSkipped(conn, above.win); err == nil && ok {
+				continue
+			}
+			if isOverlayWindow(conn, above.win) {
+				continue
+			}
+			if above.attributes.MapState == xproto.MapStateViewable {
 				isTop = false
 				break
 			}
@@ -1199,6 +1231,25 @@ func windowSkipped(conn *xgb.Conn, window xproto.Window) (bool, error) {
 	}
 
 	return false, err
+}
+
+// isOverlayWindow returns true if the window is a tooltip, popup menu, dropdown,
+// or combo — transient overlays that should not cause the window beneath to dim.
+func isOverlayWindow(conn *xgb.Conn, window xproto.Window) bool {
+	if windowTypeAtom == 0 {
+		return false
+	}
+	prop, err := xproto.GetProperty(conn, false, window, windowTypeAtom, xproto.AtomAtom, 0, 32).Reply()
+	if err != nil || prop.Type != xproto.AtomAtom || len(prop.Value) < 4 {
+		return false
+	}
+	for i := 0; i+3 < len(prop.Value); i += 4 {
+		a := xproto.Atom(xgb.Get32(prop.Value[i:]))
+		if a == tooltipAtom || a == popupMenuAtom || a == dropdownAtom || a == comboAtom {
+			return true
+		}
+	}
+	return false
 }
 
 func getOpacity(conn *xgb.Conn, window xproto.Window) (uint32, error) {
