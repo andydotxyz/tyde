@@ -67,10 +67,11 @@ func (p *pager) WindowMoved(win fynedesk.Window) {
 		yPad = 0
 	}
 
-	x := (win.Position().X * screen.Scale) / float32(screen.Width) * pivot.Size().Width
-	y := (win.Position().Y * screen.Scale) / float32(screen.Height) * pivot.Size().Height
-	w := (win.Size().Width * screen.Scale) / float32(screen.Width) * pivot.Size().Width
-	h := (win.Size().Height * screen.Scale) / float32(screen.Height) * pivot.Size().Height
+	scale := screen.CanvasScale()
+	x := (win.Position().X * scale) / float32(screen.Width) * pivot.Size().Width
+	y := (win.Position().Y * scale) / float32(screen.Height) * pivot.Size().Height
+	w := (win.Size().Width * scale) / float32(screen.Width) * pivot.Size().Width
+	h := (win.Size().Height * scale) / float32(screen.Height) * pivot.Size().Height
 	fyne.Do(func() {
 		obj.Move(pivot.Position().Add(fyne.NewPos(x, y+yPad)))
 		obj.Resize(fyne.NewSize(w, h))
@@ -148,10 +149,11 @@ func (p *pager) refreshFrom(oldID int) {
 		rects = append(rects, obj)
 		winObjs[win] = obj
 
-		x := (win.Position().X * screen.Scale) / float32(screen.Width) * pivot.Size().Width
-		y := (win.Position().Y * screen.Scale) / float32(screen.Height) * pivot.Size().Height
-		w := (win.Size().Width * screen.Scale) / float32(screen.Width) * pivot.Size().Width
-		h := (win.Size().Height * screen.Scale) / float32(screen.Height) * pivot.Size().Height
+		scale := screen.CanvasScale()
+		x := (win.Position().X * scale) / float32(screen.Width) * pivot.Size().Width
+		y := (win.Position().Y * scale) / float32(screen.Height) * pivot.Size().Height
+		w := (win.Size().Width * scale) / float32(screen.Width) * pivot.Size().Width
+		h := (win.Size().Height * scale) / float32(screen.Height) * pivot.Size().Height
 		obj.Resize(fyne.NewSize(w, h))
 		obj.Move(pivot.Position().Add(fyne.NewPos(x, y+yPad)))
 	}

@@ -99,7 +99,7 @@ func (l *desktop) SetDesktop(id int) {
 		}
 
 		display := l.Screens().ScreenForWindow(win)
-		off := offPix / display.Scale
+		off := offPix / display.CanvasScale()
 		targets[win] = fyne.NewPos(starts[i].X, starts[i].Y+off)
 	}
 

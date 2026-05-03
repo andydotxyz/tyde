@@ -143,7 +143,7 @@ func (c *client) SetDesktop(id int) {
 	_, height := d.RootSizePixels()
 	offPix := float32(diff * -int(height))
 	display := d.Screens().ScreenForWindow(c)
-	off := offPix / display.Scale
+	off := offPix / display.CanvasScale()
 
 	type moveNotifier interface {
 		NotifyWindowMoved(fynedesk.Window)
