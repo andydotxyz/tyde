@@ -52,8 +52,10 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func())
 			container.NewVBox(items...)))
 	}
 
-	acc.Items = accList
-	acc.Refresh()
+	fyne.Do(func() {
+		acc.Items = accList
+		acc.Refresh()
+	})
 }
 
 func (w *widgetPanel) askLogout() {

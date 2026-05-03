@@ -103,10 +103,14 @@ func (x *x11WM) handleClientMessage(ev xproto.ClientMessageEvent) {
 		switch ev.Data.Bytes()[0] {
 		case icccm.StateIconic:
 			c.NotifyIconify()
-			x.publishWindowChange(c)
+			fyne.Do(func() {
+				x.publishWindowChange(c)
+			})
 		case icccm.StateNormal:
 			c.NotifyUnIconify()
-			x.publishWindowChange(c)
+			fyne.Do(func() {
+				x.publishWindowChange(c)
+			})
 		}
 	case "_NET_ACTIVE_WINDOW":
 		x.handleActiveWin(ev)

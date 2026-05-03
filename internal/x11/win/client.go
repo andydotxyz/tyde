@@ -77,6 +77,12 @@ func (c *client) ChildID() xproto.Window {
 	return c.win
 }
 
+func (c *client) MarkDestroyed() {
+	if c.frame != nil {
+		c.frame.closed.Store(true)
+	}
+}
+
 func (c *client) Close() {
 	winProtos, err := icccm.WmProtocolsGet(c.wm.X(), c.win)
 	if err != nil {

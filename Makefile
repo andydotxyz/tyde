@@ -21,4 +21,4 @@ uninstall:
 
 embed:
 	Xephyr :5 -screen 1280x720 &
-	DISPLAY=:5 go run ./cmd/fynedesk
+	DISPLAY=:5 go run -tags migrated_fynedo ./cmd/fynedesk

@@ -716,8 +716,9 @@ func (x *x11WM) destroyWindow(win xproto.Window) {
 	windowClientListUpdate(x)
 	windowClientListStackingUpdate(x)
 
-	xproto.DestroyWindow(x.x.Conn(), c.FrameID())
-	xproto.DestroyWindow(x.x.Conn(), c.ChildID())
+	c.MarkDestroyed()
+	_ = xproto.DestroyWindowChecked(x.x.Conn(), c.FrameID()).Check()
+	_ = xproto.DestroyWindowChecked(x.x.Conn(), c.ChildID()).Check()
 }
 
 func (x *x11WM) exposeWindow(win xproto.Window) {
@@ -796,8 +797,11 @@ func (x *x11WM) hideWindow(win xproto.Window) {
 		return
 	}
 	xproto.UnmapWindow(x.x.Conn(), c.FrameID())
+	c.MarkDestroyed()
 	if !c.Iconic() {
-		x.RemoveWindow(c)
+		fyne.Do(func() {
+			x.RemoveWindow(c)
+		})
 	}
 }
 
