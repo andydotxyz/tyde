@@ -81,6 +81,12 @@ func (i *largeTypeItem) Launch() {
 
 	label := canvas.NewText(i.text, theme.Color(theme.ColorNameForeground))
 	label.TextSize = 120
+
+	// just 3 emoji/symbols or less
+	if len([]rune(i.text)) <= 3 && len([]rune(i.text)) != len(i.text) {
+		label.TextSize = 250
+	}
+
 	label.Alignment = fyne.TextAlignCenter
 	label.TextStyle = fyne.TextStyle{Bold: true}
 
