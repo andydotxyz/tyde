@@ -1,8 +1,6 @@
 package test
 
 import (
-	"image"
-
 	"fyshos.com/fynedesk"
 
 	"fyne.io/fyne/v2"
@@ -24,11 +22,6 @@ func NewWindow(title string) *Window {
 	win := &Window{width: 10, height: 10}
 	win.props.name = title
 	return win
-}
-
-// Capture the contents of the window. Our test code cowardly refuses to do this.
-func (w *Window) Capture() image.Image {
-	return nil // we can add this if required for testing
 }
 
 // Close this test window

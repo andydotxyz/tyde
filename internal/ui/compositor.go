@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -78,6 +79,17 @@ func (cw *CompositorWidget) RemoveWindow(id uint32) {
 			return
 		}
 	}
+}
+
+// TopImage returns the image of the topmost window, or nil if empty.
+func (cw *CompositorWidget) TopImage() image.Image {
+	cw.mu.RLock()
+	defer cw.mu.RUnlock()
+
+	if len(cw.images) == 0 {
+		return nil
+	}
+	return cw.images[len(cw.images)-1].Img.Image
 }
 
 // GetWindow returns the window image for a given ID.

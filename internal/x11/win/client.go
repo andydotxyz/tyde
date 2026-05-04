@@ -4,8 +4,6 @@
 package win
 
 import (
-	"image"
-
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/icccm"
@@ -67,10 +65,6 @@ func NewClient(win xproto.Window, wm x11.XWM) x11.XWin {
 	}
 
 	return c
-}
-
-func (c *client) Capture() image.Image {
-	return x11.CaptureWindow(c.wm.Conn(), c.FrameID())
 }
 
 func (c *client) ChildID() xproto.Window {

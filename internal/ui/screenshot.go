@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image"
+	"image/draw"
 	"image/png"
 	"time"
 
@@ -15,20 +16,54 @@ import (
 )
 
 func (l *desktop) screenshot() {
-	bg := l.wm.Capture()
-	l.showCaptureSave(bg)
-}
-
-func (l *desktop) screenshotWindow() {
-	win := l.wm.TopWindow()
-	if win == nil {
-		fyne.LogError("Unable to print window with no window visible", nil)
+	if len(l.screenWindows) == 1 {
+		l.showCaptureSave(l.screenWindows[0].win.Canvas().Capture())
 		return
 	}
 
-	if img := win.Capture(); img != nil {
-		l.showCaptureSave(img)
+	// Multi-screen: stitch captures together based on screen geometry.
+	minX, minY, maxX, maxY := 0, 0, 0, 0
+	for _, sw := range l.screenWindows {
+		s := sw.screen
+		if s.X < minX {
+			minX = s.X
+		}
+		if s.Y < minY {
+			minY = s.Y
+		}
+		if s.X+s.Width > maxX {
+			maxX = s.X + s.Width
+		}
+		if s.Y+s.Height > maxY {
+			maxY = s.Y + s.Height
+		}
 	}
+
+	composite := image.NewNRGBA(image.Rect(0, 0, maxX-minX, maxY-minY))
+	for _, sw := range l.screenWindows {
+		img := sw.win.Canvas().Capture()
+		if img == nil {
+			continue
+		}
+		dp := image.Pt(sw.screen.X-minX, sw.screen.Y-minY)
+		draw.Draw(composite, image.Rectangle{Min: dp, Max: dp.Add(img.Bounds().Size())},
+			img, image.Point{}, draw.Src)
+	}
+	l.showCaptureSave(composite)
+}
+
+func (l *desktop) screenshotWindow() {
+	if l.primaryWin == nil || l.primaryWin.compositor == nil {
+		fyne.LogError("Unable to print window with no compositor", nil)
+		return
+	}
+
+	img := l.primaryWin.compositor.TopImage()
+	if img == nil {
+		fyne.LogError("Unable to print window with no window visible", nil)
+		return
+	}
+	l.showCaptureSave(img)
 }
 
 func (l *desktop) showCaptureSave(img image.Image) {

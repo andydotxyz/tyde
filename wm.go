@@ -1,8 +1,6 @@
 package fynedesk
 
 import (
-	"image"
-
 	"github.com/FyshOS/saver"
 
 	"fyne.io/fyne/v2"
@@ -14,7 +12,6 @@ type WindowManager interface {
 	AddStackListener(StackListener)
 
 	Blank()
-	Capture() image.Image // Capture the contents of the whole desktop to an image
 	Close()
 	Run()
 	ShowOverlay(fyne.Window, fyne.Size, fyne.Position)

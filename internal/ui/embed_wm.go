@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"image"
 	"image/color"
 
 	"fyshos.com/fynedesk"
@@ -74,10 +73,6 @@ func (e *embededWM) AddStackListener(fynedesk.StackListener) {
 
 func (e *embededWM) Blank() {
 	// no-op, we don't control screen brightness
-}
-
-func (e *embededWM) Capture() image.Image {
-	return nil // would mean accessing the underling OS screen functions...
 }
 
 func (e *embededWM) Close() {

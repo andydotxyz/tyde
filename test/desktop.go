@@ -1,8 +1,6 @@
 package test
 
 import (
-	"image"
-
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -38,11 +36,6 @@ func NewDesktopWithWM(wm fynedesk.WindowManager) *Desktop {
 // AddShortcut is called from modules that wish to register keyboard handlers
 func (*Desktop) AddShortcut(shortcut *fynedesk.Shortcut, handler func()) {
 	// TODO
-}
-
-// Capture the desktop to an image. Our test code cowardly refuses to do this.
-func (*Desktop) Capture() image.Image {
-	return nil // could be implemented if required for testing
 }
 
 // ContentBoundsPixels returns a default value for how much space maximised apps should use

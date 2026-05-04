@@ -194,11 +194,6 @@ func (x *x11WM) Blank() {
 	}()
 }
 
-func (x *x11WM) Capture() image.Image {
-	root := x.x.RootWin()
-	return x11.CaptureWindow(x.x.Conn(), root)
-}
-
 func (x *x11WM) Close() {
 	for _, child := range x.clients {
 		child.Close()
