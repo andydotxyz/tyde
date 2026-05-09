@@ -39,21 +39,27 @@ func (b *sound) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
 	matches := false
 	val := lower
 	if startsWith(lower, "volume ") {
-		matches = true
 		if len(lower) > 7 {
 			val = lower[7:]
 		} else {
 			val = ""
 		}
 	} else if startsWith(lower, "vol ") {
-		matches = true
 		if len(lower) > 4 {
 			val = lower[4:]
 		} else {
 			val = ""
 		}
-	} else if startsWith(lower, "mute") || startsWith(lower, "unmute") {
+	} else if lower == "mute" || lower == "unmute" {
 		matches = true
+	} else {
+		return nil
+	}
+
+	if !matches {
+		if startsWith(val, "u") || startsWith(val, "d") || val == "mute" || val == "unmute" {
+			matches = true
+		}
 	}
 
 	if matches {
@@ -159,24 +165,29 @@ func (i *volItem) Icon() fyne.Resource {
 }
 
 func (i *volItem) Title() string {
-	if startsWith(i.input, "up") {
-		return "Volume up"
-	} else if startsWith(i.input, "down") {
-		return "Volume down"
-	} else if _, err := strconv.Atoi(i.input); err == nil {
+	if _, err := strconv.Atoi(i.input); err == nil {
 		return "Volume " + i.input + "%"
+	} else if i.input == "mute" {
+		return "Mute volume"
+	} else if i.input == "unmute" {
+		return "Unmute volume"
+	} else if startsWith(i.input, "u") {
+		return "Volume up"
+	} else if startsWith(i.input, "d") {
+		return "Volume down"
 	}
 
-	if i.s.muted() {
-		return "Unmute volume"
-	}
-	return "Mute volume"
+	return ""
 }
 
 func (i *volItem) Launch() {
-	if startsWith(i.input, "up") {
+	if i.input == "mute" {
+		_ = i.s.client.SetMute(true)
+	} else if i.input == "unmute" {
+		_ = i.s.client.SetMute(false)
+	} else if startsWith(i.input, "u") {
 		i.s.offsetValue(5)
-	} else if startsWith(i.input, "down") {
+	} else if startsWith(i.input, "d") {
 		i.s.offsetValue(-5)
 	} else if val, err := strconv.Atoi(i.input); err == nil {
 		if val < 0 {
@@ -185,8 +196,6 @@ func (i *volItem) Launch() {
 			val = 100
 		}
 		i.s.setValue(val)
-	} else {
-		i.s.toggleMute()
 	}
 }
 
@@ -200,5 +209,5 @@ func startsWith(haystack, needle string) bool {
 	if len(haystack) < len(needle) {
 		return haystack == needle[:len(haystack)]
 	}
-	return strings.IndexAny(haystack, needle) == 0
+	return strings.Index(haystack, needle) == 0
 }

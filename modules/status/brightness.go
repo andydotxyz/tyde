@@ -85,11 +85,17 @@ func (b *brightness) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion
 		}
 	}
 
-	if matches {
-		return []fynedesk.LaunchSuggestion{&brightItem{input: val, b: b}}
+	if !matches {
+		return nil
 	}
 
-	return nil
+	if _, err := strconv.Atoi(val); err != nil {
+		if !startsWith(val, "d") && !startsWith(val, "u") {
+			return nil
+		}
+	}
+
+	return []fynedesk.LaunchSuggestion{&brightItem{input: val, b: b}}
 }
 
 func (b *brightness) Metadata() fynedesk.ModuleMetadata {
@@ -151,21 +157,23 @@ func (i *brightItem) Icon() fyne.Resource {
 }
 
 func (i *brightItem) Title() string {
-	if startsWith(i.input, "down") {
-		return "Brightness down"
-	} else if _, err := strconv.Atoi(i.input); err == nil {
+	if _, err := strconv.Atoi(i.input); err == nil {
 		return "Brightness " + i.input + "%"
+	} else if startsWith(i.input, "d") {
+		return "Brightness down"
+	} else if startsWith(i.input, "u") {
+		return "Brightness up"
 	}
 
-	return "Brightness up"
+	return ""
 }
 
 func (i *brightItem) Launch() {
-	if startsWith(i.input, "down") {
-		i.b.offsetValue(-5)
-	} else if val, err := strconv.Atoi(i.input); err == nil {
+	if val, err := strconv.Atoi(i.input); err == nil {
 		i.b.setValue(val)
+	} else if startsWith(i.input, "d") {
+		i.b.offsetValue(-5)
+	} else if startsWith(i.input, "u") {
+		i.b.offsetValue(5)
 	}
-
-	i.b.offsetValue(5)
 }
