@@ -3,6 +3,7 @@ package ui
 import (
 	"image"
 	"sync"
+	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -14,11 +15,20 @@ import (
 
 // WindowImage holds the Fyne image and pixel-space geometry for a single
 // composited window. The platform compositor populates these fields.
+//
+// Images are double-buffered: the compositor writes to Back (from any
+// goroutine) and the renderer swaps Back→Img.Image during its Refresh.
+// Pending is set by the compositor after a push; the renderer clears it
+// after consuming the frame. The compositor should skip capture while
+// Pending is true to avoid wasteful work.
 type WindowImage struct {
 	ID   uint32
 	Img  *canvas.Image
 	X, Y int16
 	W, H uint16
+
+	Back    atomic.Value // image.Image — latest frame from compositor
+	Pending atomic.Bool  // true = refresh requested, not yet rendered
 }
 
 // CompositorWidget is a Fyne widget that displays composited window images.
@@ -157,6 +167,14 @@ func (r *compositorRenderer) Refresh() {
 
 	objs := make([]fyne.CanvasObject, len(r.widget.images))
 	for i, wi := range r.widget.images {
+		// Swap back→front: pick up the latest frame from the compositor.
+		if wi.Pending.Load() {
+			if back := wi.Back.Load(); back != nil {
+				wi.Img.Image = back.(image.Image)
+			}
+			wi.Pending.Store(false)
+		}
+
 		wi.Img.Move(fyne.NewPos(float32(wi.X)/scale, float32(wi.Y)/scale))
 		wi.Img.Resize(fyne.NewSize(float32(wi.W)/scale, float32(wi.H)/scale))
 		objs[i] = wi.Img

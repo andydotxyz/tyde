@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"github.com/FyshOS/saver"
 
 	"github.com/BurntSushi/xgb"
@@ -42,15 +41,18 @@ type client struct {
 	skipped      bool // Fyne Desktop window or other skipped windows
 	fullscreened bool // unredirected for fullscreen bypass
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
+	pending      bool // true = a refresh was requested, awaiting render
 
 	geom       xproto.GetGeometryReply
 	attributes xproto.GetWindowAttributesReply
 	damage     damage.Damage
 	pixmap     xproto.Pixmap // cached NameWindowPixmap
 
-	// captureBuf holds the NRGBA buffer for a window to avoid allocating a
-	// fresh image per frame for stable-size windows (the common case).
-	captureBuf *image.NRGBA
+	// Double-buffered capture: the compositor writes to bufs[writeIdx] and
+	// toggles writeIdx on each successful push so that the buffer being
+	// displayed by the renderer is never mutated.
+	bufs     [2]*image.NRGBA
+	writeIdx int
 }
 
 var (
@@ -303,77 +305,97 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 		case <-done:
 			return nil
 		default:
-			ev, err := conn.WaitForEvent()
-			var repaint bool
+		}
 
-			if err != nil {
-				var badDamageError damage.BadDamageError
-				if errors.As(err, &badDamageError) {
-					repaint = true
-				} else {
-					fyne.LogError("error waiting for event", err)
-				}
-				continue
+		// Block until at least one event arrives.
+		ev, err := conn.WaitForEvent()
+		var repaint bool
+
+		if err != nil {
+			var badDamageError damage.BadDamageError
+			if errors.As(err, &badDamageError) {
+				repaint = true
+			} else {
+				fyne.LogError("error waiting for event", err)
 			}
+		}
 
-			switch e := ev.(type) {
-			case xproto.CreateNotifyEvent:
-				if err := addClient(conn, e.Window); err != nil {
-					fyne.LogError("failed to add client", err)
-					repaint = true
-				}
-			case xproto.ConfigureNotifyEvent:
-				if err := configureClient(conn, ws, e); err != nil {
-					fyne.LogError("failed to configure client", err)
-					repaint = true
-				}
-			case xproto.DestroyNotifyEvent:
-				destroyWin(conn, ws, e.Window)
-			case xproto.MapNotifyEvent:
-				if err := mapWin(conn, ws, e.Window); err != nil {
-					fyne.LogError("failed to map window", err)
-					repaint = true
-				}
-			case xproto.UnmapNotifyEvent:
-				unmapWin(conn, ws, e.Window)
-			case xproto.ReparentNotifyEvent:
-				if e.Parent == rootWindow {
+		// Process the first event and then drain all queued events so
+		// that multiple damage notifications are coalesced into a
+		// single capture pass.
+		for {
+			if ev != nil {
+				switch e := ev.(type) {
+				case xproto.CreateNotifyEvent:
 					if err := addClient(conn, e.Window); err != nil {
 						fyne.LogError("failed to add client", err)
 						repaint = true
 					}
-				} else {
+				case xproto.ConfigureNotifyEvent:
+					if err := configureClient(conn, ws, e); err != nil {
+						fyne.LogError("failed to configure client", err)
+						repaint = true
+					}
+				case xproto.DestroyNotifyEvent:
 					destroyWin(conn, ws, e.Window)
-				}
-			case xproto.CirculateNotifyEvent:
-				circulateClient(ws, e)
-			case xproto.PropertyNotifyEvent:
-				if e.Atom == opacityAtom {
-					if c := getClientFromWindow(e.Window); c != nil {
-						updateOpacity(conn, 1, c)
-						allDamage = true
+				case xproto.MapNotifyEvent:
+					if err := mapWin(conn, ws, e.Window); err != nil {
+						fyne.LogError("failed to map window", err)
+						repaint = true
+					}
+				case xproto.UnmapNotifyEvent:
+					unmapWin(conn, ws, e.Window)
+				case xproto.ReparentNotifyEvent:
+					if e.Parent == rootWindow {
+						if err := addClient(conn, e.Window); err != nil {
+							fyne.LogError("failed to add client", err)
+							repaint = true
+						}
+					} else {
+						destroyWin(conn, ws, e.Window)
+					}
+				case xproto.CirculateNotifyEvent:
+					circulateClient(ws, e)
+				case xproto.PropertyNotifyEvent:
+					if e.Atom == opacityAtom {
+						if c := getClientFromWindow(e.Window); c != nil {
+							updateOpacity(conn, 1, c)
+							allDamage = true
+						}
+					}
+					if e.Atom == netWmStateAtom {
+						if cl := getClientFromWindow(e.Window); cl != nil {
+							updateFullscreen(conn, ws, cl)
+						}
+					}
+				case damage.NotifyEvent:
+					if err := damageClient(conn, &e); err != nil {
+						fyne.LogError("failed to send damage notify", err)
+						repaint = true
 					}
 				}
-				if e.Atom == netWmStateAtom {
-					if cl := getClientFromWindow(e.Window); cl != nil {
-						updateFullscreen(conn, ws, cl)
-					}
-				}
-			case damage.NotifyEvent:
-				if err := damageClient(conn, &e); err != nil {
-					fyne.LogError("failed to send damage notify", err)
+			}
+
+			// Poll for more events without blocking.
+			ev, err = conn.PollForEvent()
+			if err != nil {
+				var badDamageError damage.BadDamageError
+				if errors.As(err, &badDamageError) {
 					repaint = true
 				}
 			}
-
-			if allDamage || repaint {
-				refreshTranslucency(conn, ws)
-				refreshWindows(conn, ws)
-				allDamage = false
+			if ev == nil && err == nil {
+				break // queue drained
 			}
-
-			conn.Sync()
 		}
+
+		if allDamage || repaint {
+			refreshTranslucency(conn, ws)
+			refreshWindows(conn, ws)
+			allDamage = false
+		}
+
+		conn.Sync()
 	}
 }
 
@@ -590,17 +612,13 @@ func removeWindowFromAllScreens(ws *widgets, winID uint32) {
 	}
 }
 
-// refreshWindows captures all damaged windows and updates the Fyne widgets.
+// refreshWindows captures damaged windows and pushes frames to back buffers.
+// Every damaged window is captured; the back buffer is always updated so the
+// renderer sees the latest frame. A widget refresh is only requested when no
+// previous refresh is pending — the pending refresh will pick up whatever is
+// in the back buffer when it runs, so the last frame is never lost.
 func refreshWindows(conn *xgb.Conn, ws *widgets) {
-	type captured struct {
-		c            *client
-		img          *image.NRGBA
-		translucency float64
-		totalW       uint16
-		totalH       uint16
-	}
-	var caps []captured
-
+	refreshed := make(map[*ui.CompositorWidget]bool)
 	for _, c := range clients {
 		if !c.damaged || c.skipped || c.fullscreened || c.visualMoving {
 			continue
@@ -625,44 +643,13 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			c.pixmap = pixmap
 		}
 
-		totalW := c.geom.Width + c.geom.BorderWidth*2
-		totalH := c.geom.Height + c.geom.BorderWidth*2
-		isARGB := c.opaqueType == argb
-
-		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB, c.captureBuf)
-		if img == nil {
-			continue
-		}
-		c.captureBuf = img
-		w := wmWindow(c)
-		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
-			// Use primary screen scale for corner rounding as a reasonable default
-			scale := float32(1)
-			if len(ws.screens) > 0 {
-				scale = ws.screens[0].screen.CanvasScale()
-			}
-			roundCorners(img, int(5*scale))
-		}
-
-		caps = append(caps, captured{
-			c:            c,
-			img:          img,
-			translucency: computeTranslucency(conn, c),
-			totalW:       totalW,
-			totalH:       totalH,
-		})
-	}
-
-	if len(caps) == 0 {
-		return
-	}
-
-	fyne.Do(func() {
-		for _, cap := range caps {
-			c := cap.c
-			winID := uint32(c.win)
-			isFS := isFullscreenClient(c)
-
+		// Check if the renderer still has a pending frame for this client.
+		winID := uint32(c.win)
+		isFS := isFullscreenClient(c)
+		pending := c.pending
+		if pending {
+			// Check if the renderer has consumed the previous frame.
+			pending = false
 			for _, sw := range ws.screensForClient(c) {
 				var target *ui.CompositorWidget
 				if isFS {
@@ -670,42 +657,105 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 				} else {
 					target = sw.normal
 				}
-				wi := target.GetWindow(winID)
-				if wi == nil {
-					continue
+				if wi := target.GetWindow(winID); wi != nil && wi.Pending.Load() {
+					pending = true
+					break
 				}
+			}
+			c.pending = pending
+		}
 
-				wi.Img.Image = cap.img
-				wi.Img.Translucency = cap.translucency
+		totalW := c.geom.Width + c.geom.BorderWidth*2
+		totalH := c.geom.Height + c.geom.BorderWidth*2
+		isARGB := c.opaqueType == argb
 
-				localX := c.geom.X - int16(sw.screen.X)
-				localY := c.geom.Y - int16(sw.screen.Y)
-				scale := sw.screen.CanvasScale()
+		// When a refresh is pending the renderer may read the previous
+		// write buffer via Back, so use a fresh allocation to avoid a race.
+		buf := c.bufs[c.writeIdx]
+		if pending {
+			buf = nil
+		}
+		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB, buf)
+		if img == nil {
+			continue
+		}
+		c.damaged = false
 
-				// Set position/size if not yet initialized (first capture).
-				if wi.W == 0 {
-					wi.X = localX
-					wi.Y = localY
-					wi.W = cap.totalW
-					wi.H = cap.totalH
+		if !pending {
+			c.bufs[c.writeIdx] = img
+			c.writeIdx = 1 - c.writeIdx
+		}
+
+		w := wmWindow(c)
+		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
+			scale := float32(1)
+			if len(ws.screens) > 0 {
+				scale = ws.screens[0].screen.CanvasScale()
+			}
+			roundCorners(img, int(5*scale))
+		}
+
+		translucency := computeTranslucency(conn, c)
+
+		// Push to back buffer on all screen widgets for this window.
+		// The renderer will swap Back→Img.Image on its next Refresh.
+		for _, sw := range ws.screensForClient(c) {
+			var target *ui.CompositorWidget
+			if isFS {
+				target = sw.overlay
+			} else {
+				target = sw.normal
+			}
+			wi := target.GetWindow(winID)
+			if wi == nil {
+				continue
+			}
+
+			wi.Back.Store(img)
+			wi.Img.Translucency = translucency
+
+			localX := c.geom.X - int16(sw.screen.X)
+			localY := c.geom.Y - int16(sw.screen.Y)
+			scale := sw.screen.CanvasScale()
+
+			if wi.W == 0 {
+				wi.X = localX
+				wi.Y = localY
+				wi.W = totalW
+				wi.H = totalH
+				fyne.Do(func() {
 					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-					wi.Img.Resize(fyne.NewSize(float32(cap.totalW)/scale, float32(cap.totalH)/scale))
-				}
-				canvas.Refresh(wi.Img)
+					wi.Img.Resize(fyne.NewSize(float32(totalW)/scale, float32(totalH)/scale))
+				})
+			}
+
+			// Only request a refresh when none is pending — the pending
+			// refresh reads Back at render time so it always gets the
+			// latest frame.
+			if !pending {
+				wi.Pending.Store(true)
+				refreshed[target] = true
 			}
 		}
-	})
+		if !pending {
+			c.pending = true
+		}
+	}
+
+	// Request a single widget-level refresh for each affected compositor.
+	if len(refreshed) > 0 {
+		fyne.Do(func() {
+			for target := range refreshed {
+				target.Refresh()
+			}
+		})
+	}
 }
 
 // refreshTranslucency updates the translucency of all visible windows
 // without recapturing their content.
 func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
-	type update struct {
-		wi           *ui.WindowImage
-		translucency float64
-	}
-	var updates []update
-
+	changed := false
 	for _, c := range clients {
 		if c.skipped || c.fullscreened || c.attributes.MapState != xproto.MapStateViewable {
 			continue
@@ -721,19 +771,15 @@ func refreshTranslucency(conn *xgb.Conn, ws *widgets) {
 					continue
 				}
 				if wi.Img.Translucency != translucency {
-					updates = append(updates, update{wi, translucency})
+					wi.Img.Translucency = translucency
+					changed = true
 				}
 			}
 		}
 	}
 
-	if len(updates) > 0 {
-		fyne.Do(func() {
-			for _, u := range updates {
-				u.wi.Img.Translucency = u.translucency
-			}
-			ws.refreshAll()
-		})
+	if changed {
+		ws.refreshAll()
 	}
 }
 
