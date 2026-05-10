@@ -669,7 +669,8 @@ func (f *frame) mouseMotion(x, y int16) {
 	}
 
 	refresh := false
-	obj := wm.FindObjectAtPixelPositionMatching(int(relX), int(relY), f.canvas,
+	obj := wm.FindObjectAtPixelPositionMatching(
+		int(relX), int(relY), f.canvas,
 		func(obj fyne.CanvasObject) bool {
 			_, ok := obj.(desktop.Cursorable)
 			if ok {
@@ -783,7 +784,8 @@ func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
 	if uint16(titlebarX) > f.width-f.topRightPixelWidth() && f.canvas != nil {
 		titlebarX = int16(f.canvas.Content().Size().Width*f.canvas.Scale()) - (int16(f.width) - titlebarX)
 	}
-	obj := wm.FindObjectAtPixelPositionMatching(int(titlebarX), int(relY), f.canvas,
+	obj := wm.FindObjectAtPixelPositionMatching(
+		int(titlebarX), int(relY), f.canvas,
 		func(obj fyne.CanvasObject) bool {
 			_, ok := obj.(fyne.Tappable)
 			return ok
@@ -880,7 +882,8 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 
 	fyne.Do(func() {
 		if clickCount == 2 {
-			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+			obj := wm.FindObjectAtPixelPositionMatching(
+				relX, relY, f.canvas,
 				func(obj fyne.CanvasObject) bool {
 					_, ok := obj.(fyne.DoubleTappable)
 					return ok
@@ -890,7 +893,8 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 				obj.(fyne.DoubleTappable).DoubleTapped(&fyne.PointEvent{})
 			}
 		} else {
-			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+			obj := wm.FindObjectAtPixelPositionMatching(
+				relX, relY, f.canvas,
 				func(obj fyne.CanvasObject) bool {
 					_, ok := obj.(fyne.Tappable)
 					return ok

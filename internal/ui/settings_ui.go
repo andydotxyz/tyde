@@ -50,7 +50,7 @@ func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
 		if appData == nil { // if app was removed!
 			continue
 		}
-		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(theme, int(d.settings.LauncherIconSize()*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := widget.NewIcon(iconRes)
 		box.Add(icon)
 	}
@@ -194,7 +194,7 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 		if index >= len(d.launcherIcons)-1 {
 			right.Disable()
 		}
-		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(d.settings.IconTheme(), int(d.settings.LauncherIconSize()*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := canvas.NewImageFromResource(iconRes)
 		icon.FillMode = canvas.ImageFillContain
 		icon.SetMinSize(fyne.NewSize(iconSize, iconSize))
@@ -460,7 +460,8 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 			l := inner.Objects[0].(*widget.RichText)
 			title := cases.Title(language.Make("en")).String(themeList[id])
 			l.ParseMarkdown(fmt.Sprintf("## %s\n\nDescription...", title))
-		})
+		},
+	)
 }
 
 func (w *widgetPanel) showSettings() {

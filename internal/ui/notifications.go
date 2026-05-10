@@ -43,7 +43,8 @@ func (n *notification) show(list *fyne.Container) {
 		ico = container.New(layout.NewCustomPaddedLayout(pad, pad, pad, 0), img)
 	}
 	n.renderer = container.NewVBox(
-		container.NewBorder(nil, nil, ico, closer, title), text)
+		container.NewBorder(nil, nil, ico, closer, title), text,
+	)
 
 	if tyde.Instance().Settings().NarrowWidgetPanel() {
 		r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()

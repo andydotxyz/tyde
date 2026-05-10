@@ -255,7 +255,7 @@ func (l *picker) show() {
 	entryHeight := l.entry.MinSize().Height
 	l.fullSize = fyne.NewSize(launcherWidth,
 		entryHeight*float32(launcherMaxResults+1)+pad*float32(launcherMaxResults+4)-3)
-	pos := fyne.NewPos(midX-(l.fullSize.Width)/2, midY-(l.fullSize.Height)/2)
+	pos := fyne.NewPos(midX-l.fullSize.Width/2, midY-l.fullSize.Height/2)
 
 	// Start bg at entry-only height
 	l.bg.Resize(fyne.NewSize(l.fullSize.Width, entryHeight+pad*2))

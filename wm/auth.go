@@ -126,8 +126,10 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		container.NewVBox(
 			container.NewHBox(layout.NewSpacer(),
 				container.NewGridWithColumns(2, cancel, auth),
-				layout.NewSpacer()), bottomPad),
-		nil, nil, f)
+				layout.NewSpacer()), bottomPad,
+		),
+		nil, nil, f,
+	)
 
 	r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
 	bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
@@ -139,7 +141,8 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	icon.Move(fyne.NewPos(300-92-theme.Padding(), theme.Padding()))
 	w.SetContent(container.NewStack(
 		iconBox, bg,
-		container.NewPadded(content)))
+		container.NewPadded(content),
+	))
 
 	w.SetOnClosed(func() {
 		delete(a.windows, cookie)
