@@ -89,6 +89,14 @@ func newFrame(c *client) *frame {
 	borderWidth := uint16(wm.ScaleToPixels(wmTheme.BorderWidth, screen))
 	titleHeight := uint16(wm.ScaleToPixels(wmTheme.TitleHeight, screen))
 	if full || maximized {
+		// Remember the original geometry so a later unfullscreen/unmaximize
+		// has somewhere to restore to (NotifyFullscreen/NotifyMaximize is not
+		// called for windows that come up already in this state).
+		c.restoreX = attrs.X
+		c.restoreY = attrs.Y
+		c.restoreWidth = attrs.Width
+		c.restoreHeight = attrs.Height
+
 		activeHead := tyde.Instance().Screens().ScreenForGeometry(int(attrs.X), int(attrs.Y), int(attrs.Width), int(attrs.Height))
 		x = int16(activeHead.X)
 		y = int16(activeHead.Y)
@@ -552,9 +560,13 @@ func (f *frame) hide() {
 }
 
 func (f *frame) maximizeApply() {
-	if windowSizeFixed(f.client.wm.X(), f.client.win) ||
-		!windowSizeCanMaximize(f.client.wm.X(), f.client) {
-		return
+	// Per EWMH, _NET_WM_STATE_FULLSCREEN overrides WM_NORMAL_HINTS size limits,
+	// so only honour the size-hint guards when the request is a maximize.
+	if !f.client.Fullscreened() {
+		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
+			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
+			return
+		}
 	}
 	f.client.restoreWidth = f.width
 	f.client.restoreHeight = f.height
@@ -973,9 +985,13 @@ func (f *frame) topRightPixelWidth() uint16 {
 }
 
 func (f *frame) unmaximizeApply() {
-	if windowSizeFixed(f.client.wm.X(), f.client.win) ||
-		!windowSizeCanMaximize(f.client.wm.X(), f.client) {
-		return
+	// When leaving fullscreen, NotifyUnFullscreen calls this with c.full still
+	// true so we can detect the transition and bypass the maximize guards.
+	if !f.client.Fullscreened() {
+		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
+			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
+			return
+		}
 	}
 	if f.client.restoreWidth == 0 && f.client.restoreHeight == 0 {
 		screen := tyde.Instance().Screens().ScreenForWindow(f.client)

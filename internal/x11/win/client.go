@@ -312,8 +312,8 @@ func (c *client) NotifyMoveResizeEnded() {
 }
 
 func (c *client) NotifyUnFullscreen() {
+	c.frame.unmaximizeApply() // c.full is left true so the size-hint guards are bypassed
 	c.full = false
-	c.frame.unmaximizeApply()
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_FULLSCREEN")
 }
 

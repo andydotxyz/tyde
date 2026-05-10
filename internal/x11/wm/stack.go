@@ -26,9 +26,18 @@ func (s *stack) AddWindow(win tyde.Window) {
 	}
 	s.addToStack(win)
 
-	for _, l := range s.listeners {
-		l.WindowAdded(win)
-	}
+	// Listener callbacks touch UI state and must run on the Fyne main thread,
+	// but the stack mutation must be visible to the WM goroutine immediately so
+	// that any X11 events arriving for this window (e.g. a fullscreen
+	// _NET_WM_STATE ClientMessage that Fyne/GLFW sends right after mapping) can
+	// resolve the client via clientForWin instead of falling through to
+	// handleInitialHints.
+	listeners := s.listeners
+	fyne.Do(func() {
+		for _, l := range listeners {
+			l.WindowAdded(win)
+		}
+	})
 }
 
 func (s *stack) RaiseToTop(win tyde.Window) {

@@ -652,16 +652,22 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 
 	if c != nil {
 		if c.ChildID() == win { // ignore requests from our frame as we must have caused it
-			x, y, _, _ := c.Geometry()
+			x, y, w, h := c.Geometry()
+			// Per EWMH, fullscreen and maximized windows must keep their
+			// WM-imposed geometry — clients are not allowed to resize themselves
+			// out of those states via ConfigureRequest. Re-issue the current
+			// geometry so the client receives a ConfigureNotify telling it the
+			// requested size was not honoured (ICCCM 4.1.5).
+			if c.Fullscreened() || c.Maximized() {
+				c.NotifyGeometry(x, y, w, h)
+				return
+			}
+
 			borderWidth := x11.BorderWidth(c)
 			titleHeight := x11.TitleHeight(c)
 
 			if c.Properties().Decorated() {
-				if !c.Fullscreened() {
-					c.NotifyGeometry(x, y, uint(ev.Width+(borderWidth*2)), uint(ev.Height+borderWidth+titleHeight))
-				} else {
-					c.NotifyGeometry(x, y, uint(ev.Width), uint(ev.Height))
-				}
+				c.NotifyGeometry(x, y, uint(ev.Width+(borderWidth*2)), uint(ev.Height+borderWidth+titleHeight))
 			} else {
 				if ev.X == 0 && ev.Y == 0 {
 					ev.X = int16(x)
@@ -871,14 +877,11 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 		x11.WindowExtendedHintsAdd(x.x, win, "_NET_WM_STATE_SKIP_TASKBAR")
 		x11.WindowExtendedHintsAdd(x.x, win, "_NET_WM_STATE_SKIP_PAGER")
 	}
-	fyne.Do(func() {
-		x.AddWindow(c)
-	})
+	x.AddWindow(c) // synchronous on the WM goroutine; listener notifications are deferred internally
 	c.RaiseToTop()
 	// Ensure the frame is above all root windows and has focus.
-	// RaiseToTop may skip the X11 restack when the internal client list
-	// hasn't been updated yet (AddWindow is queued via fyne.Do), and
-	// Focus() sends an async client message that GLFW may override.
+	// Focus() sends an async client message that GLFW may override, so also
+	// raise the frame explicitly here.
 	xproto.ConfigureWindow(x.x.Conn(), c.FrameID(),
 		xproto.ConfigWindowStackMode, []uint32{uint32(xproto.StackModeAbove)})
 	c.Focus()
