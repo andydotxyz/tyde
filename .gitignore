@@ -1,7 +1,9 @@
 # Ignore binaries
 cmd/tyde/tyde
+cmd/tyde_ctl/tyde_ctl
 cmd/tyde_runner/tyde_runner
 tyde
+tyde_ctl
 tyde_runner
 
 .idea

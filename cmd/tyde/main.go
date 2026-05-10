@@ -5,6 +5,7 @@ import (
 	_ "fyshos.com/tyde/modules/fyles"
 	_ "fyshos.com/tyde/modules/launcher"
 	_ "fyshos.com/tyde/modules/quaketerm"
+	_ "fyshos.com/tyde/modules/rpc"
 	_ "fyshos.com/tyde/modules/status"
 	_ "fyshos.com/tyde/modules/systray"
 	wmtheme "fyshos.com/tyde/theme"
