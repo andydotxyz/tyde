@@ -11,12 +11,12 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 var largeTypeAliases = []string{"largetype", "large", "big", "bigtype", "type"}
 
-var largeTypeMeta = fynedesk.ModuleMetadata{
+var largeTypeMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Large Type",
 	NewInstance: newLargeType,
 }
@@ -34,28 +34,28 @@ type largeType struct{}
 func (l *largeType) Destroy() {
 }
 
-func (l *largeType) Metadata() fynedesk.ModuleMetadata {
+func (l *largeType) Metadata() tyde.ModuleMetadata {
 	return largeTypeMeta
 }
 
-func (l *largeType) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (l *largeType) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	lower := strings.ToLower(input)
 
 	for _, alias := range largeTypeAliases {
 		prefix := alias + " "
 		if strings.HasPrefix(lower, prefix) {
 			text := input[len(prefix):]
-			return []fynedesk.LaunchSuggestion{&largeTypeItem{text: text}}
+			return []tyde.LaunchSuggestion{&largeTypeItem{text: text}}
 		}
 		if strings.HasPrefix(alias, lower) {
-			return []fynedesk.LaunchSuggestion{&largeTypeItem{}}
+			return []tyde.LaunchSuggestion{&largeTypeItem{}}
 		}
 	}
 
 	return nil
 }
 
-func newLargeType() fynedesk.Module {
+func newLargeType() tyde.Module {
 	return &largeType{}
 }
 
@@ -72,7 +72,7 @@ func (i *largeTypeItem) Title() string {
 }
 
 func (i *largeTypeItem) Launch() {
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	screen := desk.Screens().Primary()
 	scale := screen.CanvasScale()
 

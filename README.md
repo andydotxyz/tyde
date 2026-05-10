@@ -1,28 +1,28 @@
 <p align="center">
-  <a href="https://godoc.org/fyshos.com/fynedesk" title="GoDoc Reference" rel="nofollow"><img src="https://img.shields.io/badge/go-documentation-blue.svg?style=flat" alt="GoDoc Reference"></a>
-  <a href="https://github.com/fyshos/fynedesk/releases/tag/v0.4.0" title="0.4.0 Release" rel="nofollow"><img src="https://img.shields.io/badge/version-0.4.0-blue.svg?style=flat" alt="0.4.0 release"></a>
-  <a href='http://gophers.slack.com/messages/fynedesk'><img src='https://img.shields.io/badge/join-us%20on%20slack-gray.svg?longCache=true&logo=slack&colorB=blue' alt='Join us on Slack' /></a>
+  <a href="https://godoc.org/fyshos.com/tyde" title="GoDoc Reference" rel="nofollow"><img src="https://img.shields.io/badge/go-documentation-blue.svg?style=flat" alt="GoDoc Reference"></a>
+  <a href="https://github.com/fyshos/tyde/releases/tag/v0.4.0" title="0.4.0 Release" rel="nofollow"><img src="https://img.shields.io/badge/version-0.4.0-blue.svg?style=flat" alt="0.4.0 release"></a>
+  <a href='http://gophers.slack.com/messages/tyde'><img src='https://img.shields.io/badge/join-us%20on%20slack-gray.svg?longCache=true&logo=slack&colorB=blue' alt='Join us on Slack' /></a>
 
   <br />
-  <a href="https://goreportcard.com/report/fyshos.com/fynedesk"><img src="https://goreportcard.com/badge/fyshos.com/fynedesk" alt="Code Status" /></a>
-  <a href="https://github.com/fyshos/fynedesk/actions"><img src="https://github.com/fyshos/fynedesk/workflows/Platform%20Tests/badge.svg" alt="Build Status" /></a>
-  <a href='https://coveralls.io/github/fyshos/fynedesk?branch=develop'><img src='https://coveralls.io/repos/github/fyshos/fynedesk/badge.svg?branch=develop' alt='Coverage Status' /></a>
+  <a href="https://goreportcard.com/report/fyshos.com/tyde"><img src="https://goreportcard.com/badge/fyshos.com/tyde" alt="Code Status" /></a>
+  <a href="https://github.com/fyshos/tyde/actions"><img src="https://github.com/fyshos/tyde/workflows/Platform%20Tests/badge.svg" alt="Build Status" /></a>
+  <a href='https://coveralls.io/github/fyshos/tyde?branch=develop'><img src='https://coveralls.io/repos/github/fyshos/tyde/badge.svg?branch=develop' alt='Coverage Status' /></a>
 </p>
 
-# About FyneDesk
+# About Tyde
 
-FyneDesk is an easy to use Linux/Unix desktop environment following material design.
+Tyde is an easy to use Linux/Unix desktop environment following material design.
 It is built using the [Fyne](https://fyne.io) toolkit and is designed to be
 easy to use as well as easy to develop. We use the Go language and welcome
 any contributions or feedback for the project.
 
-[![FyneDesk v0.4](https://img.youtube.com/vi/82Wu5k0xZOI/0.jpg)](https://www.youtube.com/watch?v=82Wu5k0xZOI)
+[![Tyde v0.4](https://img.youtube.com/vi/82Wu5k0xZOI/0.jpg)](https://www.youtube.com/watch?v=82Wu5k0xZOI)
 
 ## Dependencies
 
 ### Compiling
 
-Compiling requires the same dependencies as Fyne. See the [Getting Started](https://developer.fyne.io/started/) documentation for installation steps.
+Compiling requires the same dependencies as Fyne. See the [Getting Started](https://docs.fyne.io/started/) documentation for installation steps.
 
 ### Running
 
@@ -31,29 +31,28 @@ For a full desktop experience you will also need the following external tools in
 - `arandr` for modifying display settings
 - `xbacklight` or `brightnessctl` for laptop brightness
 - `connman-gtk` is currently used for configuring Wi-Fi network settings
-- `compton` for compositor support
 
 The desktop does work without the runtime dependencies but the experience will be degraded.
 
 ## Getting Started
 
-Using standard Go tools you can install FyneDesk using:
+Using standard Go tools you can install Tyde using:
 ```
-go get fyshos.com/fynedesk/cmd/fynedesk
+go install fyshos.com/tyde/cmd/tyde@develop
 ```
 
-This will add `fynedesk` to your $GOPATH (usually ~/go/bin).
+This will add `tyde` to your $GOPATH (usually ~/go/bin).
 You can now run the app in "preview" mode like any other Fyne app.
 Doing so is not running a window manager, to do so requires another few steps:
 
 ### Setting up as a desktop environment
 
 To use this as your main desktop you can run the following commands to set up
-fynedesk as a selectable desktop option in your login manager (such as LightDM for example):
+tyde as a selectable desktop option in your login manager (such as LightDM for example):
 
 ```
-git clone https://github.com/fyshos/fynedesk
-cd fynedesk
+git clone https://github.com/fyshos/tyde
+cd tyde
 make
 sudo make install
 ```
@@ -71,7 +70,7 @@ Once it is present you can use the following command from the same directory as 
 It should look like this:
 
 <p align="center" markdown="1">
-  <img src="desktop-dark-current.png" alt="Fyne Desktop - Dark" />
+  <img src="desktop-dark-current.png" alt="Tyde - Dark" />
 </p>
 
 If you run the command when there is a window manager running, or on
@@ -84,29 +83,29 @@ controlling of windows - they will load on your main desktop.
 
 A desktop needs to be rock solid, and whilst we are working hard to get there,
 any alpha or beta software can run into unexpected issues. 
-For that reason, we have included a `fynedesk_runner` utility that can help
+For that reason, we have included a `tyde_runner` utility that can help
 manage unexpected events. If you start the desktop using the runner, then
 if a crash occurs, it will normally recover where it left off with no loss
 of data in your applications.
 
 Using standard Go tools you can install the runner using:
 
-    go get fyshos.com/fynedesk/cmd/fynedesk_runner
+    go install fyshos.com/tyde/cmd/tyde_runner@develop
 
-From then on execute that instead of the `fynedesk` command for a more 
+From then on execute that instead of the `tyde` command for a more 
 resilient desktop when testing out pre-release builds.
 
 ## Design
 
 Design concepts, and the abstract wallpapers have been contributed by [Jost Grant](https://github.com/jostgrant).
 
-## Shipping FyneDesk
+## Shipping Tyde
 
-If you are installing FyneDesk by default on a distribution, or making it available as a standard option, you should consider the following points.
+If you are installing Tyde by default on a distribution, or making it available as a standard option, you should consider the following points.
 You do not need to ship the library or any dependencies, but it is recommended to add the following apps as well:
 
-| app | go get | description |
-| --- | ------ | ----------- |
-| fin | `github.com/fyshos/fin` | A display manager app that matches the look and feel of FyneDesk |
+| app | go install              | description                                                  |
+| --- |-------------------------|--------------------------------------------------------------|
+| fin | `github.com/fyshos/fin` | A display manager app that matches the look and feel of Tyde |
 
-Please do let us know if you package FyneDesk for your system, so we can include a link from here :).
+Please do let us know if you package Tyde for your system, so we can include a link from here :).

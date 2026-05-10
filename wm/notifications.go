@@ -67,7 +67,7 @@ func (n *notifications) Notify(appName string, replacesID uint32, appIcon, summa
 }
 
 func (n *notifications) GetServerInformation() (string, string, string, string) {
-	return "FyneDesk", "Fyne.io", "0", "0"
+	return "Tyde", "Fyne.io", "0", "0"
 }
 
 func (n *notifications) GetCapabilities() []string {

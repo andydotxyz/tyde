@@ -10,13 +10,13 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
-	"fyshos.com/fynedesk/internal/x11/composit"
-	"fyshos.com/fynedesk/internal/x11/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/ui"
+	"fyshos.com/tyde/internal/x11/composit"
+	"fyshos.com/tyde/internal/x11/wm"
 )
 
-func setupDesktop(a fyne.App) fynedesk.Desktop {
+func setupDesktop(a fyne.App) tyde.Desktop {
 	icons := appie.NewFDOProvider()
 	mgr, err := wm.NewX11WindowManager(a)
 	if err != nil {

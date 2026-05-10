@@ -7,7 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"fyshos.com/fynedesk/internal/icon"
+	"fyshos.com/tyde/internal/icon"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -17,13 +17,13 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 // appWindow describes a type of icon that refers to an open window rather than an app.
 // The findApp function can be used to attempt looking up the application from it's window.
 type appWindow struct {
-	win fynedesk.Window
+	win tyde.Window
 	bar *bar
 }
 
@@ -103,7 +103,7 @@ func (bi *barIcon) Tapped(*fyne.PointEvent) {
 }
 
 func addToBar(icon appie.AppData) {
-	settings := fynedesk.Instance().Settings()
+	settings := tyde.Instance().Settings()
 	icons := settings.LauncherIcons()
 	icons = append(icons, icon.Name())
 
@@ -111,7 +111,7 @@ func addToBar(icon appie.AppData) {
 }
 
 func removeFromBar(icon appie.AppData) {
-	settings := fynedesk.Instance().Settings()
+	settings := tyde.Instance().Settings()
 	icons := settings.LauncherIcons()
 
 	index := -1
@@ -157,7 +157,7 @@ func (bi *barIcon) TappedSecondary(ev *fyne.PointEvent) {
 		}))
 	}
 
-	fynedesk.Instance().ShowMenuAt(fyne.NewMenu("", items...), ev.AbsolutePosition)
+	tyde.Instance().ShowMenuAt(fyne.NewMenu("", items...), ev.AbsolutePosition)
 }
 
 // CreateRenderer is a private method to fyne which links this widget to its renderer

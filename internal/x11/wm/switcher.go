@@ -8,8 +8,8 @@ import (
 
 	"github.com/BurntSushi/xgb/xproto"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/ui"
 
 	"fyne.io/fyne/v2"
 )
@@ -72,9 +72,9 @@ func (x *x11WM) previousAppSwitcher() {
 }
 
 func (x *x11WM) showOrSelectAppSwitcher(reverse bool) {
-	var visible []fynedesk.Window
+	var visible []tyde.Window
 	for _, win := range x.clients {
-		if win.Desktop() == fynedesk.Instance().Desktop() || win.Pinned() {
+		if win.Desktop() == tyde.Instance().Desktop() || win.Pinned() {
 			visible = append(visible, win)
 		}
 	}
@@ -96,9 +96,9 @@ func (x *x11WM) showOrSelectAppSwitcher(reverse bool) {
 	go func() {
 		var win *ui.Switcher
 		if reverse {
-			win = ui.NewAppSwitcherReverse(x.Windows(), fynedesk.Instance().IconProvider())
+			win = ui.NewAppSwitcherReverse(x.Windows(), tyde.Instance().IconProvider())
 		} else {
-			win = ui.NewAppSwitcher(x.Windows(), fynedesk.Instance().IconProvider())
+			win = ui.NewAppSwitcher(x.Windows(), tyde.Instance().IconProvider())
 		}
 
 		if ignoreSwitcher {

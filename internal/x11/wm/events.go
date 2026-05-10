@@ -11,10 +11,10 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/notify"
-	"fyshos.com/fynedesk/internal/x11"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/notify"
+	"fyshos.com/tyde/internal/x11"
+	"fyshos.com/tyde/wm"
 )
 
 func (x *x11WM) handleActiveWin(ev xproto.ClientMessageEvent) {
@@ -168,7 +168,7 @@ func (x *x11WM) handleFocus(win xproto.Window) {
 }
 
 func (x *x11WM) HandleFullScreenMonitors(ev xproto.ClientMessageEvent, c x11.XWin) {
-	screens := fynedesk.Instance().Screens().Screens()
+	screens := tyde.Instance().Screens().Screens()
 	topIdx := int(ev.Data.Data32[0])
 	bottomIdx := int(ev.Data.Data32[1])
 	leftIdx := int(ev.Data.Data32[2])
@@ -209,7 +209,7 @@ func (x *x11WM) handleKeyPress(ev xproto.KeyPressEvent) {
 	}
 
 	userMod := ev.State&xproto.ModMask4 != 0
-	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
+	if tyde.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 		userMod = ev.State&xproto.ModMask1 != 0
 	}
 	ctrl := ev.State&xproto.ModMaskControl != 0
@@ -241,7 +241,7 @@ func (x *x11WM) handleKeyPress(ev xproto.KeyPressEvent) {
 		}
 	}
 	numlock := ev.State & xproto.ModMask2
-	if desk, ok := fynedesk.Instance().(wm.ShortcutManager); ok {
+	if desk, ok := tyde.Instance().(wm.ShortcutManager); ok {
 		for _, shortcut := range desk.Shortcuts() {
 			mask := x.modifierToKeyMask(shortcut.Modifier)
 			code := x.keyNameToCode(shortcut.KeyName)
@@ -261,7 +261,7 @@ func (x *x11WM) handleKeyRelease(ev xproto.KeyReleaseEvent) {
 	}
 
 	userMod := keyCodeSuper
-	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
+	if tyde.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 		userMod = keyCodeAlt
 	}
 	if ev.Detail == xproto.Keycode(userMod) {
@@ -272,7 +272,7 @@ func (x *x11WM) handleKeyRelease(ev xproto.KeyReleaseEvent) {
 func (x *x11WM) handleMouseEnter(ev xproto.EnterNotifyEvent) {
 	xproto.ChangeWindowAttributes(x.x.Conn(), ev.Event, xproto.CwCursor,
 		[]uint32{uint32(x11.DefaultCursor)})
-	if mouseNotify, ok := fynedesk.Instance().(notify.MouseNotify); ok {
+	if mouseNotify, ok := tyde.Instance().(notify.MouseNotify); ok {
 		mouseNotify.MouseOutNotify()
 	}
 }
@@ -295,8 +295,8 @@ func (x *x11WM) handleMouseLeave(ev xproto.LeaveNotifyEvent) {
 		}
 	}
 
-	if mouseNotify, ok := fynedesk.Instance().(notify.MouseNotify); ok {
-		screen := fynedesk.Instance().Screens().ScreenForGeometry(int(ev.RootX), int(ev.RootY), 0, 0)
+	if mouseNotify, ok := tyde.Instance().(notify.MouseNotify); ok {
+		screen := tyde.Instance().Screens().ScreenForGeometry(int(ev.RootX), int(ev.RootY), 0, 0)
 		mouseNotify.MouseInNotify(fyne.NewPos(float32(ev.RootX)/screen.CanvasScale(),
 			float32(ev.RootY)/screen.CanvasScale()))
 	}
@@ -361,7 +361,7 @@ func (x *x11WM) handleScreenChange(timestamp xproto.Timestamp) {
 		return
 	}
 	x.screenChangeTimestamp = timestamp
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	if desk == nil {
 		return
 	}

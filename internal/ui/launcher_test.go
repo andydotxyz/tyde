@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"fyshos.com/fynedesk"
-	wmTest "fyshos.com/fynedesk/test"
+	"fyshos.com/tyde"
+	wmTest "fyshos.com/tyde/test"
 	"github.com/FyshOS/appie"
 
 	"github.com/stretchr/testify/assert"
@@ -75,5 +75,5 @@ func TestLauncher_setActiveIndex(t *testing.T) {
 func setupIcons(icons ...string) {
 	desk := wmTest.NewDesktop()
 	desk.SetIconProvider(wmTest.NewAppProvider(icons...))
-	fynedesk.SetInstance(desk)
+	tyde.SetInstance(desk)
 }

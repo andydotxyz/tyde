@@ -16,11 +16,11 @@ import (
 	lib "github.com/FyshOS/fyles/pkg/fyles"
 	"golang.org/x/sys/execabs"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
-var fylesMeta = fynedesk.ModuleMetadata{
+var fylesMeta = tyde.ModuleMetadata{
 	Name:        "Desktop Files",
 	NewInstance: newFyles,
 }
@@ -34,11 +34,11 @@ func (f *fyles) Destroy() {
 
 func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 	holder := container.NewPadded()
-	win := fynedesk.Instance().Root()
+	win := tyde.Instance().Root()
 	go func() {
 		for win == nil {
 			time.Sleep(10 * time.Millisecond)
-			win = fynedesk.Instance().Root()
+			win = tyde.Instance().Root()
 		}
 		icons := lib.NewFylesPanel(f.tapped, win)
 		icons.HideParent = true
@@ -52,7 +52,7 @@ func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 		})
 	}()
 
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	r := canvas.NewRectangle(color.Transparent)
 	r.SetMinSize(fyne.NewSize(wmtheme.NarrowBarWidth, 1))
 	barPad := r
@@ -67,7 +67,7 @@ func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 	return container.NewBorder(nil, nil, barPad, widgetPad, holder)
 }
 
-func (f *fyles) Metadata() fynedesk.ModuleMetadata {
+func (f *fyles) Metadata() tyde.ModuleMetadata {
 	return fylesMeta
 }
 
@@ -94,7 +94,7 @@ func (f *fyles) tapped(u fyne.URI) {
 	}()
 
 	if u.Scheme() == "settings" {
-		fynedesk.Instance().ShowSettings()
+		tyde.Instance().ShowSettings()
 		return
 	}
 	p, err := execabs.LookPath("fyles")
@@ -118,7 +118,7 @@ func (f *fyles) tapped(u fyne.URI) {
 }
 
 // newFyles creates a new module that will manage desktop file icons.
-func newFyles() fynedesk.Module {
+func newFyles() tyde.Module {
 	return &fyles{}
 }
 

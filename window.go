@@ -1,4 +1,4 @@
-package fynedesk
+package tyde
 
 import (
 	"fyne.io/fyne/v2"

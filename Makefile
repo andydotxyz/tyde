@@ -6,19 +6,19 @@ LOCAL ?= $(shell test -d $(DESTDIR)/usr/local && echo "/local" || echo "")
 PREFIX ?= /usr$(LOCAL)
 
 build:
-	go build ./cmd/fynedesk_runner
-	go build ./cmd/fynedesk
+	go build ./cmd/tyde_runner
+	go build ./cmd/tyde
 
 install:
-	install -Dm00755 fynedesk_runner $(DESTDIR)$(PREFIX)/bin/fynedesk_runner
-	install -Dm00755 fynedesk $(DESTDIR)$(PREFIX)/bin/fynedesk
-	install -Dm00644 fynedesk.desktop $(DESTDIR)$(PREFIX)/share/xsessions/fynedesk.desktop
+	install -Dm00755 tyde_runner $(DESTDIR)$(PREFIX)/bin/tyde_runner
+	install -Dm00755 tyde $(DESTDIR)$(PREFIX)/bin/tyde
+	install -Dm00644 tyde.desktop $(DESTDIR)$(PREFIX)/share/xsessions/tyde.desktop
 
 uninstall:
-	-rm $(DESTDIR)$(PREFIX)/bin/fynedesk_runner
-	-rm $(DESTDIR)$(PREFIX)/bin/fynedesk
-	-rm $(DESTDIR)$(PREFIX)/share/xsessions/fynedesk.desktop
+	-rm $(DESTDIR)$(PREFIX)/bin/tyde_runner
+	-rm $(DESTDIR)$(PREFIX)/bin/tyde
+	-rm $(DESTDIR)$(PREFIX)/share/xsessions/tyde.desktop
 
 embed:
 	Xephyr :5 -screen 1280x720 &
-	DISPLAY=:5 go run -tags migrated_fynedo ./cmd/fynedesk
+	DISPLAY=:5 go run -tags migrated_fynedo ./cmd/tyde

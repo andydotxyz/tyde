@@ -17,8 +17,8 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
 )
 
 func windowActiveReq(x *xgbutil.XUtil, win xproto.Window) {
@@ -97,8 +97,8 @@ func windowIconName(x *xgbutil.XUtil, win xproto.Window) string {
 	return icon
 }
 
-func windowSizeCanMaximize(x *xgbutil.XUtil, win fynedesk.Window) bool {
-	screen := fynedesk.Instance().Screens().ScreenForWindow(win)
+func windowSizeCanMaximize(x *xgbutil.XUtil, win tyde.Window) bool {
+	screen := tyde.Instance().Screens().ScreenForWindow(win)
 
 	maxWidth, maxHeight := windowSizeMax(x, win.(x11.XWin).ChildID())
 	if maxWidth == -1 && maxHeight == -1 {

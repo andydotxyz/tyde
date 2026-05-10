@@ -1,4 +1,4 @@
-package fynedesk // import "fyshos.com/fynedesk"
+package tyde // import "fyshos.com/tyde"
 
 import (
 	"fyne.io/fyne/v2"

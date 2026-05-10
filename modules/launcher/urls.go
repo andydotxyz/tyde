@@ -6,11 +6,11 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 )
 
-var urlMeta = fynedesk.ModuleMetadata{
+var urlMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Open URLs",
 	NewInstance: newURLs,
 }
@@ -20,15 +20,15 @@ type urls struct{}
 func (u *urls) Destroy() {
 }
 
-func (u *urls) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (u *urls) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if u.isURL(input) {
-		return []fynedesk.LaunchSuggestion{&urlResult{input}}
+		return []tyde.LaunchSuggestion{&urlResult{input}}
 	}
 
 	return nil
 }
 
-func (u *urls) Metadata() fynedesk.ModuleMetadata {
+func (u *urls) Metadata() tyde.ModuleMetadata {
 	return urlMeta
 }
 
@@ -40,7 +40,7 @@ func (u *urls) isURL(input string) bool {
 }
 
 // newURLs creates a new module that will show URLs in the launcher suggestions
-func newURLs() fynedesk.Module {
+func newURLs() tyde.Module {
 	return &urls{}
 }
 

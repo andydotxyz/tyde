@@ -11,8 +11,8 @@ import (
 	"os/user"
 	"sync"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -145,7 +145,7 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		delete(a.windows, cookie)
 		wg.Done()
 	})
-	fynedesk.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
+	tyde.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
 
 	wg.Wait()
 	return nil

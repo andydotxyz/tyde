@@ -26,9 +26,9 @@ import (
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
-	"fyshos.com/fynedesk/internal/x11"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/ui"
+	"fyshos.com/tyde/internal/x11"
 )
 
 type opaqueType string
@@ -294,7 +294,7 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 	refreshWindows(conn, ws)
 
 	// Ensure the top window has focus after compositor settles
-	if inst := fynedesk.Instance(); inst != nil {
+	if inst := tyde.Instance(); inst != nil {
 		if top := inst.WindowManager().TopWindow(); top != nil {
 			top.Focus()
 		}
@@ -440,7 +440,7 @@ func setupRoot(conn *xgb.Conn) error {
 
 // screenWidgets holds the compositor widgets for a single screen.
 type screenWidgets struct {
-	screen  *fynedesk.Screen
+	screen  *tyde.Screen
 	normal  *ui.CompositorWidget
 	overlay *ui.CompositorWidget
 }
@@ -467,7 +467,7 @@ func (ws *widgets) screensForClient(c *client) []*screenWidgets {
 	}
 	if len(result) == 0 && len(ws.screens) > 0 {
 		// Fallback: assign to nearest screen (use ScreenForGeometry)
-		inst := fynedesk.Instance()
+		inst := tyde.Instance()
 		if inst != nil {
 			s := inst.Screens().ScreenForGeometry(int(c.geom.X), int(c.geom.Y),
 				int(c.geom.Width), int(c.geom.Height))
@@ -493,7 +493,7 @@ func (ws *widgets) refreshAll() {
 }
 
 // intersectsScreen returns whether a rectangle overlaps a screen.
-func intersectsScreen(x, y int16, w, h uint16, screen *fynedesk.Screen) bool {
+func intersectsScreen(x, y int16, w, h uint16, screen *tyde.Screen) bool {
 	return int(x) < screen.X+screen.Width &&
 		int(x)+int(w) > screen.X &&
 		int(y) < screen.Y+screen.Height &&
@@ -519,8 +519,8 @@ func copyImageFromOtherScreen(ws *widgets, winID uint32, target *ui.WindowImage,
 }
 
 // wmWindow returns the WM's Window for a compositor client, or nil.
-func wmWindow(c *client) fynedesk.Window {
-	inst := fynedesk.Instance()
+func wmWindow(c *client) tyde.Window {
+	inst := tyde.Instance()
 	if inst == nil || inst.WindowManager() == nil {
 		return nil
 	}
@@ -831,13 +831,13 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xproto.GetGeometryReply) bool {
 	lower := strings.ToLower(title)
 	if strings.Contains(lower, "screensaver") || strings.Contains(lower, "screen saver") ||
-		strings.Contains(lower, saver.WindowTitle) || title == "FyneDesk Screensaver" {
+		strings.Contains(lower, saver.WindowTitle) || title == "Tyde Screensaver" {
 		return true
 	}
 
 	// Override-redirect windows covering a full screen are likely screensavers
 	if attr.OverrideRedirect {
-		if inst := fynedesk.Instance(); inst != nil {
+		if inst := tyde.Instance(); inst != nil {
 			for _, screen := range inst.Screens().Screens() {
 				if geom.Width >= uint16(screen.Width) && geom.Height >= uint16(screen.Height) {
 					return true

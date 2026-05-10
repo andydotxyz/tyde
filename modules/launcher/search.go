@@ -5,12 +5,12 @@ import (
 	"runtime/debug"
 
 	"fyne.io/fyne/v2"
-	wmTheme "fyshos.com/fynedesk/theme"
+	wmTheme "fyshos.com/tyde/theme"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
-var searchMeta = fynedesk.ModuleMetadata{
+var searchMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Web Search",
 	NewInstance: newSearchSuggest,
 }
@@ -20,19 +20,19 @@ type search struct{}
 func (s *search) Destroy() {
 }
 
-func (s *search) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (s *search) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if input == "" {
 		return nil
 	}
-	return []fynedesk.LaunchSuggestion{&searchItem{text: input}}
+	return []tyde.LaunchSuggestion{&searchItem{text: input}}
 }
 
-func (s *search) Metadata() fynedesk.ModuleMetadata {
+func (s *search) Metadata() tyde.ModuleMetadata {
 	return searchMeta
 }
 
 // newCalcSuggest creates a new module that will show an option to search the web for an string.
-func newSearchSuggest() fynedesk.Module {
+func newSearchSuggest() tyde.Module {
 	return &search{}
 }
 

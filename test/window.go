@@ -1,7 +1,7 @@
 package test
 
 import (
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 
 	"fyne.io/fyne/v2"
 )
@@ -12,7 +12,7 @@ type Window struct {
 
 	iconic, focused, fullscreen, maximized, raised, pinned bool
 
-	parent        fynedesk.Window
+	parent        tyde.Window
 	x, y, desk    int
 	width, height uint
 }
@@ -64,6 +64,10 @@ func (w *Window) Iconify() {
 	w.iconic = true
 }
 
+// MarkDestroyed would mark the window as gone, we do nothing for tests
+func (w *Window) MarkDestroyed() {
+}
+
 // Maximize simulates this window becoming maximized
 func (w *Window) Maximize() {
 	w.maximized = true
@@ -78,7 +82,7 @@ func (w *Window) Maximized() bool {
 func (w *Window) Move(_ fyne.Position) {}
 
 // Parent returns a window that this should be positioned within, if set.
-func (w *Window) Parent() fynedesk.Window {
+func (w *Window) Parent() tyde.Window {
 	return w.parent
 }
 
@@ -104,12 +108,12 @@ func (w *Window) Resize(_ fyne.Size) {}
 func (w *Window) Size() fyne.Size { return fyne.Size{} }
 
 // Properties obtains the window properties currently set
-func (w *Window) Properties() fynedesk.WindowProperties {
+func (w *Window) Properties() tyde.WindowProperties {
 	return w.props
 }
 
 // RaiseAbove sets this window to be above the passed window
-func (w *Window) RaiseAbove(fynedesk.Window) {
+func (w *Window) RaiseAbove(tyde.Window) {
 	// no-op (this is instructing the window after stack changes)
 }
 
@@ -145,7 +149,7 @@ func (w *Window) SetGeometry(x, y int, width, height uint) {
 }
 
 // SetParent is a test utility to set a parent of this window
-func (w *Window) SetParent(p fynedesk.Window) {
+func (w *Window) SetParent(p tyde.Window) {
 	w.parent = p
 }
 

@@ -1,8 +1,8 @@
-package fynedesk
+package tyde
 
 import "fyne.io/fyne/v2"
 
-// ModuleMetadata is the information required to describe a module in FyneDesk
+// ModuleMetadata is the information required to describe a module in Tyde.
 type ModuleMetadata struct {
 	Name        string
 	NewInstance func() Module
@@ -14,7 +14,7 @@ type KeyBindModule interface {
 	Shortcuts() map[*Shortcut]func()
 }
 
-// Module marks the required methods of a pluggable module in FyneDesk.
+// Module marks the required methods of a pluggable module in Tyde.
 type Module interface {
 	Metadata() ModuleMetadata
 	Destroy()
@@ -49,7 +49,7 @@ type ScreenAreaModule interface {
 
 var modules []ModuleMetadata
 
-// AvailableModules lists all of the FyneDesk modules that were found at runtime
+// AvailableModules lists all the Tyde modules that were found at runtime.
 func AvailableModules() []ModuleMetadata {
 	return modules
 }

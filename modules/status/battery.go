@@ -10,12 +10,12 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 	"github.com/FyshOS/dryvers"
 )
 
-var batteryMeta = fynedesk.ModuleMetadata{
+var batteryMeta = tyde.ModuleMetadata{
 	Name:        "Battery",
 	NewInstance: newBattery,
 }
@@ -46,7 +46,7 @@ func (b *battery) Destroy() {
 	b.done = true
 }
 
-func (b *battery) Metadata() fynedesk.ModuleMetadata {
+func (b *battery) Metadata() tyde.ModuleMetadata {
 	return batteryMeta
 }
 
@@ -96,7 +96,7 @@ func (b *battery) setValue(val float64) {
 }
 
 // newBattery creates a new module that will show battery level in the status area
-func newBattery() fynedesk.Module {
+func newBattery() tyde.Module {
 	return &battery{battery: dryvers.NewBattery()}
 }
 
@@ -107,7 +107,7 @@ func (h *handleNarrow) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	objects[1].Resize(fyne.NewSize(size.Width-size.Height-theme.Padding(), size.Height))
 	objects[1].Move(fyne.NewPos(size.Height+theme.Padding(), 0))
 
-	if fynedesk.Instance() != nil && fynedesk.Instance().Settings().NarrowWidgetPanel() {
+	if tyde.Instance() != nil && tyde.Instance().Settings().NarrowWidgetPanel() {
 		objects[1].Hide()
 	} else {
 		objects[1].Show()

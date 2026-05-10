@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -32,7 +32,7 @@ type deskSettings struct {
 	screenSaver, screenSaverLabel string
 
 	listenerLock    sync.Mutex
-	changeListeners []func(fynedesk.DeskSettings)
+	changeListeners []func(tyde.DeskSettings)
 }
 
 func (d *deskSettings) Background() string {
@@ -95,7 +95,7 @@ func (d *deskSettings) ClockFormatting() string {
 	return d.clockFormatting
 }
 
-func (d *deskSettings) AddChangeListener(listener func(fynedesk.DeskSettings)) {
+func (d *deskSettings) AddChangeListener(listener func(tyde.DeskSettings)) {
 	d.listenerLock.Lock()
 	defer d.listenerLock.Unlock()
 	d.changeListeners = append(d.changeListeners, listener)
@@ -113,7 +113,7 @@ func (d *deskSettings) apply() {
 	})
 }
 
-func isModuleEnabled(name string, settings fynedesk.DeskSettings) bool {
+func isModuleEnabled(name string, settings tyde.DeskSettings) bool {
 	for _, mod := range settings.ModuleNames() {
 		if mod == name {
 			return true
@@ -245,7 +245,7 @@ func (d *deskSettings) load() {
 		d.launcherIcons = strings.Split(launcherIcons, "|")
 	}
 	if len(d.launcherIcons) == 0 {
-		defaultApps := fynedesk.Instance().IconProvider().DefaultApps()
+		defaultApps := tyde.Instance().IconProvider().DefaultApps()
 		for _, appData := range defaultApps {
 			d.launcherIcons = append(d.launcherIcons, appData.Name())
 		}
@@ -278,7 +278,7 @@ func (d *deskSettings) load() {
 	d.borderButtonPosition = fyne.CurrentApp().Preferences().StringWithFallback("borderbuttonposition", "Right")
 	d.screenSaver = fyne.CurrentApp().Preferences().StringWithFallback("savertype", "FyshOS")
 	d.screenSaverClock = fyne.CurrentApp().Preferences().BoolWithFallback("saverclock", true)
-	d.screenSaverLabel = fyne.CurrentApp().Preferences().StringWithFallback("saverlabel", "FyneDesk")
+	d.screenSaverLabel = fyne.CurrentApp().Preferences().StringWithFallback("saverlabel", "Tyde")
 
 	d.clockFormatting = fyne.CurrentApp().Preferences().StringWithFallback("clockformatting", "12h")
 	d.loadRecents()
@@ -286,7 +286,7 @@ func (d *deskSettings) load() {
 
 func (d *deskSettings) loadRecents() {
 	str := fyne.CurrentApp().Preferences().String("recentapps")
-	desk := fynedesk.Instance().(*desktop)
+	desk := tyde.Instance().(*desktop)
 
 	var apps []appie.AppData
 	list := strings.Split(str, ",")
@@ -305,7 +305,7 @@ func (d *deskSettings) loadRecents() {
 func (d *deskSettings) saveRecents() {
 	var list []string
 
-	for _, a := range fynedesk.Instance().(*desktop).recent {
+	for _, a := range tyde.Instance().(*desktop).recent {
 		list = append(list, a.Name())
 	}
 

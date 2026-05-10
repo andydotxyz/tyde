@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"time"
 
-	"fyshos.com/fynedesk/internal/icon"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde/internal/icon"
+	wmTheme "fyshos.com/tyde/theme"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -14,7 +14,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 const (
@@ -27,7 +27,7 @@ type switchIcon struct {
 	current bool
 
 	parent *Switcher
-	win    fynedesk.Window
+	win    tyde.Window
 }
 
 func (s *switchIcon) CreateRenderer() fyne.WidgetRenderer {
@@ -35,7 +35,7 @@ func (s *switchIcon) CreateRenderer() fyne.WidgetRenderer {
 	title := s.win.Properties().Title()
 	app := icon.FindAppFromWinInfo(s.win, s.parent.provider)
 	if app != nil {
-		res = app.Icon(fynedesk.Instance().Settings().IconTheme(), switcherIconSize*2)
+		res = app.Icon(tyde.Instance().Settings().IconTheme(), switcherIconSize*2)
 		title = app.Name()
 	} else {
 		res = s.win.Properties().Icon()
@@ -83,7 +83,7 @@ func (s *switchIcon) TypedRune(rune) {
 func (s *switchIcon) TypedKey(*fyne.KeyEvent) {
 }
 
-func newSwitchIcon(p *Switcher, win fynedesk.Window) *switchIcon {
+func newSwitchIcon(p *Switcher, win tyde.Window) *switchIcon {
 	ret := &switchIcon{
 		parent: p,
 		win:    win,
@@ -134,7 +134,7 @@ type Switcher struct {
 	content  fyne.CanvasObject
 	icons    []fyne.CanvasObject
 	provider appie.Provider
-	selected fynedesk.Window
+	selected tyde.Window
 }
 
 func (s *Switcher) currentIndex() int {
@@ -189,7 +189,7 @@ func (s *Switcher) Previous() {
 	s.setCurrent(i)
 }
 
-func (s *Switcher) raise(win fynedesk.Window) {
+func (s *Switcher) raise(win tyde.Window) {
 	if win.Iconic() {
 		win.Uniconify()
 	}
@@ -205,11 +205,11 @@ func (s *Switcher) loadUI() {
 	s.content = container.NewStack(bg, inner)
 }
 
-func (s *Switcher) loadIcons(list []fynedesk.Window) []fyne.CanvasObject {
+func (s *Switcher) loadIcons(list []tyde.Window) []fyne.CanvasObject {
 	var ret []fyne.CanvasObject
 
 	for _, item := range list {
-		if item.Desktop() != fynedesk.Instance().Desktop() && !item.Pinned() {
+		if item.Desktop() != tyde.Instance().Desktop() && !item.Pinned() {
 			continue
 		}
 		ret = append(ret, newSwitchIcon(s, item))
@@ -233,13 +233,13 @@ func (s *Switcher) HideCancel() {
 	go func() {
 		time.Sleep(time.Millisecond * 100)
 
-		fynedesk.Instance().HideOverlay(s.content)
+		tyde.Instance().HideOverlay(s.content)
 	}()
 }
 
 // Show the app switcher, it would then be hidden with HideApply or HideCancel.
 func (s *Switcher) Show() {
-	inst := fynedesk.Instance()
+	inst := tyde.Instance()
 	size := s.content.MinSize()
 
 	primary := inst.Screens().Primary()
@@ -251,7 +251,7 @@ func (s *Switcher) Show() {
 	inst.ShowOverlay(s.content, size, pos)
 }
 
-func newAppSwitcherAt(off int, wins []fynedesk.Window, prov appie.Provider) *Switcher {
+func newAppSwitcherAt(off int, wins []tyde.Window, prov appie.Provider) *Switcher {
 	s := &Switcher{provider: prov}
 	s.icons = s.loadIcons(wins)
 	if len(s.icons) <= 1 { // don't actually show if only 1 is visible
@@ -271,13 +271,13 @@ func newAppSwitcherAt(off int, wins []fynedesk.Window, prov appie.Provider) *Swi
 // NewAppSwitcher creates the application Switcher to change windows.
 // The most recently used not-top window will be selected by default.
 // If the Switcher was already visible then it will select the next window in order.
-func NewAppSwitcher(wins []fynedesk.Window, prov appie.Provider) *Switcher {
+func NewAppSwitcher(wins []tyde.Window, prov appie.Provider) *Switcher {
 	return newAppSwitcherAt(1, wins, prov)
 }
 
 // NewAppSwitcherReverse creates the application Switcher to change windows.
 // The least recently used window will be selected by default.
 // If the Switcher was already visible then it will select the last window in order.
-func NewAppSwitcherReverse(wins []fynedesk.Window, prov appie.Provider) *Switcher {
+func NewAppSwitcherReverse(wins []tyde.Window, prov appie.Provider) *Switcher {
 	return newAppSwitcherAt(-1, wins, prov)
 }

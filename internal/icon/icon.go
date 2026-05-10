@@ -3,13 +3,13 @@ package icon
 import (
 	"runtime"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 	"github.com/FyshOS/appie"
 )
 
 // FindAppFromWinInfo searches the known applications and tries to find one
 // based on the properties of an open window.
-func FindAppFromWinInfo(win fynedesk.Window, provider appie.Provider) appie.AppData {
+func FindAppFromWinInfo(win tyde.Window, provider appie.Provider) appie.AppData {
 	if runtime.GOOS == "darwin" { // simpler handling when we are not the desktop environment
 		title := win.Properties().Title()
 		if title != "" {

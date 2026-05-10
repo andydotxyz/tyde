@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/test"
-	"fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/test"
+	"fyshos.com/tyde/theme"
 )
 
 func TestPositionForNewWindow_Default(t *testing.T) {
 	w := test.NewWindow("Hi")
-	screen := &fynedesk.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
+	screen := &tyde.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
 	x, y, _, _ := PositionForNewWindow(w, 0, 0, 100, 100, true, test.NewScreensProvider(screen))
 
 	assert.Equal(t, 250-int(theme.BorderWidth), x)
@@ -21,7 +21,7 @@ func TestPositionForNewWindow_Default(t *testing.T) {
 
 func TestPositionForNewWindow_DefaultBorderless(t *testing.T) {
 	w := test.NewWindow("Hi")
-	screen := &fynedesk.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
+	screen := &tyde.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
 	x, y, _, _ := PositionForNewWindow(w, 0, 0, 100, 100, false, test.NewScreensProvider(screen))
 
 	assert.Equal(t, 250, x)
@@ -35,7 +35,7 @@ func TestPositionForNewWindow_WithParent(t *testing.T) {
 	w := test.NewWindow("Child")
 	w.SetParent(parent)
 
-	screen := &fynedesk.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
+	screen := &tyde.Screen{X: 50, Y: 0, Width: 500, Height: 500, Scale: 1}
 	x, y, _, _ := PositionForNewWindow(w, 0, 0, 100, 100, false, test.NewScreensProvider(screen))
 
 	assert.Equal(t, 350, x)

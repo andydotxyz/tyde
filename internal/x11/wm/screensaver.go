@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 	"github.com/BurntSushi/xgb/screensaver"
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/FyshOS/saver"
@@ -47,9 +47,9 @@ func (x *x11WM) watchScreensaver() {
 		slept := now.Sub(previous).Seconds() > 2 // skipped a tick
 		previous = now
 		if slept {
-			fynedesk.Instance().TriggerScreenSaver(false) // no delay on lock prompt after sleep
+			tyde.Instance().TriggerScreenSaver(false) // no delay on lock prompt after sleep
 		} else if info.MsSinceUserInput <= 1500 {
-			fynedesk.Instance().DelayScreenSaver()
+			tyde.Instance().DelayScreenSaver()
 		}
 
 		time.AfterFunc(time.Second, func() {
@@ -61,7 +61,7 @@ func (x *x11WM) watchScreensaver() {
 var screenSaverActive bool
 
 func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
-	if fynedesk.Instance().Settings().ScreenSaverType() == "XScreensaver" {
+	if tyde.Instance().Settings().ScreenSaverType() == "XScreensaver" {
 		task := "-activate"
 		if s.Lock {
 			task = "-lock"

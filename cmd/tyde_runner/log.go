@@ -14,13 +14,13 @@ func crashLogPath() string {
 }
 
 func crashLogPathRelativeTo(parent string) string {
-	path := filepath.Join(logDir(parent), "fynedesk")
+	path := filepath.Join(logDir(parent), "tyde")
 	now := time.Now().Format(time.RFC3339)
 	return fmt.Sprintf("%s-crash-%s.log", path, now)
 }
 
 func logDir(parent string) string {
-	cacheDir := filepath.Join(parent, "fyne", "com.fyshos.fynedesk")
+	cacheDir := filepath.Join(parent, "fyne", "com.fyshos.tyde")
 	err := os.MkdirAll(cacheDir, 0o700)
 	if err != nil {
 		fyne.LogError("Could not create log directory", err)
@@ -34,7 +34,7 @@ func logPath() string {
 }
 
 func logPathRelativeTo(parent string) string {
-	return filepath.Join(logDir(parent), "fynedesk.log")
+	return filepath.Join(logDir(parent), "tyde.log")
 }
 
 // openLogWriter returns the log file that can be used to write stdOut and
@@ -60,5 +60,5 @@ func openRunnerLogWriter() *os.File {
 }
 
 func runnerLogPath() string {
-	return filepath.Join(logDir(systemLogDir()), "fynedesk_runner.log")
+	return filepath.Join(logDir(systemLogDir()), "tyde_runner.log")
 }

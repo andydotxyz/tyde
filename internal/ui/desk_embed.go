@@ -3,7 +3,7 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	wmtheme "fyshos.com/fynedesk/theme"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
 func (l *desktop) newDesktopWindowEmbed() fyne.Window {

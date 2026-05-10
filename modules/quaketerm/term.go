@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"time"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 	"github.com/fyne-io/terminal"
 
 	"fyne.io/fyne/v2"
@@ -21,7 +21,7 @@ const (
 	step   = 40
 )
 
-var termMeta = fynedesk.ModuleMetadata{
+var termMeta = tyde.ModuleMetadata{
 	Name:        "Terminal Overlay",
 	NewInstance: newTerm,
 }
@@ -44,13 +44,13 @@ type term struct {
 func (t *term) Destroy() {
 }
 
-func (t *term) Metadata() fynedesk.ModuleMetadata {
+func (t *term) Metadata() tyde.ModuleMetadata {
 	return termMeta
 }
 
-func (t *term) Shortcuts() map[*fynedesk.Shortcut]func() {
-	return map[*fynedesk.Shortcut]func(){
-		{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: fynedesk.UserModifier}: func() {
+func (t *term) Shortcuts() map[*tyde.Shortcut]func() {
+	return map[*tyde.Shortcut]func(){
+		{Name: "Open Terminal Overlay", KeyName: fyne.KeyBackTick, Modifier: tyde.UserModifier}: func() {
 			t.toggle()
 		},
 	}
@@ -81,18 +81,18 @@ func (t *term) hide() {
 	}
 
 	t.shown = false
-	fynedesk.Instance().HideOverlay(t.content)
+	tyde.Instance().HideOverlay(t.content)
 }
 
 func (t *term) show() {
-	screen := fynedesk.Instance().Screens().Primary()
+	screen := tyde.Instance().Screens().Primary()
 	scale := screen.CanvasScale()
 	w := float32(screen.Width) / scale
 	y := -float32(height)
 	var end float32
 	size := fyne.NewSize(w, height)
 
-	fynedesk.Instance().ShowOverlay(t.content, size, fyne.NewPos(0, y))
+	tyde.Instance().ShowOverlay(t.content, size, fyne.NewPos(0, y))
 
 	if !t.running {
 		t.running = true
@@ -120,7 +120,7 @@ func (t *term) show() {
 	}
 	fyne.Do(func() {
 		t.content.Move(fyne.NewPos(0, end))
-		fynedesk.Instance().Root().Canvas().Focus(t.console)
+		tyde.Instance().Root().Canvas().Focus(t.console)
 	})
 	t.shown = true
 }
@@ -151,6 +151,6 @@ func withTransparency(c color.Color) color.Color {
 	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x99}
 }
 
-func newTerm() fynedesk.Module {
+func newTerm() tyde.Module {
 	return &term{}
 }

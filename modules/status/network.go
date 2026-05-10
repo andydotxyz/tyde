@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
-var networkMeta = fynedesk.ModuleMetadata{
+var networkMeta = tyde.ModuleMetadata{
 	Name:        "Network",
 	NewInstance: NewNetwork,
 }
@@ -199,7 +199,7 @@ func (n *network) StatusAreaWidget() fyne.CanvasObject {
 	return container.New(&handleNarrow{}, n.icon, n.name)
 }
 
-func (n *network) Metadata() fynedesk.ModuleMetadata {
+func (n *network) Metadata() tyde.ModuleMetadata {
 	return networkMeta
 }
 
@@ -267,6 +267,6 @@ func (n *network) toggleFlightMode() {
 }
 
 // NewNetwork creates a new module that will show network information in the status area
-func NewNetwork() fynedesk.Module {
+func NewNetwork() tyde.Module {
 	return &network{}
 }

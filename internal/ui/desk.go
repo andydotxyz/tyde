@@ -14,10 +14,10 @@ import (
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/notify"
-	wmtheme "fyshos.com/fynedesk/theme"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/notify"
+	wmtheme "fyshos.com/tyde/theme"
+	"fyshos.com/tyde/wm"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 
 // screenWindow holds the Fyne window and per-screen widgets for a single monitor.
 type screenWindow struct {
-	screen            *fynedesk.Screen
+	screen            *tyde.Screen
 	win               fyne.Window
 	compositor        *CompositorWidget
 	compositorOverlay *CompositorWidget
@@ -38,7 +38,7 @@ type screenWindow struct {
 // ScreenCompositors groups the compositor widgets for a single screen,
 // passed to the platform compositor so it can route windows per-monitor.
 type ScreenCompositors struct {
-	Screen  *fynedesk.Screen
+	Screen  *tyde.Screen
 	Normal  *CompositorWidget
 	Overlay *CompositorWidget
 }
@@ -46,15 +46,15 @@ type ScreenCompositors struct {
 type desktop struct {
 	wm.ShortcutHandler
 	app      fyne.App
-	wm       fynedesk.WindowManager
+	wm       tyde.WindowManager
 	icons    appie.Provider
 	recent   []appie.AppData
-	screens  fynedesk.ScreenList
-	settings fynedesk.DeskSettings
+	screens  tyde.ScreenList
+	settings tyde.DeskSettings
 
 	run         func()
 	showMenu    func(*fyne.Menu, fyne.Position)
-	moduleCache []fynedesk.Module
+	moduleCache []tyde.Module
 
 	bar             *bar
 	widgets         *widgetPanel
@@ -63,7 +63,7 @@ type desktop struct {
 	primaryWin      *screenWindow
 	desk            int
 	deskAnim        *fyne.Animation
-	deskAnimTargets map[fynedesk.Window]fyne.Position // where the in-flight animation is heading
+	deskAnimTargets map[tyde.Window]fyne.Position // where the in-flight animation is heading
 	compositorDone  chan struct{}
 }
 
@@ -88,7 +88,7 @@ func (l *desktop) SetDesktop(id int) {
 	wins := l.wm.Windows()
 
 	starts := make([]fyne.Position, len(wins))
-	targets := make(map[fynedesk.Window]fyne.Position, len(wins))
+	targets := make(map[tyde.Window]fyne.Position, len(wins))
 	for i, win := range wins {
 		// If the previous animation was heading somewhere, start from
 		// that target rather than the current (mid-flight) position.
@@ -517,11 +517,11 @@ func (l *desktop) runExec(app appie.AppData, runner func(env []string) error) er
 	return err
 }
 
-func (l *desktop) Settings() fynedesk.DeskSettings {
+func (l *desktop) Settings() tyde.DeskSettings {
 	return l.settings
 }
 
-func (l *desktop) ContentBoundsPixels(screen *fynedesk.Screen) (x, y, w, h uint32) {
+func (l *desktop) ContentBoundsPixels(screen *tyde.Screen) (x, y, w, h uint32) {
 	screenW := uint32(screen.Width)
 	screenH := uint32(screen.Height)
 	pad := wmtheme.WidgetPanelWidth
@@ -556,7 +556,7 @@ func (l *desktop) IconProvider() appie.Provider {
 	return l.icons
 }
 
-func (l *desktop) WindowManager() fynedesk.WindowManager {
+func (l *desktop) WindowManager() tyde.WindowManager {
 	return l.wm
 }
 
@@ -568,13 +568,13 @@ func (l *desktop) clearModuleCache() {
 	l.moduleCache = nil
 }
 
-func (l *desktop) Modules() []fynedesk.Module {
+func (l *desktop) Modules() []tyde.Module {
 	if l.moduleCache != nil {
 		return l.moduleCache
 	}
 
-	var mods []fynedesk.Module
-	for _, meta := range fynedesk.AvailableModules() {
+	var mods []tyde.Module
+	for _, meta := range tyde.AvailableModules() {
 		if !isModuleEnabled(meta.Name, l.settings) {
 			continue
 		}
@@ -582,7 +582,7 @@ func (l *desktop) Modules() []fynedesk.Module {
 		instance := meta.NewInstance()
 		mods = append(mods, instance)
 
-		if bind, ok := instance.(fynedesk.KeyBindModule); ok {
+		if bind, ok := instance.(tyde.KeyBindModule); ok {
 			for sh, f := range bind.Shortcuts() {
 				l.AddShortcut(sh, f)
 			}
@@ -642,7 +642,7 @@ func (l *desktop) MouseOutNotify() {
 	fyne.Do(l.bar.MouseOut)
 }
 
-func (l *desktop) fireSettingsChangeListener(s fynedesk.DeskSettings) {
+func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.clearModuleCache()
 	l.updateBackgrounds(s.Background())
 	l.widgets.reloadModules(l.Modules())
@@ -664,36 +664,36 @@ func (l *desktop) addSettingsChangeListener() {
 }
 
 func (l *desktop) registerShortcuts() {
-	l.AddShortcut(fynedesk.NewShortcut("Show Launcher", fyne.KeySpace, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("Show Launcher", fyne.KeySpace, tyde.UserModifier),
 		ShowAppLauncher)
-	l.AddShortcut(fynedesk.NewShortcut("Switch App Next", fyne.KeyTab, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("Switch App Next", fyne.KeyTab, tyde.UserModifier),
 		func() {
 			// dummy - the wm handles app switcher
 		})
-	l.AddShortcut(fynedesk.NewShortcut("Switch App Previous", fyne.KeyTab, fynedesk.UserModifier|fyne.KeyModifierShift),
+	l.AddShortcut(tyde.NewShortcut("Switch App Previous", fyne.KeyTab, tyde.UserModifier|fyne.KeyModifierShift),
 		func() {
 			// dummy - the wm handles app switcher
 		})
-	l.AddShortcut(fynedesk.NewShortcut("Iconify Window", fyne.KeyF9, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("Iconify Window", fyne.KeyF9, tyde.UserModifier),
 		l.iconifyCurrentWindow)
-	l.AddShortcut(fynedesk.NewShortcut("Maximize Window", fyne.KeyF10, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("Maximize Window", fyne.KeyF10, tyde.UserModifier),
 		l.maximizeCurrentWindow)
-	l.AddShortcut(fynedesk.NewShortcut("FullScreen Window", fyne.KeyF11, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("FullScreen Window", fyne.KeyF11, tyde.UserModifier),
 		l.fullscreenCurrentWindow)
-	l.AddShortcut(fynedesk.NewShortcut("Print Window", deskDriver.KeyPrintScreen, fyne.KeyModifierShift),
+	l.AddShortcut(tyde.NewShortcut("Print Window", deskDriver.KeyPrintScreen, fyne.KeyModifierShift),
 		l.screenshotWindow)
-	l.AddShortcut(fynedesk.NewShortcut("Print Screen", deskDriver.KeyPrintScreen, 0),
+	l.AddShortcut(tyde.NewShortcut("Print Screen", deskDriver.KeyPrintScreen, 0),
 		l.screenshot)
-	l.AddShortcut(fynedesk.NewShortcut("Calculator", fynedesk.KeyCalculator, 0),
+	l.AddShortcut(tyde.NewShortcut("Calculator", tyde.KeyCalculator, 0),
 		l.calculator)
-	l.AddShortcut(fynedesk.NewShortcut("Lock screen", fyne.KeyL, fynedesk.UserModifier),
+	l.AddShortcut(tyde.NewShortcut("Lock screen", fyne.KeyL, tyde.UserModifier),
 		func() {
 			l.TriggerScreenSaver(false)
 		})
 }
 
 // Screens returns the screens provider of the current desktop environment for access to screen functionality.
-func (l *desktop) Screens() fynedesk.ScreenList {
+func (l *desktop) Screens() tyde.ScreenList {
 	return l.screens
 }
 
@@ -703,7 +703,7 @@ type CompositorRunFunc func(done chan struct{}, screens []ScreenCompositors) err
 
 // NewDesktop creates the full desktop environment with window management.
 // If compositorRun is non-nil, the compositor is started in a background goroutine.
-func NewDesktop(app fyne.App, mgr fynedesk.WindowManager, icons appie.Provider, screenProvider fynedesk.ScreenList, compositorRun CompositorRunFunc) fynedesk.Desktop {
+func NewDesktop(app fyne.App, mgr tyde.WindowManager, icons appie.Provider, screenProvider tyde.ScreenList, compositorRun CompositorRunFunc) tyde.Desktop {
 	desk := newDesktop(app, mgr, icons)
 	desk.run = desk.runFull
 	if compositorRun != nil {
@@ -749,7 +749,7 @@ func (l *desktop) screenCompositors() []ScreenCompositors {
 // An ApplicationProvider is used to lookup application icons from the operating system.
 // If run during CI for testing it will return an in-memory window using the
 // fyne/test package.
-func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
+func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) tyde.Desktop {
 	wm := &embededWM{}
 	desk := newDesktop(app, wm, icons)
 	desk.run = desk.runEmbed
@@ -767,11 +767,11 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) fynedesk.Desktop {
 	return desk
 }
 
-func newDesktop(app fyne.App, wm fynedesk.WindowManager, icons appie.Provider) *desktop {
+func newDesktop(app fyne.App, wm tyde.WindowManager, icons appie.Provider) *desktop {
 	desk := &desktop{app: app, wm: wm, icons: icons, screens: newEmbeddedScreensProvider()}
 	desk.showMenu = desk.showMenuFull
 
-	fynedesk.SetInstance(desk)
+	tyde.SetInstance(desk)
 	desk.settings = newDeskSettings()
 	desk.addSettingsChangeListener()
 

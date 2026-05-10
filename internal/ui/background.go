@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/FyshOS/backgrounds"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 type background struct {
@@ -25,8 +25,8 @@ func (b *background) loadModules() []fyne.CanvasObject {
 	objects := []fyne.CanvasObject{container.NewStack(loadWallpaper())}
 
 	// Add screen area modules (e.g. desktop files)
-	for _, m := range fynedesk.Instance().Modules() {
-		if deskMod, ok := m.(fynedesk.ScreenAreaModule); ok {
+	for _, m := range tyde.Instance().Modules() {
+		if deskMod, ok := m.(tyde.ScreenAreaModule); ok {
 			if wid := deskMod.ScreenAreaWidget(); wid != nil {
 				objects = append(objects, wid)
 			}
@@ -42,7 +42,7 @@ func (b *background) updateBackground(_ string) {
 
 func loadWallpaper() fyne.CanvasObject {
 	path := ""
-	inst := fynedesk.Instance()
+	inst := tyde.Instance()
 	if inst != nil {
 		path = inst.Settings().Background()
 	}

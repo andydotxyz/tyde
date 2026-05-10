@@ -1,7 +1,7 @@
 package fyles
 
-import "fyshos.com/fynedesk"
+import "fyshos.com/tyde"
 
 func init() {
-	fynedesk.RegisterModule(fylesMeta)
+	tyde.RegisterModule(fylesMeta)
 }

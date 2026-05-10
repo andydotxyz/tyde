@@ -1,6 +1,6 @@
 //go:generate fyne bundle -package theme -o bundled.go assets/
 
-package theme // import "fyshos.com/fynedesk/theme"
+package theme // import "fyshos.com/tyde/theme"
 
 import (
 	"image/color"

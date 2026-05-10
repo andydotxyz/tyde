@@ -1,4 +1,4 @@
-module fyshos.com/fynedesk
+module fyshos.com/tyde
 
 go 1.19
 

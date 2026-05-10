@@ -9,18 +9,18 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
 )
 
 type stack struct {
-	clients, deleted []fynedesk.Window
-	mappingOrder     []fynedesk.Window
+	clients, deleted []tyde.Window
+	mappingOrder     []tyde.Window
 
-	listeners []fynedesk.StackListener
+	listeners []tyde.StackListener
 }
 
-func (s *stack) AddWindow(win fynedesk.Window) {
+func (s *stack) AddWindow(win tyde.Window) {
 	if win == nil {
 		return
 	}
@@ -31,7 +31,7 @@ func (s *stack) AddWindow(win fynedesk.Window) {
 	}
 }
 
-func (s *stack) RaiseToTop(win fynedesk.Window) {
+func (s *stack) RaiseToTop(win tyde.Window) {
 	if win.Iconic() {
 		return
 	}
@@ -52,7 +52,7 @@ func (s *stack) RaiseToTop(win fynedesk.Window) {
 		}
 	}
 
-	wm := fynedesk.Instance().WindowManager().(*x11WM)
+	wm := tyde.Instance().WindowManager().(*x11WM)
 	windowClientListStackingUpdate(wm)
 
 	for _, l := range s.listeners {
@@ -60,14 +60,14 @@ func (s *stack) RaiseToTop(win fynedesk.Window) {
 	}
 }
 
-func (s *stack) RemoveWindow(win fynedesk.Window) {
+func (s *stack) RemoveWindow(win tyde.Window) {
 	s.removeFromStack(win)
 
 	if s.TopWindow() != nil {
 		s.TopWindow().Focus()
 	} else {
 		// focus root
-		if wm := fynedesk.Instance().WindowManager().(*x11WM); wm.X() != nil {
+		if wm := tyde.Instance().WindowManager().(*x11WM); wm.X() != nil {
 			err := ewmh.ActiveWindowReq(wm.X(), wm.RootID())
 			if err != nil {
 				fyne.LogError("There was an error trying to remove the window ", err)
@@ -80,22 +80,22 @@ func (s *stack) RemoveWindow(win fynedesk.Window) {
 	}
 }
 
-func (s *stack) TopWindow() fynedesk.Window {
+func (s *stack) TopWindow() tyde.Window {
 	if len(s.clients) == 0 {
 		return nil
 	}
 	return s.clients[len(s.clients)-1]
 }
 
-func (s *stack) Windows() []fynedesk.Window {
-	var ret []fynedesk.Window
+func (s *stack) Windows() []tyde.Window {
+	var ret []tyde.Window
 	for i := len(s.clients) - 1; i >= 0; i-- {
 		ret = append(ret, s.clients[i])
 	}
 	return ret
 }
 
-func (s *stack) addToStack(win fynedesk.Window) {
+func (s *stack) addToStack(win tyde.Window) {
 	s.clients = append(s.clients, win)
 	s.mappingOrder = append(s.mappingOrder, win.(x11.XWin))
 }
@@ -110,7 +110,7 @@ func (s *stack) clientForWin(id xproto.Window) x11.XWin {
 	return nil
 }
 
-func (s *stack) getWindowsFromClients(clients []fynedesk.Window) []xproto.Window {
+func (s *stack) getWindowsFromClients(clients []tyde.Window) []xproto.Window {
 	var wins []xproto.Window
 	for _, cli := range clients {
 		wins = append(wins, cli.(x11.XWin).ChildID())
@@ -118,7 +118,7 @@ func (s *stack) getWindowsFromClients(clients []fynedesk.Window) []xproto.Window
 	return wins
 }
 
-func (s *stack) indexForWin(win fynedesk.Window) int {
+func (s *stack) indexForWin(win tyde.Window) int {
 	pos := -1
 	for i, w := range s.clients {
 		if w == win {
@@ -128,13 +128,13 @@ func (s *stack) indexForWin(win fynedesk.Window) int {
 	return pos
 }
 
-func (s *stack) publishWindowChange(win fynedesk.Window) {
+func (s *stack) publishWindowChange(win tyde.Window) {
 	for _, l := range s.listeners {
 		l.WindowStateChanged(win)
 	}
 }
 
-func (s *stack) removeFromStack(win fynedesk.Window) {
+func (s *stack) removeFromStack(win tyde.Window) {
 	pos := s.indexForWin(win)
 
 	if pos == -1 {

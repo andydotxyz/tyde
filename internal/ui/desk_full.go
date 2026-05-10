@@ -17,7 +17,7 @@ func (l *desktop) runFull() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("FyneDesk panic cause", r)
+			log.Println("Tyde panic cause", r)
 			debug.PrintStack()
 			l.wm.Close() // attempt to close cleanly to leave X server running
 		}

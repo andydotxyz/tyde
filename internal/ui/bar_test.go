@@ -10,8 +10,8 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
-	wmTest "fyshos.com/fynedesk/test"
-	wmTheme "fyshos.com/fynedesk/theme"
+	wmTest "fyshos.com/tyde/test"
+	wmTheme "fyshos.com/tyde/theme"
 
 	"github.com/stretchr/testify/assert"
 )

@@ -6,12 +6,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 const deskCount = 4
 
-var desksMeta = fynedesk.ModuleMetadata{
+var desksMeta = tyde.ModuleMetadata{
 	Name:        "Virtual Desktops",
 	NewInstance: newDesktops,
 }
@@ -29,58 +29,58 @@ func (d *desktops) DesktopChangeNotify(id int) {
 func (d *desktops) Destroy() {
 }
 
-func (d *desktops) Metadata() fynedesk.ModuleMetadata {
+func (d *desktops) Metadata() tyde.ModuleMetadata {
 	return desksMeta
 }
 
-func (d *desktops) Shortcuts() map[*fynedesk.Shortcut]func() {
-	mapping := make(map[*fynedesk.Shortcut]func(), deskCount+2)
+func (d *desktops) Shortcuts() map[*tyde.Shortcut]func() {
+	mapping := make(map[*tyde.Shortcut]func(), deskCount+2)
 	for i := 0; i < deskCount; i++ {
 		id := strconv.Itoa(i + 1)
 		deskID := i
-		mapping[&fynedesk.Shortcut{Name: "Switch to Desktop " + id, KeyName: fyne.KeyName(id), Modifier: fynedesk.UserModifier}] = func() {
+		mapping[&tyde.Shortcut{Name: "Switch to Desktop " + id, KeyName: fyne.KeyName(id), Modifier: tyde.UserModifier}] = func() {
 			d.setDesktop(deskID)
 		}
-		mapping[&fynedesk.Shortcut{Name: "Move Window to Desktop " + id, KeyName: fyne.KeyName(id), Modifier: fynedesk.UserModifier | fyne.KeyModifierShift}] = func() {
-			w := fynedesk.Instance().WindowManager().Windows()[0]
+		mapping[&tyde.Shortcut{Name: "Move Window to Desktop " + id, KeyName: fyne.KeyName(id), Modifier: tyde.UserModifier | fyne.KeyModifierShift}] = func() {
+			w := tyde.Instance().WindowManager().Windows()[0]
 			w.SetDesktop(deskID)
 		}
 	}
 
-	mapping[&fynedesk.Shortcut{Name: "Switch to Previous Desktop", KeyName: fyne.KeyUp, Modifier: fynedesk.UserModifier}] = func() {
+	mapping[&tyde.Shortcut{Name: "Switch to Previous Desktop", KeyName: fyne.KeyUp, Modifier: tyde.UserModifier}] = func() {
 		if d.current == 0 {
 			return
 		}
 		d.setDesktop(d.current - 1)
 	}
-	mapping[&fynedesk.Shortcut{Name: "Switch to Next Desktop", KeyName: fyne.KeyDown, Modifier: fynedesk.UserModifier}] = func() {
+	mapping[&tyde.Shortcut{Name: "Switch to Next Desktop", KeyName: fyne.KeyDown, Modifier: tyde.UserModifier}] = func() {
 		if d.current == deskCount-1 {
 			return
 		}
 		d.setDesktop(d.current + 1)
 	}
-	mapping[&fynedesk.Shortcut{Name: "Move Window to Previous Desktop", KeyName: fyne.KeyUp, Modifier: fynedesk.UserModifier | fyne.KeyModifierShift}] = func() {
+	mapping[&tyde.Shortcut{Name: "Move Window to Previous Desktop", KeyName: fyne.KeyUp, Modifier: tyde.UserModifier | fyne.KeyModifierShift}] = func() {
 		if d.current == 0 {
 			return
 		}
 
-		if len(fynedesk.Instance().WindowManager().Windows()) == 0 {
+		if len(tyde.Instance().WindowManager().Windows()) == 0 {
 			return
 		}
 
-		w := fynedesk.Instance().WindowManager().Windows()[0]
+		w := tyde.Instance().WindowManager().Windows()[0]
 		w.SetDesktop(d.current - 1)
 	}
-	mapping[&fynedesk.Shortcut{Name: "Move Window to Next Desktop", KeyName: fyne.KeyDown, Modifier: fynedesk.UserModifier | fyne.KeyModifierShift}] = func() {
+	mapping[&tyde.Shortcut{Name: "Move Window to Next Desktop", KeyName: fyne.KeyDown, Modifier: tyde.UserModifier | fyne.KeyModifierShift}] = func() {
 		if d.current == deskCount-1 {
 			return
 		}
 
-		if len(fynedesk.Instance().WindowManager().Windows()) == 0 {
+		if len(tyde.Instance().WindowManager().Windows()) == 0 {
 			return
 		}
 
-		w := fynedesk.Instance().WindowManager().Windows()[0]
+		w := tyde.Instance().WindowManager().Windows()[0]
 		w.SetDesktop(d.current + 1)
 	}
 	return mapping
@@ -92,12 +92,12 @@ func (d *desktops) StatusAreaWidget() fyne.CanvasObject {
 
 func (d *desktops) setDesktop(id int) {
 	d.current = id
-	fynedesk.Instance().SetDesktop(id)
+	tyde.Instance().SetDesktop(id)
 	d.gui.refreshButtons()
 }
 
 // newDesktops creates a new module that will manage virtual desktops and display a pager widget.
-func newDesktops() fynedesk.Module {
+func newDesktops() tyde.Module {
 	d := &desktops{}
 	d.gui = newPager(d)
 	return d

@@ -9,13 +9,13 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 type pager struct {
 	buttons, labels *fyne.Container
 	wins            *fyne.Container
-	winObjs         map[fynedesk.Window]fyne.CanvasObject // quick lookup for move updates
+	winObjs         map[tyde.Window]fyne.CanvasObject // quick lookup for move updates
 }
 
 func newPager(d *desktops) *pager {
@@ -32,7 +32,7 @@ func newPager(d *desktops) *pager {
 		labels[i] = widget.NewLabelWithStyle(id, fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	}
 
-	if fynedesk.Instance() != nil && fynedesk.Instance().Settings().NarrowWidgetPanel() {
+	if tyde.Instance() != nil && tyde.Instance().Settings().NarrowWidgetPanel() {
 		p.buttons = container.NewGridWithColumns(1, buttons...)
 		p.labels = container.NewGridWithColumns(1, labels...)
 	} else {
@@ -40,23 +40,23 @@ func newPager(d *desktops) *pager {
 		p.labels = container.NewGridWithColumns(4, labels...)
 	}
 	p.refresh()
-	fynedesk.Instance().WindowManager().AddStackListener(p)
+	tyde.Instance().WindowManager().AddStackListener(p)
 
 	return p
 }
 
-func (p *pager) WindowAdded(_ fynedesk.Window) {
+func (p *pager) WindowAdded(_ tyde.Window) {
 	p.refresh()
 }
 
-func (p *pager) WindowMoved(win fynedesk.Window) {
+func (p *pager) WindowMoved(win tyde.Window) {
 	obj, ok := p.winObjs[win]
 	if !ok {
 		p.refresh()
 		return
 	}
 
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	oldID := desk.Desktop()
 	pivot := p.buttons.Objects[oldID]
 	screen := desk.Screens().ScreenForWindow(win)
@@ -83,22 +83,22 @@ func (p *pager) WindowOrderChanged() {
 	p.refresh()
 }
 
-func (p *pager) WindowRemoved(_ fynedesk.Window) {
+func (p *pager) WindowRemoved(_ tyde.Window) {
 	p.refresh()
 }
 
-func (p *pager) WindowStateChanged(_ fynedesk.Window) {
+func (p *pager) WindowStateChanged(_ tyde.Window) {
 }
 
 func (p *pager) refresh() {
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	fyne.Do(func() {
 		p.refreshFrom(desk.Desktop())
 	})
 }
 
 func (p *pager) refreshButtons() {
-	desk := fynedesk.Instance()
+	desk := tyde.Instance()
 	fyne.Do(func() {
 		for i, b := range p.buttons.Objects {
 			l := p.labels.Objects[i]
@@ -117,14 +117,14 @@ func (p *pager) refreshButtons() {
 }
 
 func (p *pager) refreshFrom(oldID int) {
-	desk := fynedesk.Instance()
-	wins := fynedesk.Instance().WindowManager().Windows()
+	desk := tyde.Instance()
+	wins := tyde.Instance().WindowManager().Windows()
 
 	p.refreshButtons()
 
 	var rects []fyne.CanvasObject
 	pivot := p.buttons.Objects[oldID]
-	winObjs := make(map[fynedesk.Window]fyne.CanvasObject, len(wins))
+	winObjs := make(map[tyde.Window]fyne.CanvasObject, len(wins))
 
 	for j := len(wins) - 1; j >= 0; j-- {
 		win := wins[j]
@@ -134,7 +134,7 @@ func (p *pager) refreshFrom(oldID int) {
 
 		deskID := win.Desktop()
 		yPad := theme.Padding() * float32(deskID-oldID)
-		screen := fynedesk.Instance().Screens().ScreenForWindow(win)
+		screen := tyde.Instance().Screens().ScreenForWindow(win)
 		if win.Pinned() {
 			yPad = theme.Padding() * float32(desk.Desktop()-oldID)
 			yPad -= float32(oldID-desk.Desktop()) * pivot.Size().Height

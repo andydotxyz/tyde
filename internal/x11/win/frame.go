@@ -26,10 +26,10 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
-	wmTheme "fyshos.com/fynedesk/theme"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
+	wmTheme "fyshos.com/tyde/theme"
+	"fyshos.com/tyde/wm"
 )
 
 const unmaximizeThreshold = 84
@@ -85,18 +85,18 @@ func newFrame(c *client) *frame {
 	full := c.Fullscreened()
 	decorated := c.Properties().Decorated()
 	maximized := c.Maximized()
-	screen := fynedesk.Instance().Screens().ScreenForGeometry(int(x), int(y), int(w), int(h))
+	screen := tyde.Instance().Screens().ScreenForGeometry(int(x), int(y), int(w), int(h))
 	borderWidth := uint16(wm.ScaleToPixels(wmTheme.BorderWidth, screen))
 	titleHeight := uint16(wm.ScaleToPixels(wmTheme.TitleHeight, screen))
 	if full || maximized {
-		activeHead := fynedesk.Instance().Screens().ScreenForGeometry(int(attrs.X), int(attrs.Y), int(attrs.Width), int(attrs.Height))
+		activeHead := tyde.Instance().Screens().ScreenForGeometry(int(attrs.X), int(attrs.Y), int(attrs.Width), int(attrs.Height))
 		x = int16(activeHead.X)
 		y = int16(activeHead.Y)
 		if full {
 			w = uint16(activeHead.Width)
 			h = uint16(activeHead.Height)
 		} else {
-			maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(activeHead)
+			maxX, maxY, maxWidth, maxHeight := tyde.Instance().ContentBoundsPixels(activeHead)
 			x += int16(maxX)
 			y += int16(maxY)
 			w = uint16(maxWidth)
@@ -143,12 +143,12 @@ func newFrame(c *client) *frame {
 		framed.childHeight = h - borderWidth - titleHeight
 	}
 
-	title := "FyneDesk Border"
+	title := "Tyde Border"
 	childTitle := c.props.Title()
 	if strings.Contains(strings.ToLower(childTitle), "screensaver") ||
 		strings.Contains(strings.ToLower(childTitle), "screen saver") ||
 		strings.Contains(strings.ToLower(childTitle), saver.WindowTitle) {
-		title = "FyneDesk Screensaver"
+		title = "Tyde Screensaver"
 	}
 	_ = ewmh.WmNameSet(c.wm.X(), f.Id, title)
 	var offsetX, offsetY int16 = 0, 0
@@ -419,7 +419,7 @@ func (f *frame) applyDecorationToFrame() {
 // drawDecorationSync renders the window border into pixmaps and copies them to the frame.
 // Must be called from the main thread (via fyne.Do) to avoid font cache races.
 func (f *frame) drawDecorationSync(pidTop xproto.Pixmap, drawTop xproto.Gcontext, pidTopRight xproto.Pixmap, drawTopRight xproto.Gcontext, depth byte) {
-	screen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+	screen := tyde.Instance().Screens().ScreenForWindow(f.client)
 	scale := screen.CanvasScale()
 
 	canMaximize := true
@@ -532,7 +532,7 @@ func (f *frame) getInnerWindowCoordinates(w uint16, h uint16) (uint32, uint32, u
 func (f *frame) hide() {
 	stack := f.client.wm.Windows()
 	for i := 0; i < len(stack); i++ {
-		if stack[i] == (interface{})(f.client).(fynedesk.Window) {
+		if stack[i] == (interface{})(f.client).(tyde.Window) {
 			continue
 		}
 
@@ -561,8 +561,8 @@ func (f *frame) maximizeApply() {
 	f.client.restoreX = f.x
 	f.client.restoreY = f.y
 
-	head := fynedesk.Instance().Screens().ScreenForWindow(f.client)
-	maxX, maxY, maxWidth, maxHeight := fynedesk.Instance().ContentBoundsPixels(head)
+	head := tyde.Instance().Screens().ScreenForWindow(f.client)
+	maxX, maxY, maxWidth, maxHeight := tyde.Instance().ContentBoundsPixels(head)
 	if f.client.Fullscreened() {
 		maxX, maxY = 0, 0
 		maxWidth = uint32(head.Width)
@@ -584,7 +584,7 @@ func (f *frame) mouseDrag(x, y int16) {
 	}
 
 	if f.client.Maximized() {
-		screen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+		screen := tyde.Instance().Screens().ScreenForWindow(f.client)
 		scale := screen.CanvasScale()
 		outsideBar := y > f.y+int16(x11.TitleHeight(x11.XWin(f.client))) || y < f.y
 
@@ -941,7 +941,7 @@ func (f *frame) show() {
 	f.updateInputShape()
 
 	userMod := uint16(xproto.ModMask4)
-	if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
+	if tyde.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 		userMod = xproto.ModMask1
 	}
 
@@ -957,7 +957,7 @@ func (f *frame) show() {
 }
 
 func (f *frame) topRightPixelWidth() uint16 {
-	screen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+	screen := tyde.Instance().Screens().ScreenForWindow(f.client)
 	scale := screen.CanvasScale()
 
 	iconPix := uint16(0)
@@ -965,7 +965,7 @@ func (f *frame) topRightPixelWidth() uint16 {
 		iconPix = x11.ButtonWidth(x11.XWin(f.client))
 	}
 	iconAndBorderPix := iconPix + x11.BorderWidth(x11.XWin(f.client))*2 + uint16(theme.Padding()*scale)
-	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
+	if tyde.Instance().Settings().BorderButtonPosition() == "Right" {
 		iconAndBorderPix = 3*iconAndBorderPix - uint16(theme.Padding()*scale)
 	}
 
@@ -978,7 +978,7 @@ func (f *frame) unmaximizeApply() {
 		return
 	}
 	if f.client.restoreWidth == 0 && f.client.restoreHeight == 0 {
-		screen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+		screen := tyde.Instance().Screens().ScreenForWindow(f.client)
 		f.client.restoreWidth = uint16(screen.Width / 2)
 		f.client.restoreHeight = uint16(screen.Height / 2)
 	}
@@ -1008,7 +1008,7 @@ func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {
 		}
 	}
 
-	currentScreen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+	currentScreen := tyde.Instance().Screens().ScreenForWindow(f.client)
 
 	f.x = x
 	f.y = y
@@ -1033,10 +1033,10 @@ func (f *frame) updateGeometry(x, y int16, w, h uint16, force bool) {
 		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
 		[]uint32{innerX, innerY, uint32(f.childWidth), uint32(f.childHeight)})
 
-	newScreen := fynedesk.Instance().Screens().ScreenForWindow(f.client)
+	newScreen := tyde.Instance().Screens().ScreenForWindow(f.client)
 	if newScreen != currentScreen {
 		f.updateScale()
-		fynedesk.Instance().Screens().SetActive(newScreen)
+		tyde.Instance().Screens().SetActive(newScreen)
 	}
 
 	f.updateInputShape()
@@ -1051,7 +1051,7 @@ func (f *frame) updateScale() {
 // updateInputShape sets the frame's X11 input shape to exclude desktop panel areas.
 // This allows mouse events in panel regions to pass through to the Fyne root window.
 func (f *frame) updateInputShape() {
-	inst := fynedesk.Instance()
+	inst := tyde.Instance()
 	if inst == nil {
 		return
 	}

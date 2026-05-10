@@ -6,12 +6,12 @@ package x11
 import (
 	"github.com/BurntSushi/xgb/xproto"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 // XWin describes the additional functions that X windows need to expose to be managed
 type XWin interface {
-	fynedesk.Window
+	tyde.Window
 
 	FrameID() xproto.Window
 	ChildID() xproto.Window

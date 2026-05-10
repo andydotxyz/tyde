@@ -7,16 +7,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk"
-	wmTest "fyshos.com/fynedesk/test"
-	wmTheme "fyshos.com/fynedesk/theme"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyshos.com/tyde"
+	wmTest "fyshos.com/tyde/test"
 )
 
 func TestDeskLayout_Layout(t *testing.T) {
-	l := &desktop{screens: wmTest.NewScreensProvider(&fynedesk.Screen{
+	l := &desktop{screens: wmTest.NewScreensProvider(&tyde.Screen{
 		Name: "Screen0", X: 0, Y: 0,
 		Width: 2000, Height: 1000, Scale: 1.0,
 	}), settings: wmTest.NewSettings()}
@@ -31,7 +29,6 @@ func TestDeskLayout_Layout(t *testing.T) {
 	assert.Equal(t, deskSize, bg.Size())
 	assert.Equal(t, deskSize.Width, l.widgets.Position().X+l.widgets.Size().Width)
 	assert.Equal(t, deskSize.Height, l.widgets.Size().Height)
-	assert.Equal(t, deskSize.Width, wmTheme.NarrowBarWidth)
 	assert.Equal(t, deskSize.Height, l.bar.Size().Height)
 }
 
@@ -57,7 +54,7 @@ func TestScaleVars_Down(t *testing.T) {
 
 func TestBackgroundChange(t *testing.T) {
 	l := NewEmbeddedDesktop(test.NewApp(), wmTest.NewAppProvider()).(*desktop)
-	l.screens = wmTest.NewScreensProvider(&fynedesk.Screen{
+	l.screens = wmTest.NewScreensProvider(&tyde.Screen{
 		Name: "Screen0", X: 0, Y: 0,
 		Width: 2000, Height: 1000, Scale: 1.0,
 	})

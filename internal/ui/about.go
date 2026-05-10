@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	theme2 "fyshos.com/fynedesk/theme"
+	theme2 "fyshos.com/tyde/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -43,7 +43,7 @@ func (w *widgetPanel) showAbout() {
 		}
 		return
 	}
-	win := fyne.CurrentApp().NewWindow("About FyneDesk")
+	win := fyne.CurrentApp().NewWindow("About Tyde")
 
 	logo := canvas.NewImageFromResource(theme2.FyshOSLogo)
 	logo.FillMode = canvas.ImageFillContain
@@ -51,7 +51,7 @@ func (w *widgetPanel) showAbout() {
 
 	footer := container.NewHBox(
 		layout.NewSpacer(),
-		newURLButton("Home Page", "https://fyshos.com/fynedesk"),
+		newURLButton("Home Page", "https://fyshos.com/tyde"),
 		widget.NewLabel("-"),
 		newURLButton("Report Issue", "https://github.com/FyshOS/fynedesk/issues/new"),
 		widget.NewLabel("-"),

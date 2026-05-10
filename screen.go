@@ -1,4 +1,4 @@
-package fynedesk
+package tyde
 
 import (
 	"math"

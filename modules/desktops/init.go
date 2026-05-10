@@ -1,7 +1,7 @@
 package desktops
 
-import "fyshos.com/fynedesk"
+import "fyshos.com/tyde"
 
 func init() {
-	fynedesk.RegisterModule(desksMeta)
+	tyde.RegisterModule(desksMeta)
 }

@@ -7,8 +7,8 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 )
 
 type testAppData struct {
@@ -92,7 +92,7 @@ func (tap *testAppProvider) FindAppFromName(appName string) appie.AppData {
 	return &testAppData{name: appName}
 }
 
-func (tap *testAppProvider) FindAppFromWinInfo(win fynedesk.Window) appie.AppData {
+func (tap *testAppProvider) FindAppFromWinInfo(win tyde.Window) appie.AppData {
 	return &testAppData{}
 }
 

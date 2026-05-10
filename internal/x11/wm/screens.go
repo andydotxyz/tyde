@@ -10,16 +10,16 @@ import (
 	"github.com/BurntSushi/xgb/xproto"
 	"github.com/BurntSushi/xgbutil/xwindow"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
 )
 
 const baselineDPI = 120.0
 
 type x11ScreensProvider struct {
-	screens []*fynedesk.Screen
-	active  *fynedesk.Screen
-	primary *fynedesk.Screen
+	screens []*tyde.Screen
+	active  *tyde.Screen
+	primary *tyde.Screen
 	single  bool
 	x       *x11WM
 
@@ -27,7 +27,7 @@ type x11ScreensProvider struct {
 }
 
 // NewX11ScreensProvider returns a screen provider for use in x11 desktop mode
-func NewX11ScreensProvider(mgr fynedesk.WindowManager) fynedesk.ScreenList {
+func NewX11ScreensProvider(mgr tyde.WindowManager) tyde.ScreenList {
 	screensProvider := &x11ScreensProvider{}
 	screensProvider.x = mgr.(*x11WM)
 	err := randr.Init(screensProvider.x.x.Conn())
@@ -41,11 +41,11 @@ func NewX11ScreensProvider(mgr fynedesk.WindowManager) fynedesk.ScreenList {
 	return screensProvider
 }
 
-func (xsp *x11ScreensProvider) SetActive(s *fynedesk.Screen) {
+func (xsp *x11ScreensProvider) SetActive(s *tyde.Screen) {
 	xsp.active = s
 }
 
-func (xsp *x11ScreensProvider) Active() *fynedesk.Screen {
+func (xsp *x11ScreensProvider) Active() *tyde.Screen {
 	return xsp.active
 }
 
@@ -53,7 +53,7 @@ func (xsp *x11ScreensProvider) AddChangeListener(f func()) {
 	xsp.onChange = append(xsp.onChange, f)
 }
 
-func (xsp *x11ScreensProvider) Primary() *fynedesk.Screen {
+func (xsp *x11ScreensProvider) Primary() *tyde.Screen {
 	return xsp.primary
 }
 
@@ -69,11 +69,11 @@ func (xsp *x11ScreensProvider) RefreshScreens() {
 	}
 }
 
-func (xsp *x11ScreensProvider) Screens() []*fynedesk.Screen {
+func (xsp *x11ScreensProvider) Screens() []*tyde.Screen {
 	return xsp.screens
 }
 
-func (xsp *x11ScreensProvider) ScreenForGeometry(x int, y int, width int, height int) *fynedesk.Screen {
+func (xsp *x11ScreensProvider) ScreenForGeometry(x int, y int, width int, height int) *tyde.Screen {
 	if len(xsp.screens) <= 1 {
 		return xsp.screens[0]
 	}
@@ -92,7 +92,7 @@ func (xsp *x11ScreensProvider) ScreenForGeometry(x int, y int, width int, height
 	return xsp.active
 }
 
-func (xsp *x11ScreensProvider) ScreenForWindow(win fynedesk.Window) *fynedesk.Screen {
+func (xsp *x11ScreensProvider) ScreenForWindow(win tyde.Window) *tyde.Screen {
 	if len(xsp.screens) <= 1 {
 		return xsp.screens[0]
 	}
@@ -117,7 +117,7 @@ func getScale(widthPx, widthMm uint16) float32 {
 	return scale
 }
 
-func (xsp *x11ScreensProvider) insertInOrder(tmpScreens []*fynedesk.Screen, outputInfo *randr.GetOutputInfoReply, crtcInfo *randr.GetCrtcInfoReply) ([]*fynedesk.Screen, int) {
+func (xsp *x11ScreensProvider) insertInOrder(tmpScreens []*tyde.Screen, outputInfo *randr.GetOutputInfoReply, crtcInfo *randr.GetCrtcInfoReply) ([]*tyde.Screen, int) {
 	insertIndex := -1
 	for i, screen := range tmpScreens {
 		if screen.X >= int(crtcInfo.X) && screen.Y >= int(crtcInfo.Y) {
@@ -126,7 +126,7 @@ func (xsp *x11ScreensProvider) insertInOrder(tmpScreens []*fynedesk.Screen, outp
 		}
 	}
 
-	newScreen := &fynedesk.Screen{
+	newScreen := &tyde.Screen{
 		Name: string(outputInfo.Name),
 		X:    int(crtcInfo.X), Y: int(crtcInfo.Y), Width: int(crtcInfo.Width), Height: int(crtcInfo.Height),
 		Scale: getScale(crtcInfo.Width, uint16(outputInfo.MmWidth)),
@@ -157,7 +157,7 @@ func (xsp *x11ScreensProvider) setupScreens() {
 		primaryInfo, _ = randr.GetOutputInfo(xsp.x.x.Conn(), primary.Output, 0).Reply()
 	}
 	primaryFound := false
-	var tmpScreens []*fynedesk.Screen
+	var tmpScreens []*tyde.Screen
 	for _, output := range resources.Outputs {
 		outputInfo, err := randr.GetOutputInfo(xsp.x.x.Conn(), output, 0).Reply()
 		if err != nil {
@@ -191,7 +191,7 @@ func (xsp *x11ScreensProvider) setupScreens() {
 
 func (xsp *x11ScreensProvider) setupSingleScreen() {
 	xsp.single = true
-	xsp.screens = []*fynedesk.Screen{{
+	xsp.screens = []*tyde.Screen{{
 		Name: "Screen0",
 		X:    xwindow.RootGeometry(xsp.x.x).X(), Y: xwindow.RootGeometry(xsp.x.x).Y(),
 		Width: xwindow.RootGeometry(xsp.x.x).Width(), Height: xwindow.RootGeometry(xsp.x.x).Height(),

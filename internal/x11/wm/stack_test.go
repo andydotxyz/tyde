@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/test"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/test"
 )
 
 func TestStack_AddWindow(t *testing.T) {
@@ -21,7 +21,7 @@ func TestStack_AddWindow(t *testing.T) {
 }
 
 func TestStack_RaiseToTop(t *testing.T) {
-	fynedesk.SetInstance(test.NewDesktopWithWM(&x11WM{}))
+	tyde.SetInstance(test.NewDesktopWithWM(&x11WM{}))
 	stack := &stack{}
 	win1 := test.NewWindow("")
 	win2 := test.NewWindow("")

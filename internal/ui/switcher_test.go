@@ -5,14 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/test"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/test"
 )
 
-func testWindows() []fynedesk.Window {
+func testWindows() []tyde.Window {
 	desk := test.NewDesktop()
-	fynedesk.SetInstance(desk)
-	return []fynedesk.Window{
+	tyde.SetInstance(desk)
+	return []tyde.Window{
 		test.NewWindow("App1"),
 		test.NewWindow("App2"),
 		test.NewWindow("App3"),

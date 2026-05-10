@@ -1,14 +1,14 @@
 package wm
 
 import (
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/theme"
 )
 
 // PositionForNewWindow returns the suggested position for a new window of the given geometry.
 // The screen list hints at available space, but normally list.Active() is the best.
-func PositionForNewWindow(win fynedesk.Window, x, y int, w, h uint, decorated bool,
-	screens fynedesk.ScreenList,
+func PositionForNewWindow(win tyde.Window, x, y int, w, h uint, decorated bool,
+	screens tyde.ScreenList,
 ) (int, int, uint, uint) {
 	target := screens.Active()
 	var offX, offY int

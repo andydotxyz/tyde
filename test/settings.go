@@ -1,7 +1,7 @@
 package test
 
 import (
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 
 	"fyne.io/fyne/v2"
 )
@@ -29,7 +29,7 @@ func NewSettings() *Settings {
 }
 
 // AddChangeListener is ignored for test instance
-func (*Settings) AddChangeListener(listener func(fynedesk.DeskSettings)) {
+func (*Settings) AddChangeListener(listener func(tyde.DeskSettings)) {
 }
 
 // Background returns the path to background image (or "" if not set)

@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/FyshOS/dryvers"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
-var brightnessMeta = fynedesk.ModuleMetadata{
+var brightnessMeta = tyde.ModuleMetadata{
 	Name:        "Brightness",
 	NewInstance: newBrightness,
 }
@@ -54,7 +54,7 @@ func (b *brightness) setValue(value int) {
 	b.bar.SetValue(newVal)
 }
 
-func (b *brightness) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (b *brightness) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if val, err := b.bright.Get(); err != nil || val == 0 {
 		return nil // don't load if not present
 	}
@@ -95,19 +95,19 @@ func (b *brightness) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion
 		}
 	}
 
-	return []fynedesk.LaunchSuggestion{&brightItem{input: val, b: b}}
+	return []tyde.LaunchSuggestion{&brightItem{input: val, b: b}}
 }
 
-func (b *brightness) Metadata() fynedesk.ModuleMetadata {
+func (b *brightness) Metadata() tyde.ModuleMetadata {
 	return brightnessMeta
 }
 
-func (b *brightness) Shortcuts() map[*fynedesk.Shortcut]func() {
-	return map[*fynedesk.Shortcut]func(){
-		fynedesk.NewShortcut("Increase Screen Brightness", fynedesk.KeyBrightnessDown, fynedesk.AnyModifier): func() {
+func (b *brightness) Shortcuts() map[*tyde.Shortcut]func() {
+	return map[*tyde.Shortcut]func(){
+		tyde.NewShortcut("Increase Screen Brightness", tyde.KeyBrightnessDown, tyde.AnyModifier): func() {
 			b.offsetValue(-5)
 		},
-		fynedesk.NewShortcut("Reduce Screen Brightness", fynedesk.KeyBrightnessUp, fynedesk.AnyModifier): func() {
+		tyde.NewShortcut("Reduce Screen Brightness", tyde.KeyBrightnessUp, tyde.AnyModifier): func() {
 			b.offsetValue(5)
 		},
 	}
@@ -143,7 +143,7 @@ func (b *brightness) StatusAreaWidget() fyne.CanvasObject {
 }
 
 // newBrightness creates a new module that will show screen brightness in the status area
-func newBrightness() fynedesk.Module {
+func newBrightness() tyde.Module {
 	return &brightness{bright: dryvers.NewBrightness()}
 }
 

@@ -11,15 +11,15 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 )
 
 // bar is the main widget housing app icons and taskbar area
 type bar struct {
 	widget.BaseWidget
 
-	desk          fynedesk.Desktop    // The desktop instance we are holding icons for
+	desk          tyde.Desktop        // The desktop instance we are holding icons for
 	children      []fyne.CanvasObject // Icons that are laid out by the bar
 	mouseInside   bool                // Is the mouse inside of the bar?
 	mousePosition fyne.Position       // The current coordinates of the mouse cursor
@@ -105,7 +105,7 @@ func (b *bar) newTaskIcon(win *appWindow) *barIcon {
 	return newBarIcon(iconRes, nil, win)
 }
 
-func (b *bar) createIcon(data appie.AppData, win fynedesk.Window) *barIcon {
+func (b *bar) createIcon(data appie.AppData, win tyde.Window) *barIcon {
 	if data == nil && win == nil {
 		return nil
 	}
@@ -121,8 +121,8 @@ func (b *bar) createIcon(data appie.AppData, win fynedesk.Window) *barIcon {
 	return icon
 }
 
-func (b *bar) taskbarIconTapped(win fynedesk.Window) {
-	if win.Desktop() != fynedesk.Instance().Desktop() {
+func (b *bar) taskbarIconTapped(win tyde.Window) {
+	if win.Desktop() != tyde.Instance().Desktop() {
 		b.desk.SetDesktop(win.Desktop())
 		return
 	}
@@ -137,7 +137,7 @@ func (b *bar) taskbarIconTapped(win fynedesk.Window) {
 	win.Focus()
 }
 
-func (b *bar) WindowAdded(win fynedesk.Window) {
+func (b *bar) WindowAdded(win tyde.Window) {
 	if win.Properties().SkipTaskbar() || b.desk.Settings().LauncherDisableTaskbar() {
 		return
 	}
@@ -150,11 +150,11 @@ func (b *bar) WindowAdded(win fynedesk.Window) {
 	}
 }
 
-func (b *bar) WindowMoved(_ fynedesk.Window) {}
+func (b *bar) WindowMoved(_ tyde.Window) {}
 
 func (b *bar) WindowOrderChanged() {}
 
-func (b *bar) WindowRemoved(win fynedesk.Window) {
+func (b *bar) WindowRemoved(win tyde.Window) {
 	if win.Properties().SkipTaskbar() || b.desk.Settings().LauncherDisableTaskbar() {
 		return
 	}
@@ -169,7 +169,7 @@ func (b *bar) WindowRemoved(win fynedesk.Window) {
 	}
 }
 
-func (b *bar) WindowStateChanged(win fynedesk.Window) {
+func (b *bar) WindowStateChanged(win tyde.Window) {
 	for _, icon := range b.icons {
 		if icon.windowData == nil || win != icon.windowData.win {
 			continue
@@ -281,7 +281,7 @@ func (b *bar) CreateRenderer() fyne.WidgetRenderer {
 }
 
 // newBar creates a new application launcher and taskbar
-func newBar(desk fynedesk.Desktop) *bar {
+func newBar(desk tyde.Desktop) *bar {
 	bar := &bar{desk: desk}
 	bar.ExtendBaseWidget(bar)
 	bar.iconSize = float32(desk.Settings().LauncherIconSize())

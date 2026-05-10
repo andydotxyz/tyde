@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk/internal/ui"
+	"fyshos.com/tyde/internal/ui"
 )
 
 func TestScreenNameFromRootTitle(t *testing.T) {

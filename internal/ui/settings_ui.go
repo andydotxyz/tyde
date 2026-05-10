@@ -26,9 +26,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
+	"fyshos.com/tyde/wm"
 )
 
 const randrHelper = "arandr"
@@ -46,11 +46,11 @@ type settingsUI struct {
 func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
 	box.Objects = nil
 	for _, appName := range d.launcherIcons {
-		appData := fynedesk.Instance().IconProvider().FindAppFromName(appName)
+		appData := tyde.Instance().IconProvider().FindAppFromName(appName)
 		if appData == nil { // if app was removed!
 			continue
 		}
-		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*fynedesk.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := widget.NewIcon(iconRes)
 		box.Add(icon)
 	}
@@ -121,12 +121,12 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 	themeIcons := container.NewHBox()
 	d.populateThemeIcons(themeIcons, d.settings.IconTheme())
 	themeList := container.NewVBox()
-	for _, themeName := range fynedesk.Instance().IconProvider().AvailableThemes() {
+	for _, themeName := range tyde.Instance().IconProvider().AvailableThemes() {
 		themeButton := widget.NewButton(themeName, nil)
 		themeButton.OnTapped = func() {
 			themeLabel.SetText(themeButton.Text)
 
-			fynedesk.Instance().IconProvider().ClearCache()
+			tyde.Instance().IconProvider().ClearCache()
 			d.populateThemeIcons(themeIcons, themeButton.Text)
 		}
 		themeList.Add(themeButton)
@@ -161,10 +161,10 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 
 func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObject) {
 	var icons []fyne.CanvasObject
-	iconSize := float32(fynedesk.Instance().Settings().LauncherIconSize())
+	iconSize := float32(tyde.Instance().Settings().LauncherIconSize())
 	for i, appName := range d.launcherIcons {
 		index := i // capture
-		appData := fynedesk.Instance().IconProvider().FindAppFromName(appName)
+		appData := tyde.Instance().IconProvider().FindAppFromName(appName)
 		if appData == nil {
 			continue // uninstalled?
 		}
@@ -194,7 +194,7 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 		if index >= len(d.launcherIcons)-1 {
 			right.Disable()
 		}
-		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*fynedesk.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := canvas.NewImageFromResource(iconRes)
 		icon.FillMode = canvas.ImageFillContain
 		icon.SetMinSize(fyne.NewSize(iconSize, iconSize))
@@ -209,7 +209,7 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 }
 
 func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
-	iconWidth := float32(fynedesk.Instance().Settings().LauncherIconSize())
+	iconWidth := float32(tyde.Instance().Settings().LauncherIconSize())
 	addButton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {})
 	addIcon := canvas.NewImageFromResource(theme.ContentAddIcon())
 	addIcon.FillMode = canvas.ImageFillContain
@@ -276,7 +276,7 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 func (d *settingsUI) loadAdvancedScreen() fyne.CanvasObject {
 	var modules []fyne.CanvasObject
 
-	for _, mod := range fynedesk.AvailableModules() {
+	for _, mod := range tyde.AvailableModules() {
 		name := mod.Name
 		enabled := isModuleEnabled(name, d.settings)
 
@@ -306,7 +306,7 @@ func (d *settingsUI) loadAdvancedScreen() fyne.CanvasObject {
 
 func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 	var names, mods, keys []fyne.CanvasObject
-	shortcuts := fynedesk.Instance().(wm.ShortcutManager).Shortcuts()
+	shortcuts := tyde.Instance().(wm.ShortcutManager).Shortcuts()
 	sort.Slice(shortcuts, func(i, j int) bool {
 		return strings.Compare(shortcuts[i].ShortcutName(), shortcuts[j].ShortcutName()) < 0
 	})
@@ -360,7 +360,7 @@ func loadScreensTable() fyne.CanvasObject {
 	values2 := container.NewVBox()
 
 	all := container.NewVBox()
-	for _, screen := range fynedesk.Instance().Screens().Screens() {
+	for _, screen := range tyde.Instance().Screens().Screens() {
 		all.Add(widget.NewLabelWithStyle(screen.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 		labels1.Add(widget.NewLabel("Width"))
 		values1.Add(widget.NewLabel(strconv.Itoa(screen.Width) + "px"))
@@ -499,7 +499,7 @@ func (w *widgetPanel) showSettings() {
 		launcherIcons: deskSettings.LauncherIcons(),
 	}
 
-	win := fyne.CurrentApp().NewWindow("FyneDesk Settings")
+	win := fyne.CurrentApp().NewWindow("Tyde Settings")
 	ui.win = win
 	fyneSettings := settings.NewSettings()
 
@@ -533,7 +533,7 @@ func (w *widgetPanel) showSettings() {
 
 func modifierToString(mods fyne.KeyModifier, userMod fyne.KeyModifier) string {
 	var s []string
-	if (mods & fynedesk.UserModifier) != 0 {
+	if (mods & tyde.UserModifier) != 0 {
 		mods |= userMod
 	}
 

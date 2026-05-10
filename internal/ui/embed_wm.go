@@ -3,7 +3,7 @@ package ui
 import (
 	"image/color"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 	"github.com/FyshOS/saver"
 
 	"fyne.io/fyne/v2"
@@ -14,19 +14,19 @@ import (
 )
 
 type embededWM struct {
-	windows []fynedesk.Window
+	windows []tyde.Window
 	root    fyne.Window
 }
 
-func (e *embededWM) AddWindow(win fynedesk.Window) {
+func (e *embededWM) AddWindow(win tyde.Window) {
 	e.windows = append(e.windows, win)
 }
 
-func (e *embededWM) RaiseToTop(fynedesk.Window) {
+func (e *embededWM) RaiseToTop(tyde.Window) {
 	// no-op
 }
 
-func (e *embededWM) RemoveWindow(win fynedesk.Window) {
+func (e *embededWM) RemoveWindow(win tyde.Window) {
 	for i, w := range e.windows {
 		if w != win {
 			continue
@@ -55,7 +55,7 @@ func (e *embededWM) ShowModal(w fyne.Window, s fyne.Size) {
 	w.Show()
 }
 
-func (e *embededWM) TopWindow() fynedesk.Window {
+func (e *embededWM) TopWindow() tyde.Window {
 	if len(e.windows) == 0 {
 		return nil
 	}
@@ -63,11 +63,11 @@ func (e *embededWM) TopWindow() fynedesk.Window {
 	return e.windows[len(e.windows)-1]
 }
 
-func (e *embededWM) Windows() []fynedesk.Window {
+func (e *embededWM) Windows() []tyde.Window {
 	return e.windows
 }
 
-func (e *embededWM) AddStackListener(fynedesk.StackListener) {
+func (e *embededWM) AddStackListener(tyde.StackListener) {
 	// no stack
 }
 
@@ -105,7 +105,7 @@ func (e *embededWM) ShowScreensaver(s *saver.ScreenSaver) {
 func (e *embededWM) setWindow(win fyne.Window) fyne.CanvasObject {
 	e.root = win
 
-	return newSaverMonitor(fynedesk.Instance().DelayScreenSaver)
+	return newSaverMonitor(tyde.Instance().DelayScreenSaver)
 }
 
 type saverMonitor struct {

@@ -1,11 +1,11 @@
 package status
 
-import "fyshos.com/fynedesk"
+import "fyshos.com/tyde"
 
 func init() {
 	// system area (bottom of widget panel) - order is top to bottom
-	fynedesk.RegisterModule(networkMeta)
-	fynedesk.RegisterModule(batteryMeta)
-	fynedesk.RegisterModule(soundMeta)
-	fynedesk.RegisterModule(brightnessMeta)
+	tyde.RegisterModule(networkMeta)
+	tyde.RegisterModule(batteryMeta)
+	tyde.RegisterModule(soundMeta)
+	tyde.RegisterModule(brightnessMeta)
 }

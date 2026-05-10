@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	screensaver "fyshos.com/fynedesk/internal/ui/generated"
+	screensaver "fyshos.com/tyde/internal/ui/generated"
 	"github.com/FyshOS/saver"
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"

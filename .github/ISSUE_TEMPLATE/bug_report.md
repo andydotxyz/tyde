@@ -37,4 +37,4 @@ Write your code here.
  - **OS:** <!-- [e.g. Linux, MacOS or iOS] -->
  - **Version:** <!-- [e.g. 5.10.2, 10.13 High Sierra or 14.2] -->
  - **Go version:** <!-- [e.g. 1.12.3] -->
- - **FyneDesk version:** <!-- [e.g. 0.2.0 or git SHA] -->
+ - **Tyde version:** <!-- [e.g. 0.2.0 or git SHA] -->

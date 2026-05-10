@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"fyshos.com/fynedesk/test"
+	"fyshos.com/tyde/test"
 )
 
 func TestDeskSettings_IsModuleEnabled(t *testing.T) {

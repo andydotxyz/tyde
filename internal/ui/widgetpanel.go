@@ -17,8 +17,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
 // Go date package does not follow changing timezones, so we will.
@@ -70,7 +70,7 @@ func (w *widgetRenderer) Destroy() {
 type widgetPanel struct {
 	widget.BaseWidget
 
-	desk            fynedesk.Desktop
+	desk            tyde.Desktop
 	about, settings fyne.Window
 
 	account         *widget.Button
@@ -234,15 +234,15 @@ func (w *widgetPanel) accountLabel() string {
 	return displayName
 }
 
-func (w *widgetPanel) reloadModules(mods []fynedesk.Module) {
+func (w *widgetPanel) reloadModules(mods []tyde.Module) {
 	w.modules.Objects = nil
 	w.loadModules(mods)
 	w.modules.Refresh()
 }
 
-func (w *widgetPanel) loadModules(mods []fynedesk.Module) {
+func (w *widgetPanel) loadModules(mods []tyde.Module) {
 	for _, m := range mods {
-		if statusMod, ok := m.(fynedesk.StatusAreaModule); ok {
+		if statusMod, ok := m.(tyde.StatusAreaModule); ok {
 			wid := statusMod.StatusAreaWidget()
 			if wid == nil {
 				continue
@@ -253,7 +253,7 @@ func (w *widgetPanel) loadModules(mods []fynedesk.Module) {
 	}
 }
 
-func newWidgetPanel(rootDesk fynedesk.Desktop) *widgetPanel {
+func newWidgetPanel(rootDesk tyde.Desktop) *widgetPanel {
 	w := &widgetPanel{desk: rootDesk}
 	w.ExtendBaseWidget(w)
 	w.notifications = startNotifications()

@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 
 	"github.com/Knetic/govaluate"
 )
@@ -17,7 +17,7 @@ var (
 	numRegex  = regexp.MustCompile(`^[0-9.]+$`)
 )
 
-var calcMeta = fynedesk.ModuleMetadata{
+var calcMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Calculate",
 	NewInstance: newCalcSuggest,
 }
@@ -27,7 +27,7 @@ type calc struct{}
 func (c *calc) Destroy() {
 }
 
-func (c *calc) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (c *calc) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if !c.isExpression(input) {
 		return nil
 	}
@@ -36,7 +36,7 @@ func (c *calc) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
 	if err != nil {
 		return nil
 	}
-	return []fynedesk.LaunchSuggestion{&calcItem{sum: input, result: result}}
+	return []tyde.LaunchSuggestion{&calcItem{sum: input, result: result}}
 }
 
 func (c *calc) eval(sum string) (string, error) {
@@ -57,7 +57,7 @@ func (c *calc) eval(sum string) (string, error) {
 	return "", nil
 }
 
-func (c *calc) Metadata() fynedesk.ModuleMetadata {
+func (c *calc) Metadata() tyde.ModuleMetadata {
 	return calcMeta
 }
 
@@ -67,7 +67,7 @@ func (c *calc) isExpression(input string) bool {
 }
 
 // newCalcSuggest creates a new module that will show calculations in the launcher suggestions
-func newCalcSuggest() fynedesk.Module {
+func newCalcSuggest() tyde.Module {
 	return &calc{}
 }
 

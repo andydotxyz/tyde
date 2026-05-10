@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 // WindowImage holds the Fyne image and pixel-space geometry for a single
@@ -37,13 +37,13 @@ type WindowImage struct {
 type CompositorWidget struct {
 	widget.BaseWidget
 
-	Screen *fynedesk.Screen // the screen this widget renders on
+	Screen *tyde.Screen // the screen this widget renders on
 	mu     sync.RWMutex
 	images []*WindowImage // Fyne draw order: first = bottom, last = top
 }
 
 // NewCompositorWidget creates a new compositor widget for the given screen.
-func NewCompositorWidget(screen *fynedesk.Screen) *CompositorWidget {
+func NewCompositorWidget(screen *tyde.Screen) *CompositorWidget {
 	w := &CompositorWidget{Screen: screen}
 	w.ExtendBaseWidget(w)
 	return w

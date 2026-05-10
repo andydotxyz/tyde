@@ -6,8 +6,8 @@ package win
 import (
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
 )
 
 type clientProperties struct {
@@ -16,7 +16,7 @@ type clientProperties struct {
 	iconCache fyne.Resource
 }
 
-func (c *client) Properties() fynedesk.WindowProperties {
+func (c *client) Properties() tyde.WindowProperties {
 	if c.props == nil {
 		c.props = &clientProperties{c: c}
 		c.props.refreshCache()
@@ -46,7 +46,7 @@ func (c *clientProperties) Icon() fyne.Resource {
 		return c.iconCache
 	}
 
-	settings := fynedesk.Instance().Settings()
+	settings := tyde.Instance().Settings()
 	iconSize := int(settings.LauncherIconSize() * settings.LauncherZoomScale())
 	xIcon := windowIcon(c.c.wm.X(), c.c.win, iconSize, iconSize)
 	if xIcon == nil {

@@ -8,10 +8,10 @@ import (
 
 	"codeberg.org/sdassow/unyts/units"
 	"fyne.io/fyne/v2"
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
-var unytsMeta = fynedesk.ModuleMetadata{
+var unytsMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Convert units",
 	NewInstance: newUnyts,
 }
@@ -29,15 +29,15 @@ type unyts struct{}
 func (u *unyts) Destroy() {
 }
 
-func (u *unyts) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (u *unyts) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if u.isConversion(input) {
-		return []fynedesk.LaunchSuggestion{&unytResult{input}}
+		return []tyde.LaunchSuggestion{&unytResult{input}}
 	}
 
 	return nil
 }
 
-func (u *unyts) Metadata() fynedesk.ModuleMetadata {
+func (u *unyts) Metadata() tyde.ModuleMetadata {
 	return urlMeta
 }
 
@@ -58,7 +58,7 @@ func (u *unyts) isConversion(input string) bool {
 }
 
 // newURLs creates a new module that will show URLs in the launcher suggestions
-func newUnyts() fynedesk.Module {
+func newUnyts() tyde.Module {
 	return &unyts{}
 }
 

@@ -1,11 +1,11 @@
 package launcher
 
-import "fyshos.com/fynedesk"
+import "fyshos.com/tyde"
 
 func init() {
-	fynedesk.RegisterModule(calcMeta)
-	fynedesk.RegisterModule(largeTypeMeta)
-	fynedesk.RegisterModule(searchMeta)
-	fynedesk.RegisterModule(urlMeta)
-	fynedesk.RegisterModule(unytsMeta)
+	tyde.RegisterModule(calcMeta)
+	tyde.RegisterModule(largeTypeMeta)
+	tyde.RegisterModule(searchMeta)
+	tyde.RegisterModule(urlMeta)
+	tyde.RegisterModule(unytsMeta)
 }

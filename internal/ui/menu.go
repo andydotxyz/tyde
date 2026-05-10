@@ -17,7 +17,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	wmtheme "fyshos.com/fynedesk/theme"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
 func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func()) {

@@ -1,7 +1,7 @@
 //go:build linux || openbsd || freebsd || netbsd
 // +build linux openbsd freebsd netbsd
 
-package wm // import "fyshos.com/fynedesk/internal/x11/wm"
+package wm // import "fyshos.com/tyde/internal/x11/wm"
 
 import (
 	"errors"
@@ -33,11 +33,11 @@ import (
 	"fyne.io/fyne/v2/driver/software"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
-	"fyshos.com/fynedesk/internal/x11"
-	xwin "fyshos.com/fynedesk/internal/x11/win"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/ui"
+	"fyshos.com/tyde/internal/x11"
+	xwin "fyshos.com/tyde/internal/x11/win"
+	"fyshos.com/tyde/wm"
 )
 
 type x11WM struct {
@@ -56,7 +56,7 @@ type x11WM struct {
 	moveResizingType        moveResizeType
 	screenChangeTimestamp   xproto.Timestamp
 
-	currentBindings []*fynedesk.Shortcut
+	currentBindings []*tyde.Shortcut
 
 	died         bool
 	rootIDs      map[string]xproto.Window
@@ -105,11 +105,11 @@ const (
 	keyCodeVolumeLess = 122
 	keyCodeVolumeMore = 123
 
-	windowNameMenu = "FyneDesk Menu"
+	windowNameMenu = "Tyde Menu"
 )
 
 // NewX11WindowManager sets up a new X11 Window Manager to control a desktop in X11.
-func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
+func NewX11WindowManager(a fyne.App) (tyde.WindowManager, error) {
 	conn, err := xgbutil.NewConn()
 	if err != nil {
 		fyne.LogError("Failed to connect to the XServer", err)
@@ -180,7 +180,7 @@ func NewX11WindowManager(a fyne.App) (fynedesk.WindowManager, error) {
 	return mgr, nil
 }
 
-func (x *x11WM) AddStackListener(l fynedesk.StackListener) {
+func (x *x11WM) AddStackListener(l tyde.StackListener) {
 	x.stack.listeners = append(x.stack.listeners, l)
 }
 
@@ -253,7 +253,7 @@ func (x *x11WM) SetOverlayActive(active bool) {
 }
 
 func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
-	inst := fynedesk.Instance()
+	inst := tyde.Instance()
 	if inst == nil {
 		return
 	}
@@ -313,7 +313,7 @@ func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
 // Secondary roots accept no input — they are purely visual; all mouse events
 // on secondary screens should go to the X11 frame windows above them.
 func (x *x11WM) updateRootInputShape(_ bool) {
-	inst := fynedesk.Instance()
+	inst := tyde.Instance()
 	var primaryName string
 	if inst != nil && inst.Screens().Primary() != nil {
 		primaryName = inst.Screens().Primary().Name
@@ -368,7 +368,7 @@ func (x *x11WM) ShowModal(w fyne.Window, s fyne.Size) {
 	w.Show()
 	x.menuSize = s
 
-	root := fynedesk.Instance().Screens().Primary()
+	root := tyde.Instance().Screens().Primary()
 	scale := root.CanvasScale()
 	p := fyne.NewPos((float32(root.Width)/scale-s.Width)/2, (float32(root.Height)/scale-s.Height)/2)
 
@@ -379,7 +379,7 @@ func (x *x11WM) X() *xgbutil.XUtil {
 	return x.x
 }
 
-func (x *x11WM) bindShortcut(short *fynedesk.Shortcut, win xproto.Window) {
+func (x *x11WM) bindShortcut(short *tyde.Shortcut, win xproto.Window) {
 	mask := x.modifierToKeyMask(short.Modifier)
 	code := x.keyNameToCode(short.KeyName)
 	if code == 0 {
@@ -396,11 +396,11 @@ func (x *x11WM) bindShortcut(short *fynedesk.Shortcut, win xproto.Window) {
 }
 
 func (x *x11WM) bindShortcuts(win xproto.Window) {
-	if _, ok := fynedesk.Instance().(wm.ShortcutManager); !ok {
+	if _, ok := tyde.Instance().(wm.ShortcutManager); !ok {
 		return
 	}
 
-	shortcutList := fynedesk.Instance().(wm.ShortcutManager).Shortcuts()
+	shortcutList := tyde.Instance().(wm.ShortcutManager).Shortcuts()
 	for _, shortcut := range shortcutList {
 		x.bindShortcut(shortcut, win)
 	}
@@ -429,17 +429,17 @@ func (x *x11WM) keyNameToCode(n fyne.KeyName) xproto.Keycode {
 		return keyCodeBacktick
 	case deskDriver.KeyPrintScreen:
 		return keyCodePrintScreen
-	case fynedesk.KeyBrightnessDown:
+	case tyde.KeyBrightnessDown:
 		return keyCodeBrightLess
-	case fynedesk.KeyBrightnessUp:
+	case tyde.KeyBrightnessUp:
 		return keyCodeBrightMore
-	case fynedesk.KeyCalculator:
+	case tyde.KeyCalculator:
 		return keyCodeCalculator
-	case fynedesk.KeyVolumeMute:
+	case tyde.KeyVolumeMute:
 		return keyCodeVolumeMute
-	case fynedesk.KeyVolumeDown:
+	case tyde.KeyVolumeDown:
 		return keyCodeVolumeLess
-	case fynedesk.KeyVolumeUp:
+	case tyde.KeyVolumeUp:
 		return keyCodeVolumeMore
 	case fyne.KeyF9:
 		codes := keybind.StrToKeycodes(x.x, "F9")
@@ -468,8 +468,8 @@ func (x *x11WM) keyNameToCode(n fyne.KeyName) xproto.Keycode {
 
 func (x *x11WM) modifierToKeyMask(m fyne.KeyModifier) uint16 {
 	mask := uint16(0)
-	if m&fynedesk.UserModifier != 0 {
-		if fynedesk.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
+	if m&tyde.UserModifier != 0 {
+		if tyde.Instance().Settings().KeyboardModifier() == fyne.KeyModifierAlt {
 			m |= fyne.KeyModifierAlt
 		} else {
 			m |= fyne.KeyModifierSuper
@@ -558,13 +558,13 @@ func (x *x11WM) runLoop() {
 }
 
 func (x *x11WM) configureRoots() {
-	if fynedesk.Instance() == nil {
+	if tyde.Instance() == nil {
 		return
 	}
 
 	x.setupX11DPIHints()
 	minX, minY, maxX, maxY := math.MaxInt16, math.MaxInt16, 0, 0
-	for _, screen := range fynedesk.Instance().Screens().Screens() {
+	for _, screen := range tyde.Instance().Screens().Screens() {
 		minX = min(minX, screen.X)
 		minY = min(minY, screen.Y)
 		maxX = max(maxX, screen.X+screen.Width)
@@ -764,10 +764,10 @@ func (x *x11WM) frameExisting() {
 }
 
 func (x *x11WM) RootID() xproto.Window {
-	if fynedesk.Instance() == nil {
+	if tyde.Instance() == nil {
 		return 0
 	}
-	primary := fynedesk.Instance().Screens().Primary()
+	primary := tyde.Instance().Screens().Primary()
 	if primary == nil {
 		return 0
 	}
@@ -778,7 +778,7 @@ func (x *x11WM) RootIDForScreen(screenName string) xproto.Window {
 	return x.rootIDs[screenName]
 }
 
-func (x *x11WM) NotifyWindowMoved(win fynedesk.Window) {
+func (x *x11WM) NotifyWindowMoved(win tyde.Window) {
 	for _, l := range x.listeners {
 		fyne.Do(func() {
 			l.WindowMoved(win)
@@ -817,14 +817,14 @@ func screenNameFromRootTitle(title string) string {
 	return title[len(ui.RootWindowName):]
 }
 
-func (x *x11WM) setActiveScreenFromWindow(win fynedesk.Window) {
-	if win == nil || fynedesk.Instance() == nil {
+func (x *x11WM) setActiveScreenFromWindow(win tyde.Window) {
+	if win == nil || tyde.Instance() == nil {
 		return
 	}
 
-	windowScreen := fynedesk.Instance().Screens().ScreenForWindow(win)
+	windowScreen := tyde.Instance().Screens().ScreenForWindow(win)
 	if windowScreen != nil {
-		fynedesk.Instance().Screens().SetActive(windowScreen)
+		tyde.Instance().Screens().SetActive(windowScreen)
 	}
 }
 
@@ -834,7 +834,7 @@ func (x *x11WM) setInitialWindowAttributes(win xproto.Window) {
 }
 
 func (x *x11WM) setupBindings() {
-	fynedesk.Instance().Settings().AddChangeListener(func(_ fynedesk.DeskSettings) {
+	tyde.Instance().Settings().AddChangeListener(func(_ tyde.DeskSettings) {
 		// this uses the state from the previous bind call
 		for _, rootID := range x.rootIDs {
 			x.unbindShortcuts(rootID)
@@ -890,7 +890,7 @@ func (x *x11WM) setupWindow(win xproto.Window) {
 
 func (x *x11WM) setupX11DPIHints() {
 	// TODO move from global once xrandr --dpi <dpi>/<output> is better supported
-	canvasScale := fynedesk.Instance().Screens().Primary().CanvasScale()
+	canvasScale := tyde.Instance().Screens().Primary().CanvasScale()
 	dpi := int(float32(baselineDPI) * canvasScale)
 	cmd := exec.Command("xrandr", "--dpi", strconv.Itoa(dpi))
 	_ = cmd.Start() // if it fails that's a shame but it's just info
@@ -923,7 +923,7 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 		// If we frame too early, secondary root windows may not have their
 		// title set yet and would be accidentally framed as client windows.
 		expectedRoots := 1
-		if inst := fynedesk.Instance(); inst != nil {
+		if inst := tyde.Instance(); inst != nil {
 			expectedRoots = len(inst.Screens().Screens())
 		}
 		if !x.framedExisting && len(x.rootIDs) >= expectedRoots {
@@ -937,7 +937,7 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 		x11.WindowExtendedHintsAdd(x.x, win, "_NET_WM_STATE_SKIP_PAGER")
 		xproto.ChangeWindowAttributes(x.Conn(), win, xproto.CwEventMask, []uint32{xproto.EventMaskLeaveWindow})
 
-		screen := fynedesk.Instance().Screens().Primary()
+		screen := tyde.Instance().Screens().Primary()
 		w, h := x.menuSize.Width*screen.CanvasScale(), x.menuSize.Height*screen.CanvasScale()
 		mx, my := screen.X+int(x.menuPos.X*screen.CanvasScale()), screen.Y+int(x.menuPos.Y*screen.CanvasScale())
 		xproto.ConfigureWindow(x.Conn(), win, xproto.ConfigWindowX|xproto.ConfigWindowY|
@@ -1014,7 +1014,7 @@ func (x *x11WM) takeSelectionOwnership() {
 		string(cm.Bytes()))
 }
 
-func (x *x11WM) unbindShortcut(short *fynedesk.Shortcut, win xproto.Window) {
+func (x *x11WM) unbindShortcut(short *tyde.Shortcut, win xproto.Window) {
 	mask := x.modifierToKeyMask(short.Modifier)
 	code := x.keyNameToCode(short.KeyName)
 	if code == 0 {
@@ -1028,7 +1028,7 @@ func (x *x11WM) unbindShortcut(short *fynedesk.Shortcut, win xproto.Window) {
 }
 
 func (x *x11WM) unbindShortcuts(win xproto.Window) {
-	if _, ok := fynedesk.Instance().(wm.ShortcutManager); !ok {
+	if _, ok := tyde.Instance().(wm.ShortcutManager); !ok {
 		return
 	}
 
@@ -1038,7 +1038,7 @@ func (x *x11WM) unbindShortcuts(win xproto.Window) {
 }
 
 func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
-	path := fynedesk.Instance().Settings().Background()
+	path := tyde.Instance().Settings().Background()
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -1071,7 +1071,7 @@ func (x *x11WM) updateBackgrounds() {
 	}
 	root := xgraphics.New(x.x, image.Rect(0, 0, int(geom.Width), int(geom.Height)))
 
-	for _, screen := range fynedesk.Instance().Screens().Screens() {
+	for _, screen := range tyde.Instance().Screens().Screens() {
 		scaled := x.updatedBackgroundImage(screen.Width, screen.Height)
 		for y := screen.Y; y < screen.Y+screen.Height; y++ {
 			for x := screen.X; x < screen.X+screen.Width; x++ {

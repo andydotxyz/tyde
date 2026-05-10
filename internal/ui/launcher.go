@@ -12,8 +12,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmTheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmTheme "fyshos.com/tyde/theme"
 )
 
 const (
@@ -45,7 +45,7 @@ func (e *appEntry) TypedKey(ev *fyne.KeyEvent) {
 }
 
 type picker struct {
-	desk     fynedesk.Desktop
+	desk     tyde.Desktop
 	callback func(data appie.AppData, actionID int)
 	showMods bool
 
@@ -186,7 +186,7 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 	var suggestList, searchList []fyne.CanvasObject
 
 	for _, m := range l.desk.Modules() {
-		suggest, ok := m.(fynedesk.LaunchSuggestionModule)
+		suggest, ok := m.(tyde.LaunchSuggestionModule)
 		if !ok {
 			continue
 		}
@@ -215,7 +215,7 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 func newAppPicker(callback func(appie.AppData, int)) *picker {
 	appList := container.NewVBox()
 	appScroller := container.NewScroll(appList)
-	l := &picker{desk: fynedesk.Instance(), appList: appList, appScroll: appScroller, callback: callback}
+	l := &picker{desk: tyde.Instance(), appList: appList, appScroll: appScroller, callback: callback}
 
 	entry := &appEntry{pick: l}
 	entry.ExtendBaseWidget(entry)
@@ -273,9 +273,9 @@ func ShowAppLauncher() {
 	appExec = newAppPicker(func(app appie.AppData, actionID int) {
 		var err error
 		if actionID == -1 {
-			err = fynedesk.Instance().RunApp(app)
+			err = tyde.Instance().RunApp(app)
 		} else {
-			err = fynedesk.Instance().RunAppAction(app, actionID)
+			err = tyde.Instance().RunAppAction(app, actionID)
 		}
 		if err != nil {
 			fyne.LogError("Failed to start app", err)

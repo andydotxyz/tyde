@@ -8,11 +8,11 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/ui"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/ui"
 )
 
-func setupDesktop(a fyne.App) fynedesk.Desktop {
+func setupDesktop(a fyne.App) tyde.Desktop {
 	log.Println("Full desktop not possible on", runtime.GOOS)
 	return ui.NewEmbeddedDesktop(a, appie.NewMacOSProvider())
 }

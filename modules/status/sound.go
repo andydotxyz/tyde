@@ -11,11 +11,11 @@ import (
 
 	"github.com/mafik/pulseaudio"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
-var soundMeta = fynedesk.ModuleMetadata{
+var soundMeta = tyde.ModuleMetadata{
 	Name:        "Sound",
 	NewInstance: newSound,
 }
@@ -26,11 +26,11 @@ type sound struct {
 	mute   *scrollButton
 }
 
-func newSound() fynedesk.Module {
+func newSound() tyde.Module {
 	return &sound{}
 }
 
-func (b *sound) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
+func (b *sound) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	if _, err := b.value(); err != nil {
 		return nil // don't load if not present
 	}
@@ -63,21 +63,21 @@ func (b *sound) LaunchSuggestions(input string) []fynedesk.LaunchSuggestion {
 	}
 
 	if matches {
-		return []fynedesk.LaunchSuggestion{&volItem{input: val, s: b}}
+		return []tyde.LaunchSuggestion{&volItem{input: val, s: b}}
 	}
 
 	return nil
 }
 
-func (b *sound) Shortcuts() map[*fynedesk.Shortcut]func() {
-	return map[*fynedesk.Shortcut]func(){
-		fynedesk.NewShortcut("Mute Sound", fynedesk.KeyVolumeMute, fynedesk.AnyModifier): func() {
+func (b *sound) Shortcuts() map[*tyde.Shortcut]func() {
+	return map[*tyde.Shortcut]func(){
+		tyde.NewShortcut("Mute Sound", tyde.KeyVolumeMute, tyde.AnyModifier): func() {
 			b.toggleMute()
 		},
-		fynedesk.NewShortcut("Increase Sound Volume", fynedesk.KeyVolumeDown, fynedesk.AnyModifier): func() {
+		tyde.NewShortcut("Increase Sound Volume", tyde.KeyVolumeDown, tyde.AnyModifier): func() {
 			b.offsetValue(-5)
 		},
-		fynedesk.NewShortcut("Reduce Sound Volume", fynedesk.KeyVolumeUp, fynedesk.AnyModifier): func() {
+		tyde.NewShortcut("Reduce Sound Volume", tyde.KeyVolumeUp, tyde.AnyModifier): func() {
 			b.offsetValue(5)
 		},
 	}
@@ -120,7 +120,7 @@ func (b *sound) StatusAreaWidget() fyne.CanvasObject {
 }
 
 // Metadata returns ModuleMetadata
-func (b *sound) Metadata() fynedesk.ModuleMetadata {
+func (b *sound) Metadata() tyde.ModuleMetadata {
 	return soundMeta
 }
 

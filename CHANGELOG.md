@@ -1,7 +1,12 @@
 # Changelog
 
-This file lists the main changes with each version of the FyneDesk project.
-More detailed release notes can be found on the [releases page](https://github.com/fyshos/fynedesk/releases).
+This file lists the main changes with each version of the Tyde (previously FyneDesk) project.
+More detailed release notes can be found on the [releases page](https://github.com/FyshOS/tyde/releases).
+
+## 0.5 - Ongoing
+
+Renamed to Tyde!
+
 
 ## 0.4 - 2 March 2024
 

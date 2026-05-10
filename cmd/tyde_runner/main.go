@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-const runCmd = "fynedesk"
+const runCmd = "tyde"
 
 func main() {
 	_ = os.Remove(logPath()) // remove old logs

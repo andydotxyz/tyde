@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"image/color"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/icon"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/icon"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -15,8 +15,8 @@ import (
 )
 
 // NewBorder creates a new window border for the given window details
-func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border {
-	desk := fynedesk.Instance()
+func NewBorder(win tyde.Window, ico fyne.Resource, canMaximize bool) *Border {
+	desk := tyde.Instance()
 	border := &Border{win: win}
 	border.ExtendBaseWidget(border)
 	border.SetTitle(win.Properties().Title())
@@ -49,7 +49,7 @@ func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border
 	}
 
 	buttonAlign := widget.ButtonAlignLeading
-	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
+	if tyde.Instance().Settings().BorderButtonPosition() == "Right" {
 		buttonAlign = widget.ButtonAlignTrailing
 	}
 	border.Alignment = buttonAlign
@@ -66,7 +66,7 @@ func NewBorder(win fynedesk.Window, ico fyne.Resource, canMaximize bool) *Border
 // Border represents a window border. It draws the title bar and provides functions to manipulate it.
 type Border struct {
 	container.InnerWindow
-	win fynedesk.Window
+	win tyde.Window
 }
 
 // DoubleTapped is called when the user double taps a frame, it toggles the maximised state.
@@ -104,7 +104,7 @@ func (c *Border) showMenu() {
 
 	pos := c.win.Position()
 	x := c.win.Size().Width - 32
-	if fynedesk.Instance().Settings().BorderButtonPosition() == "Right" {
+	if tyde.Instance().Settings().BorderButtonPosition() == "Right" {
 		x = 0
 	}
 	menuPos := pos.AddXY(x, 0)
@@ -122,7 +122,7 @@ func (c *Border) showMenu() {
 			c.win.Close()
 		}))
 
-	fynedesk.Instance().ShowMenuAt(menu, menuPos)
+	tyde.Instance().ShowMenuAt(menu, menuPos)
 }
 
 func (c *Border) makeDesktopMenu() *fyne.MenuItem {

@@ -7,39 +7,39 @@ import (
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
+	"fyshos.com/tyde"
 )
 
 // Desktop is an in-memory implementation for test purposes
 type Desktop struct {
-	settings fynedesk.DeskSettings
+	settings tyde.DeskSettings
 	icons    appie.Provider
-	screens  fynedesk.ScreenList
-	wm       fynedesk.WindowManager
+	screens  tyde.ScreenList
+	wm       tyde.WindowManager
 }
 
 // NewDesktop returns a new in-memory desktop instance
 func NewDesktop() *Desktop {
-	screen := &fynedesk.Screen{Name: "Screen0", X: 0, Y: 0, Width: 2000, Height: 1000, Scale: 1.0}
-	screens := &testScreensProvider{screens: []*fynedesk.Screen{screen}, active: screen, primary: screen}
+	screen := &tyde.Screen{Name: "Screen0", X: 0, Y: 0, Width: 2000, Height: 1000, Scale: 1.0}
+	screens := &testScreensProvider{screens: []*tyde.Screen{screen}, active: screen, primary: screen}
 	return &Desktop{settings: &Settings{}, icons: &testAppProvider{}, screens: screens}
 }
 
 // NewDesktopWithWM returns a new in-memory desktop instance using the specified window manager
-func NewDesktopWithWM(wm fynedesk.WindowManager) *Desktop {
+func NewDesktopWithWM(wm tyde.WindowManager) *Desktop {
 	desk := NewDesktop()
 	desk.wm = wm
-	fynedesk.SetInstance(desk)
+	tyde.SetInstance(desk)
 	return desk
 }
 
 // AddShortcut is called from modules that wish to register keyboard handlers
-func (*Desktop) AddShortcut(shortcut *fynedesk.Shortcut, handler func()) {
+func (*Desktop) AddShortcut(shortcut *tyde.Shortcut, handler func()) {
 	// TODO
 }
 
 // ContentBoundsPixels returns a default value for how much space maximised apps should use
-func (*Desktop) ContentBoundsPixels(_ *fynedesk.Screen) (x, y, w, h uint32) {
+func (*Desktop) ContentBoundsPixels(_ *tyde.Screen) (x, y, w, h uint32) {
 	return 0, 0, 320, 240
 }
 
@@ -76,7 +76,7 @@ func (td *Desktop) RecentApps() []appie.AppData {
 }
 
 // Modules returns the list of modules currently loaded (by default no modules for this implementation)
-func (*Desktop) Modules() []fynedesk.Module {
+func (*Desktop) Modules() []tyde.Module {
 	return nil
 }
 
@@ -104,12 +104,12 @@ func (*Desktop) RunAppAction(app appie.AppData, id int) error {
 }
 
 // Screens returns the list of screens this desktop runs on, by default a simple 2000x1000 value
-func (td *Desktop) Screens() fynedesk.ScreenList {
+func (td *Desktop) Screens() tyde.ScreenList {
 	return td.screens
 }
 
 // Settings returns an in-memory test settings implementation
-func (td *Desktop) Settings() fynedesk.DeskSettings {
+func (td *Desktop) Settings() tyde.DeskSettings {
 	return td.settings
 }
 
@@ -132,7 +132,7 @@ func (td *Desktop) HideOverlay(content fyne.CanvasObject) {
 
 // WindowManager returns the window manager for this desktop, an in-memory test instance unless
 // configured through the constructor
-func (td *Desktop) WindowManager() fynedesk.WindowManager {
+func (td *Desktop) WindowManager() tyde.WindowManager {
 	return td.wm
 }
 

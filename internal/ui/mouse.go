@@ -4,7 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 
-	wmtheme "fyshos.com/fynedesk/theme"
+	wmtheme "fyshos.com/tyde/theme"
 )
 
 var mouse *canvas.Image

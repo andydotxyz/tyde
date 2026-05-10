@@ -22,11 +22,11 @@ import (
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/modules/systray/generated/menu"
-	"fyshos.com/fynedesk/modules/systray/generated/notifier"
-	"fyshos.com/fynedesk/modules/systray/generated/watcher"
-	wmtheme "fyshos.com/fynedesk/theme"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/modules/systray/generated/menu"
+	"fyshos.com/tyde/modules/systray/generated/notifier"
+	"fyshos.com/tyde/modules/systray/generated/watcher"
+	wmtheme "fyshos.com/tyde/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -43,10 +43,10 @@ const (
 var resourceID = 0
 
 func init() {
-	fynedesk.RegisterModule(trayMeta)
+	tyde.RegisterModule(trayMeta)
 }
 
-var trayMeta = fynedesk.ModuleMetadata{
+var trayMeta = tyde.ModuleMetadata{
 	Name:        "SystemTray",
 	NewInstance: NewTray,
 }
@@ -65,7 +65,7 @@ type node struct {
 }
 
 // NewTray creates a new module that will show a system tray in the status area
-func NewTray() fynedesk.Module {
+func NewTray() tyde.Module {
 	iconSize := wmtheme.NarrowBarWidth
 	grid := container.New(collapsingGridWrap(fyne.NewSize(iconSize, iconSize)))
 	t := &tray{box: grid, nodes: make(map[dbus.Sender]*node)}
@@ -218,7 +218,7 @@ func (t *tray) RegisterStatusNotifierHost(service string) error {
 	})
 }
 
-func (t *tray) Metadata() fynedesk.ModuleMetadata {
+func (t *tray) Metadata() tyde.ModuleMetadata {
 	return trayMeta
 }
 
@@ -290,13 +290,13 @@ func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos 
 			size := w.Content().MinSize()
 			w.Resize(size)
 			sub := (*pos).AddXY(-size.Width, float32(off)*(18+theme.Padding()*4))
-			screen := fynedesk.Instance().Screens().Primary()
+			screen := tyde.Instance().Screens().Primary()
 			if sub.Y+size.Height > float32(screen.Height)/screen.CanvasScale() {
 				sub.Y = float32(screen.Height)/screen.CanvasScale() - size.Height
 			}
 			childPos.X, childPos.Y = sub.X, sub.Y
 
-			fynedesk.Instance().WindowManager().ShowOverlay(w, size, *childPos)
+			tyde.Instance().WindowManager().ShowOverlay(w, size, *childPos)
 		}
 
 		ret.ChildMenu = fyne.NewMenu("")
@@ -319,11 +319,11 @@ func (t *tray) showMenu(sender string, name dbus.ObjectPath, from fyne.CanvasObj
 	w.Resize(size)
 
 	pos.X -= size.Width
-	screen := fynedesk.Instance().Screens().Primary()
+	screen := tyde.Instance().Screens().Primary()
 	if pos.Y+size.Height > float32(screen.Height)/screen.CanvasScale() {
 		pos.Y = float32(screen.Height)/screen.CanvasScale() - size.Height
 	}
-	fynedesk.Instance().WindowManager().ShowOverlay(w, size, pos)
+	tyde.Instance().WindowManager().ShowOverlay(w, size, pos)
 }
 
 func (t *tray) fetchIcon(i *node) fyne.Resource {

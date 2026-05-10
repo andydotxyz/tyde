@@ -13,9 +13,9 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 
-	"fyshos.com/fynedesk"
-	"fyshos.com/fynedesk/internal/x11"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/x11"
+	"fyshos.com/tyde/wm"
 )
 
 type client struct {
@@ -37,7 +37,7 @@ type client struct {
 
 // NewClient creates a new X11 client for the specified window ID and X window manager
 func NewClient(win xproto.Window, wm x11.XWM) x11.XWin {
-	c := &client{win: win, wm: wm, desk: fynedesk.Instance().Desktop()}
+	c := &client{win: win, wm: wm, desk: tyde.Instance().Desktop()}
 	xproto.ChangeWindowAttributes(wm.Conn(), win, xproto.CwEventMask,
 		[]uint32{xproto.EventMaskPropertyChange | xproto.EventMaskEnterWindow | xproto.EventMaskLeaveWindow |
 			xproto.EventMaskVisibilityChange})
@@ -126,7 +126,7 @@ func (c *client) SetDesktop(id int) {
 		return
 	}
 
-	d := fynedesk.Instance()
+	d := tyde.Instance()
 	diff := id - c.desk
 	c.desk = id
 
@@ -140,7 +140,7 @@ func (c *client) SetDesktop(id int) {
 	off := offPix / display.CanvasScale()
 
 	type moveNotifier interface {
-		NotifyWindowMoved(fynedesk.Window)
+		NotifyWindowMoved(tyde.Window)
 	}
 
 	start := c.Position()
@@ -227,7 +227,7 @@ func (c *client) Move(pos fyne.Position) {
 	if c.frame == nil {
 		return
 	}
-	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	targetX := int16(pos.X * screen.CanvasScale())
 	targetY := int16(pos.Y * screen.CanvasScale())
@@ -244,7 +244,7 @@ func (c *client) MoveVisual(pos fyne.Position) {
 		c.Move(pos)
 		return
 	}
-	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	screen := tyde.Instance().Screens().ScreenForWindow(c)
 	targetX := int16(pos.X * screen.CanvasScale())
 	targetY := int16(pos.Y * screen.CanvasScale())
 	x11.VisualMoveCallback(uint32(c.id), targetX, targetY, c.frame.width, c.frame.height)
@@ -335,7 +335,7 @@ func (c *client) NotifyUnMaximize() {
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_MAXIMIZED_HORZ")
 }
 
-func (c *client) Parent() fynedesk.Window {
+func (c *client) Parent() tyde.Window {
 	id := x11.WindowTransientForGet(c.wm.X(), c.win)
 	if id == 0 {
 		return nil
@@ -351,7 +351,7 @@ func (c *client) Parent() fynedesk.Window {
 
 func (c *client) Pin() {
 	c.pinned = true
-	d := fynedesk.Instance()
+	d := tyde.Instance()
 	c.SetDesktop(d.Desktop())
 }
 
@@ -360,7 +360,7 @@ func (c *client) Pinned() bool {
 }
 
 func (c *client) Position() fyne.Position {
-	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	return fyne.NewPos(
 		float32(c.frame.x)/screen.CanvasScale(),
@@ -371,7 +371,7 @@ func (c *client) Resize(s fyne.Size) {
 	if c.frame == nil {
 		return
 	}
-	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	c.frame.updateGeometry(c.frame.x, c.frame.y, uint16(s.Width*screen.Scale), uint16(s.Height*screen.Scale), false)
 }
@@ -380,7 +380,7 @@ func (c *client) Size() fyne.Size {
 	if c.frame == nil {
 		return fyne.Size{}
 	}
-	screen := fynedesk.Instance().Screens().ScreenForWindow(c)
+	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	return fyne.NewSize(
 		float32(c.frame.width)/screen.CanvasScale(),
@@ -391,7 +391,7 @@ func (c *client) QueueMoveResizeGeometry(x int, y int, width uint, height uint) 
 	c.frame.queueGeometry(int16(x), int16(y), uint16(width), uint16(height), true)
 }
 
-func (c *client) RaiseAbove(win fynedesk.Window) {
+func (c *client) RaiseAbove(win tyde.Window) {
 	c.Focus()
 
 	if win == nil {
@@ -464,7 +464,7 @@ func (c *client) Unmaximize() {
 
 func (c *client) Unpin() {
 	c.pinned = false
-	d := fynedesk.Instance()
+	d := tyde.Instance()
 	id := d.Desktop()
 	c.desk = id
 
@@ -491,7 +491,7 @@ func (c *client) newFrame() {
 }
 
 func (c *client) positionIsValid(x, y int) bool {
-	for _, screen := range fynedesk.Instance().Screens().Screens() {
+	for _, screen := range tyde.Instance().Screens().Screens() {
 		if screen.X <= x && screen.X+screen.Width > x &&
 			screen.Y <= y && screen.Y+screen.Height > y {
 			return true
@@ -521,7 +521,7 @@ func (c *client) positionNewWindow() {
 	if !requestPosition && !hasPosition || !c.positionIsValid(x, y) {
 		decorated := !windowBorderless(c.wm.X(), c.win)
 		x, y, w, h = wm.PositionForNewWindow(c, int(attrs.X), int(attrs.Y), uint(attrs.Width), uint(attrs.Height),
-			decorated, fynedesk.Instance().Screens())
+			decorated, tyde.Instance().Screens())
 	}
 
 	xproto.ConfigureWindow(c.wm.Conn(), c.win, xproto.ConfigWindowX|xproto.ConfigWindowY|

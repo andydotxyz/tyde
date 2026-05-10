@@ -11,9 +11,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"fyshos.com/fynedesk"
-	wmtheme "fyshos.com/fynedesk/theme"
-	"fyshos.com/fynedesk/wm"
+	"fyshos.com/tyde"
+	wmtheme "fyshos.com/tyde/theme"
+	"fyshos.com/tyde/wm"
 )
 
 type notification struct {
@@ -45,7 +45,7 @@ func (n *notification) show(list *fyne.Container) {
 	n.renderer = container.NewVBox(
 		container.NewBorder(nil, nil, ico, closer, title), text)
 
-	if fynedesk.Instance().Settings().NarrowWidgetPanel() {
+	if tyde.Instance().Settings().NarrowWidgetPanel() {
 		r, g, b, _ := theme.Color(theme.ColorNameOverlayBackground).RGBA()
 		bgCol := &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: 230}
 		bg := canvas.NewRectangle(bgCol)
@@ -56,7 +56,7 @@ func (n *notification) show(list *fyne.Container) {
 		n.renderer.Resize(fyne.NewSize(width, 0))
 		height := n.renderer.MinSize().Height + theme.Padding()*2
 
-		inst := fynedesk.Instance()
+		inst := tyde.Instance()
 		primary := inst.Screens().Primary()
 		scale := primary.CanvasScale()
 		pRight := float32(primary.Width) / scale
@@ -77,9 +77,9 @@ func (n *notification) show(list *fyne.Container) {
 }
 
 func (n *notification) hide(list *fyne.Container) {
-	if fynedesk.Instance().Settings().NarrowWidgetPanel() {
+	if tyde.Instance().Settings().NarrowWidgetPanel() {
 		if n.overlay != nil {
-			fynedesk.Instance().HideOverlay(n.overlay)
+			tyde.Instance().HideOverlay(n.overlay)
 		}
 		return
 	}
