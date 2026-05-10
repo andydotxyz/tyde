@@ -12,15 +12,13 @@ type Settings struct {
 	iconTheme              string
 	launcherIcons          []string
 	launcherIconSize       float32
-	launcherZoomScale      float32
-	launcherDisableZoom    bool
 	launcherDisableTaskbar bool
 	borderButtonPosition   string
 	clockFormatting        string
 
 	moduleNames []string
 
-	narrowPanel, narrowLeftLauncher bool
+	narrowPanel bool
 }
 
 // NewSettings returns an in-memory settings instance
@@ -83,29 +81,6 @@ func (s *Settings) LauncherDisableTaskbar() bool {
 // SetLauncherDisableTaskbar allows configuring whether the taskbar should be disabled
 func (s *Settings) SetLauncherDisableTaskbar(bar bool) {
 	s.launcherDisableTaskbar = bar
-}
-
-// LauncherDisableZoom returns true if zoom is disabled on the launcher
-func (s *Settings) LauncherDisableZoom() bool {
-	return s.launcherDisableZoom
-}
-
-// SetLauncherDisableZoom allows configuring whether the taskbar should disable zooming
-func (s *Settings) SetLauncherDisableZoom(zoom bool) {
-	s.launcherDisableZoom = zoom
-}
-
-// LauncherZoomScale returns how much the icons should zoom when hovered
-func (s *Settings) LauncherZoomScale() float32 {
-	if s.launcherZoomScale == 0 {
-		return 1.5
-	}
-	return s.launcherZoomScale
-}
-
-// SetLauncherZoomScale supports setting the scale value for hovered bar icons
-func (s *Settings) SetLauncherZoomScale(scale float32) {
-	s.launcherZoomScale = scale
 }
 
 // KeyboardModifier returns the preferred keyboard modifier for shortcuts.

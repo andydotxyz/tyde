@@ -616,40 +616,12 @@ func (l *desktop) scaleVars(scale float32) []string {
 	}
 }
 
-// MouseInNotify can be called by the window manager to alert the desktop that the cursor has entered the canvas
-func (l *desktop) MouseInNotify(pos fyne.Position) {
-	if l.bar == nil {
-		return
-	}
-
-	fyne.Do(func() {
-		mouseX, mouseY := pos.X, pos.Y
-		barX, barY := l.bar.Position().X, l.bar.Position().Y
-		barWidth, barHeight := l.bar.Size().Width, l.bar.Size().Height
-		if mouseX >= barX && mouseX <= barX+barWidth {
-			if mouseY >= barY && mouseY <= barY+barHeight {
-				l.bar.MouseIn(&deskDriver.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: pos, Position: pos}})
-			}
-		}
-	})
-}
-
-// MouseOutNotify can be called by the window manager to alert the desktop that the cursor has left the canvas
-func (l *desktop) MouseOutNotify() {
-	if l.bar == nil {
-		return
-	}
-	fyne.Do(l.bar.MouseOut)
-}
-
 func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.clearModuleCache()
 	l.updateBackgrounds(s.Background())
 	l.widgets.reloadModules(l.Modules())
 
 	l.bar.iconSize = l.Settings().LauncherIconSize()
-	l.bar.iconScale = l.Settings().LauncherZoomScale()
-	l.bar.disableZoom = l.Settings().LauncherDisableZoom()
 	l.bar.updateIcons()
 	l.bar.updateIconOrder()
 	l.bar.updateTaskbar()

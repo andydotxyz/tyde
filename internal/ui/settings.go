@@ -19,8 +19,6 @@ type deskSettings struct {
 	launcherIcons          []string
 	launcherIconSize       float32
 	launcherDisableTaskbar bool
-	launcherDisableZoom    bool
-	launcherZoomScale      float32
 	borderButtonPosition   string
 	clockFormatting        string
 
@@ -53,14 +51,6 @@ func (d *deskSettings) LauncherIconSize() float32 {
 
 func (d *deskSettings) LauncherDisableTaskbar() bool {
 	return d.launcherDisableTaskbar
-}
-
-func (d *deskSettings) LauncherDisableZoom() bool {
-	return d.launcherDisableZoom
-}
-
-func (d *deskSettings) LauncherZoomScale() float32 {
-	return d.launcherZoomScale
 }
 
 func (d *deskSettings) KeyboardModifier() fyne.KeyModifier {
@@ -151,18 +141,6 @@ func (d *deskSettings) setLauncherIconSize(size float32) {
 func (d *deskSettings) setLauncherDisableTaskbar(taskbar bool) {
 	d.launcherDisableTaskbar = taskbar
 	fyne.CurrentApp().Preferences().SetBool("launcherdisabletaskbar", d.launcherDisableTaskbar)
-	d.apply()
-}
-
-func (d *deskSettings) setLauncherDisableZoom(zoom bool) {
-	d.launcherDisableZoom = zoom
-	fyne.CurrentApp().Preferences().SetBool("launcherdisablezoom", d.launcherDisableZoom)
-	d.apply()
-}
-
-func (d *deskSettings) setLauncherZoomScale(scale float32) {
-	d.launcherZoomScale = scale
-	fyne.CurrentApp().Preferences().SetFloat("launcherzoomscale", float64(d.launcherZoomScale))
 	d.apply()
 }
 
@@ -257,12 +235,6 @@ func (d *deskSettings) load() {
 	}
 
 	d.launcherDisableTaskbar = fyne.CurrentApp().Preferences().Bool("launcherdisabletaskbar")
-	d.launcherDisableZoom = fyne.CurrentApp().Preferences().Bool("launcherdisablezoom")
-
-	d.launcherZoomScale = float32(fyne.CurrentApp().Preferences().Float("launcherzoomscale"))
-	if d.launcherZoomScale == 0.0 {
-		d.launcherZoomScale = 2.0
-	}
 
 	defaultModules := "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" { // testing

@@ -13,8 +13,6 @@ type DeskSettings interface {
 	LauncherIcons() []string
 	LauncherIconSize() float32
 	LauncherDisableTaskbar() bool
-	LauncherDisableZoom() bool
-	LauncherZoomScale() float32
 
 	KeyboardModifier() fyne.KeyModifier
 	ModuleNames() []string

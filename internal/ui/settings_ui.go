@@ -50,7 +50,7 @@ func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
 		if appData == nil { // if app was removed!
 			continue
 		}
-		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize())*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := widget.NewIcon(iconRes)
 		box.Add(icon)
 	}
@@ -194,7 +194,7 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 		if index >= len(d.launcherIcons)-1 {
 			right.Disable()
 		}
-		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize())*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := canvas.NewImageFromResource(iconRes)
 		icon.FillMode = canvas.ImageFillContain
 		icon.SetMinSize(fyne.NewSize(iconSize, iconSize))
@@ -232,21 +232,13 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 	iconSize.Wrapping = fyne.TextWrapOff
 	iconSize.SetText(strconv.FormatFloat(float64(d.settings.LauncherIconSize()), 'f', 0, 32))
 
-	zoomScale := widget.NewEntry()
-	zoomScale.Wrapping = fyne.TextWrapOff
-	zoomScale.SetText(strconv.FormatFloat(float64(d.settings.LauncherZoomScale()), 'f', 2, 64))
-
 	sizeCell := container.NewHBox(widget.NewLabel("Launcher Icon Size:"), iconSize)
-	zoomCell := container.NewHBox(widget.NewLabel("Launcher Zoom Scale:"), zoomScale)
 
 	disableTaskbar := widget.NewCheck("Disable Taskbar", nil)
 	disableTaskbar.SetChecked(d.settings.LauncherDisableTaskbar())
 
-	disableZoom := widget.NewCheck("Disable Zoom", nil)
-	disableZoom.SetChecked(d.settings.LauncherDisableZoom())
-
 	details := widget.NewCard("Configuration", "",
-		container.NewGridWithColumns(2, sizeCell, zoomCell, disableTaskbar, disableZoom))
+		container.NewGridWithColumns(2, sizeCell, disableTaskbar))
 
 	applyButton := container.NewHBox(layout.NewSpacer(),
 		&widget.Button{Text: "Apply", Importance: widget.HighImportance, OnTapped: func() {
@@ -257,15 +249,7 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 			}
 			d.settings.setLauncherIconSize(float32(size))
 
-			scale, err := strconv.ParseFloat(zoomScale.Text, 32)
-			if err != nil {
-				fyne.LogError("Error setting launcher zoom scale", err)
-				scale = 2.0
-			}
-			d.settings.setLauncherZoomScale(float32(scale))
 			d.settings.setLauncherDisableTaskbar(disableTaskbar.Checked)
-			d.settings.setLauncherDisableZoom(disableZoom.Checked)
-
 			d.settings.setLauncherIcons(d.launcherIcons)
 		}})
 
