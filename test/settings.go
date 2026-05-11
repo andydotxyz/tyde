@@ -11,7 +11,6 @@ type Settings struct {
 	background             string
 	iconTheme              string
 	launcherIcons          []string
-	launcherIconSize       float32
 	launcherDisableTaskbar bool
 	borderButtonPosition   string
 	clockFormatting        string
