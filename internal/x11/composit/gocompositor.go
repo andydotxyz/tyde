@@ -643,27 +643,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			c.pixmap = pixmap
 		}
 
-		// Check if the renderer still has a pending frame for this client.
-		winID := uint32(c.win)
-		isFS := isFullscreenClient(c)
-		pending := c.pending
-		if pending {
-			// Check if the renderer has consumed the previous frame.
-			pending = false
-			for _, sw := range ws.screensForClient(c) {
-				var target *ui.CompositorWidget
-				if isFS {
-					target = sw.overlay
-				} else {
-					target = sw.normal
-				}
-				if wi := target.GetWindow(winID); wi != nil && wi.Pending.Load() {
-					pending = true
-					break
-				}
-			}
-			c.pending = pending
-		}
+		winID, isFullScreen, pending := checkPending(c, ws)
 
 		totalW := c.geom.Width + c.geom.BorderWidth*2
 		totalH := c.geom.Height + c.geom.BorderWidth*2
@@ -701,7 +681,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 		// The renderer will swap Back→Img.Image on its next Refresh.
 		for _, sw := range ws.screensForClient(c) {
 			var target *ui.CompositorWidget
-			if isFS {
+			if isFullScreen {
 				target = sw.overlay
 			} else {
 				target = sw.normal
@@ -750,6 +730,30 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			}
 		})
 	}
+}
+
+func checkPending(c *client, ws *widgets) (uint32, bool, bool) {
+	winID := uint32(c.win)
+	isFS := isFullscreenClient(c)
+	pending := c.pending
+	if pending {
+		// Check if the renderer has consumed the previous frame.
+		pending = false
+		for _, sw := range ws.screensForClient(c) {
+			var target *ui.CompositorWidget
+			if isFS {
+				target = sw.overlay
+			} else {
+				target = sw.normal
+			}
+			if wi := target.GetWindow(winID); wi != nil && wi.Pending.Load() {
+				pending = true
+				break
+			}
+		}
+		c.pending = pending
+	}
+	return winID, isFS, pending
 }
 
 // refreshTranslucency updates the translucency of all visible windows
