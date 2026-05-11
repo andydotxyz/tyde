@@ -128,12 +128,6 @@ func (d *deskSettings) setLauncherIcons(defaultApps []string) {
 	d.apply()
 }
 
-func (d *deskSettings) setLauncherIconSize(size float32) {
-	d.launcherIconSize = size
-	fyne.CurrentApp().Preferences().SetInt("launchericonsize", int(d.launcherIconSize))
-	d.apply()
-}
-
 func (d *deskSettings) setLauncherDisableTaskbar(taskbar bool) {
 	d.launcherDisableTaskbar = taskbar
 	fyne.CurrentApp().Preferences().SetBool("launcherdisabletaskbar", d.launcherDisableTaskbar)

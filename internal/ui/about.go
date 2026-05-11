@@ -115,7 +115,9 @@ func (w *widgetPanel) showAbout() {
 
 func version() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
-		return info.Main.Version
+		if v := info.Main.Version; v != "" {
+			return v
+		}
 	}
 
 	return "(devel)"
