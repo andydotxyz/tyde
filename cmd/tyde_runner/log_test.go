@@ -16,3 +16,16 @@ func TestLogPath(t *testing.T) {
 
 	assert.Equal(t, "testdata/cache/fyne/com.fyshos.tyde/tyde.log", path)
 }
+
+func TestCrashLogPath(t *testing.T) {
+	path := crashLogPathRelativeTo(testLogDir())
+
+	assert.Contains(t, path, "testdata/cache/fyne/com.fyshos.tyde/tyde-crash-")
+	assert.Contains(t, path, ".log")
+}
+
+func TestLogDir(t *testing.T) {
+	dir := logDir(testLogDir())
+
+	assert.Equal(t, "testdata/cache/fyne/com.fyshos.tyde", dir)
+}

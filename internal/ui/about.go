@@ -62,10 +62,12 @@ func (w *widgetPanel) showAbout() {
 	authors := widget.NewRichTextFromMarkdown(formatAuthors(string(Authors.Content())))
 	content := container.NewVBox(
 		container.NewCenter(
-			widget.NewRichTextFromMarkdown("**Version:** "+version())),
+			widget.NewRichTextFromMarkdown("**Version:** "+version()),
+		),
 		logo,
 		container.NewCenter(authors),
-		widget.NewLabelWithStyle("\nWith great thanks to our many kind contributors\n", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}))
+		widget.NewLabelWithStyle("\nWith great thanks to our many kind contributors\n", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
+	)
 	scroll := container.NewScroll(content)
 
 	themeBG := theme.Color(theme.ColorNameBackground)
@@ -113,7 +115,9 @@ func (w *widgetPanel) showAbout() {
 
 func version() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
-		return info.Main.Version
+		if v := info.Main.Version; v != "" {
+			return v
+		}
 	}
 
 	return "(devel)"

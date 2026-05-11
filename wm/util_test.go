@@ -15,7 +15,8 @@ func TestFindObjectAtPixelPositionMatching(t *testing.T) {
 	l := widget.NewRichTextFromMarkdown("* Test")
 	e := widget.NewEntry()
 	w := test.NewWindow(
-		container.NewGridWithColumns(1, l, e))
+		container.NewGridWithColumns(1, l, e),
+	)
 
 	assert.Equal(t, l, FindObjectAtPixelPositionMatching(8, 8, w.Canvas(), func(fyne.CanvasObject) bool {
 		return true

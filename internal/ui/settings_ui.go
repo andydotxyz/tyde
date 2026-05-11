@@ -50,7 +50,7 @@ func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
 		if appData == nil { // if app was removed!
 			continue
 		}
-		iconRes := appData.Icon(theme, int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(theme, int(32*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := widget.NewIcon(iconRes)
 		box.Add(icon)
 	}
@@ -161,7 +161,6 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 
 func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObject) {
 	var icons []fyne.CanvasObject
-	iconSize := float32(tyde.Instance().Settings().LauncherIconSize())
 	for i, appName := range d.launcherIcons {
 		index := i // capture
 		appData := tyde.Instance().IconProvider().FindAppFromName(appName)
@@ -194,10 +193,10 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 		if index >= len(d.launcherIcons)-1 {
 			right.Disable()
 		}
-		iconRes := appData.Icon(d.settings.IconTheme(), int((d.settings.LauncherIconSize()*d.settings.LauncherZoomScale())*tyde.Instance().Screens().Primary().CanvasScale()))
+		iconRes := appData.Icon(d.settings.IconTheme(), int(32*tyde.Instance().Screens().Primary().CanvasScale()))
 		icon := canvas.NewImageFromResource(iconRes)
 		icon.FillMode = canvas.ImageFillContain
-		icon.SetMinSize(fyne.NewSize(iconSize, iconSize))
+		icon.SetMinSize(fyne.NewSquareSize(32))
 		label := widget.NewLabelWithStyle(appName, fyne.TextAlignCenter, fyne.TextStyle{})
 		hbox := container.NewVBox(icon, label, container.NewHBox(left, remove, right))
 		icons = append(icons, hbox)
@@ -209,11 +208,10 @@ func (d *settingsUI) populateOrderList(list *fyne.Container, add fyne.CanvasObje
 }
 
 func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
-	iconWidth := float32(tyde.Instance().Settings().LauncherIconSize())
 	addButton := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {})
 	addIcon := canvas.NewImageFromResource(theme.ContentAddIcon())
 	addIcon.FillMode = canvas.ImageFillContain
-	addIcon.SetMinSize(fyne.NewSize(iconWidth, iconWidth))
+	addIcon.SetMinSize(fyne.NewSquareSize(32))
 	addItem := container.NewVBox(addIcon, widget.NewLabel("Add Icon"), addButton)
 	orderList := container.NewHBox()
 	d.populateOrderList(orderList, addItem)
@@ -228,44 +226,15 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 
 	bar := container.NewHScroll(orderList)
 
-	iconSize := widget.NewEntry()
-	iconSize.Wrapping = fyne.TextWrapOff
-	iconSize.SetText(strconv.FormatFloat(float64(d.settings.LauncherIconSize()), 'f', 0, 32))
-
-	zoomScale := widget.NewEntry()
-	zoomScale.Wrapping = fyne.TextWrapOff
-	zoomScale.SetText(strconv.FormatFloat(float64(d.settings.LauncherZoomScale()), 'f', 2, 64))
-
-	sizeCell := container.NewHBox(widget.NewLabel("Launcher Icon Size:"), iconSize)
-	zoomCell := container.NewHBox(widget.NewLabel("Launcher Zoom Scale:"), zoomScale)
-
 	disableTaskbar := widget.NewCheck("Disable Taskbar", nil)
 	disableTaskbar.SetChecked(d.settings.LauncherDisableTaskbar())
 
-	disableZoom := widget.NewCheck("Disable Zoom", nil)
-	disableZoom.SetChecked(d.settings.LauncherDisableZoom())
-
 	details := widget.NewCard("Configuration", "",
-		container.NewGridWithColumns(2, sizeCell, zoomCell, disableTaskbar, disableZoom))
+		disableTaskbar)
 
 	applyButton := container.NewHBox(layout.NewSpacer(),
 		&widget.Button{Text: "Apply", Importance: widget.HighImportance, OnTapped: func() {
-			size, err := strconv.Atoi(iconSize.Text)
-			if err != nil {
-				fyne.LogError("error setting launcher icon size", err)
-				size = 32
-			}
-			d.settings.setLauncherIconSize(float32(size))
-
-			scale, err := strconv.ParseFloat(zoomScale.Text, 32)
-			if err != nil {
-				fyne.LogError("Error setting launcher zoom scale", err)
-				scale = 2.0
-			}
-			d.settings.setLauncherZoomScale(float32(scale))
 			d.settings.setLauncherDisableTaskbar(disableTaskbar.Checked)
-			d.settings.setLauncherDisableZoom(disableZoom.Checked)
-
 			d.settings.setLauncherIcons(d.launcherIcons)
 		}})
 
@@ -476,7 +445,8 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 			l := inner.Objects[0].(*widget.RichText)
 			title := cases.Title(language.Make("en")).String(themeList[id])
 			l.ParseMarkdown(fmt.Sprintf("## %s\n\nDescription...", title))
-		})
+		},
+	)
 }
 
 func (w *widgetPanel) showSettings() {

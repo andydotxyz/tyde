@@ -36,7 +36,8 @@ var (
 	}
 
 	// SupportedHints is the complete list of hints that we support
-	SupportedHints = append(AllowedActions, "_NET_ACTIVE_WINDOW",
+	SupportedHints = append(
+		AllowedActions, "_NET_ACTIVE_WINDOW",
 		"_NET_CLIENT_LIST",
 		"_NET_CLIENT_LIST_STACKING",
 		"_NET_CURRENT_DESKTOP",

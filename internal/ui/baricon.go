@@ -176,7 +176,8 @@ func cloneRepo(src *appie.AppSource, path string, done func()) (err error) {
 	w := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
 	w.SetContent(
 		container.NewBorder(nil, widget.NewLabel("Downloading..."), nil, nil,
-			container.NewStack(prop, spin)))
+			container.NewStack(prop, spin)),
+	)
 	spin.Start()
 	w.Show()
 

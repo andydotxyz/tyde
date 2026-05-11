@@ -312,8 +312,8 @@ func (c *client) NotifyMoveResizeEnded() {
 }
 
 func (c *client) NotifyUnFullscreen() {
+	c.frame.unmaximizeApply() // c.full is left true so the size-hint guards are bypassed
 	c.full = false
-	c.frame.unmaximizeApply()
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_FULLSCREEN")
 }
 
@@ -364,7 +364,8 @@ func (c *client) Position() fyne.Position {
 
 	return fyne.NewPos(
 		float32(c.frame.x)/screen.CanvasScale(),
-		float32(c.frame.y)/screen.CanvasScale())
+		float32(c.frame.y)/screen.CanvasScale(),
+	)
 }
 
 func (c *client) Resize(s fyne.Size) {
@@ -384,7 +385,8 @@ func (c *client) Size() fyne.Size {
 
 	return fyne.NewSize(
 		float32(c.frame.width)/screen.CanvasScale(),
-		float32(c.frame.height)/screen.CanvasScale())
+		float32(c.frame.height)/screen.CanvasScale(),
+	)
 }
 
 func (c *client) QueueMoveResizeGeometry(x int, y int, width uint, height uint) {

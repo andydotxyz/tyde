@@ -190,10 +190,10 @@ func windowSizeWithIncrement(x *xgbutil.XUtil, win xproto.Window, width uint16, 
 	}
 
 	if nh.WidthInc > 0 {
-		width = baseWidth + uint16((math.Round(float64(width-baseWidth)/float64(nh.WidthInc)))*float64(nh.WidthInc))
+		width = baseWidth + uint16(math.Round(float64(width-baseWidth)/float64(nh.WidthInc))*float64(nh.WidthInc))
 	}
 	if nh.HeightInc > 0 {
-		height = baseHeight + uint16((math.Round(float64(height-baseHeight)/float64(nh.HeightInc)))*float64(nh.HeightInc))
+		height = baseHeight + uint16(math.Round(float64(height-baseHeight)/float64(nh.HeightInc))*float64(nh.HeightInc))
 	}
 	return width, height
 }

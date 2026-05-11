@@ -89,6 +89,14 @@ func newFrame(c *client) *frame {
 	borderWidth := uint16(wm.ScaleToPixels(wmTheme.BorderWidth, screen))
 	titleHeight := uint16(wm.ScaleToPixels(wmTheme.TitleHeight, screen))
 	if full || maximized {
+		// Remember the original geometry so a later unfullscreen/unmaximize
+		// has somewhere to restore to (NotifyFullscreen/NotifyMaximize is not
+		// called for windows that come up already in this state).
+		c.restoreX = attrs.X
+		c.restoreY = attrs.Y
+		c.restoreWidth = attrs.Width
+		c.restoreHeight = attrs.Height
+
 		activeHead := tyde.Instance().Screens().ScreenForGeometry(int(attrs.X), int(attrs.Y), int(attrs.Width), int(attrs.Height))
 		x = int16(activeHead.X)
 		y = int16(activeHead.Y)
@@ -552,9 +560,13 @@ func (f *frame) hide() {
 }
 
 func (f *frame) maximizeApply() {
-	if windowSizeFixed(f.client.wm.X(), f.client.win) ||
-		!windowSizeCanMaximize(f.client.wm.X(), f.client) {
-		return
+	// Per EWMH, _NET_WM_STATE_FULLSCREEN overrides WM_NORMAL_HINTS size limits,
+	// so only honour the size-hint guards when the request is a maximize.
+	if !f.client.Fullscreened() {
+		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
+			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
+			return
+		}
 	}
 	f.client.restoreWidth = f.width
 	f.client.restoreHeight = f.height
@@ -657,7 +669,8 @@ func (f *frame) mouseMotion(x, y int16) {
 	}
 
 	refresh := false
-	obj := wm.FindObjectAtPixelPositionMatching(int(relX), int(relY), f.canvas,
+	obj := wm.FindObjectAtPixelPositionMatching(
+		int(relX), int(relY), f.canvas,
 		func(obj fyne.CanvasObject) bool {
 			_, ok := obj.(desktop.Cursorable)
 			if ok {
@@ -771,7 +784,8 @@ func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
 	if uint16(titlebarX) > f.width-f.topRightPixelWidth() && f.canvas != nil {
 		titlebarX = int16(f.canvas.Content().Size().Width*f.canvas.Scale()) - (int16(f.width) - titlebarX)
 	}
-	obj := wm.FindObjectAtPixelPositionMatching(int(titlebarX), int(relY), f.canvas,
+	obj := wm.FindObjectAtPixelPositionMatching(
+		int(titlebarX), int(relY), f.canvas,
 		func(obj fyne.CanvasObject) bool {
 			_, ok := obj.(fyne.Tappable)
 			return ok
@@ -868,7 +882,8 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 
 	fyne.Do(func() {
 		if clickCount == 2 {
-			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+			obj := wm.FindObjectAtPixelPositionMatching(
+				relX, relY, f.canvas,
 				func(obj fyne.CanvasObject) bool {
 					_, ok := obj.(fyne.DoubleTappable)
 					return ok
@@ -878,7 +893,8 @@ func (f *frame) mouseReleaseWaitForDoubleClick(relX int, relY int) {
 				obj.(fyne.DoubleTappable).DoubleTapped(&fyne.PointEvent{})
 			}
 		} else {
-			obj := wm.FindObjectAtPixelPositionMatching(relX, relY, f.canvas,
+			obj := wm.FindObjectAtPixelPositionMatching(
+				relX, relY, f.canvas,
 				func(obj fyne.CanvasObject) bool {
 					_, ok := obj.(fyne.Tappable)
 					return ok
@@ -973,9 +989,13 @@ func (f *frame) topRightPixelWidth() uint16 {
 }
 
 func (f *frame) unmaximizeApply() {
-	if windowSizeFixed(f.client.wm.X(), f.client.win) ||
-		!windowSizeCanMaximize(f.client.wm.X(), f.client) {
-		return
+	// When leaving fullscreen, NotifyUnFullscreen calls this with c.full still
+	// true so we can detect the transition and bypass the maximize guards.
+	if !f.client.Fullscreened() {
+		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
+			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
+			return
+		}
 	}
 	if f.client.restoreWidth == 0 && f.client.restoreHeight == 0 {
 		screen := tyde.Instance().Screens().ScreenForWindow(f.client)
