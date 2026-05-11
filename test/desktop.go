@@ -16,6 +16,7 @@ type Desktop struct {
 	icons    appie.Provider
 	screens  tyde.ScreenList
 	wm       tyde.WindowManager
+	modules  []tyde.Module
 }
 
 // NewDesktop returns a new in-memory desktop instance
@@ -76,8 +77,13 @@ func (td *Desktop) RecentApps() []appie.AppData {
 }
 
 // Modules returns the list of modules currently loaded (by default no modules for this implementation)
-func (*Desktop) Modules() []tyde.Module {
-	return nil
+func (td *Desktop) Modules() []tyde.Module {
+	return td.modules
+}
+
+// SetModules allows tests to override the modules returned by Modules().
+func (td *Desktop) SetModules(mods []tyde.Module) {
+	td.modules = mods
 }
 
 // Root returns the root window, this is an in-memory test Fyne window
