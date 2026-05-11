@@ -18,12 +18,9 @@ import (
 type bar struct {
 	widget.BaseWidget
 
-	desk          tyde.Desktop        // The desktop instance we are holding icons for
-	children      []fyne.CanvasObject // Icons that are laid out by the bar
-	mouseInside   bool                // Is the mouse inside of the bar?
-	mousePosition fyne.Position       // The current coordinates of the mouse cursor
+	desk     tyde.Desktop        // The desktop instance we are holding icons for
+	children []fyne.CanvasObject // Icons that are laid out by the bar
 
-	iconSize       float32
 	disableTaskbar bool
 	icons          []*barIcon
 	separator      *canvas.Rectangle
@@ -150,6 +147,10 @@ func (b *bar) WindowStateChanged(win tyde.Window) {
 	}
 }
 
+func (b *bar) iconSize() float32 {
+	return wmTheme.NarrowBarWidth - theme.Padding()*2
+}
+
 func (b *bar) updateTaskbar() {
 	disableTaskbar := b.desk.Settings().LauncherDisableTaskbar()
 	if disableTaskbar == b.disableTaskbar {
@@ -205,7 +206,7 @@ func (b *bar) updateIcons() {
 }
 
 func (b *bar) appIcon(data appie.AppData) fyne.Resource {
-	return data.Icon(b.desk.Settings().IconTheme(), int(float32(b.iconSize)*b.desk.Screens().Primary().CanvasScale()))
+	return data.Icon(b.desk.Settings().IconTheme(), int(b.iconSize()*b.desk.Screens().Primary().CanvasScale()))
 }
 
 func (b *bar) winIcon(win *appWindow) fyne.Resource {
@@ -254,7 +255,6 @@ func (b *bar) CreateRenderer() fyne.WidgetRenderer {
 func newBar(desk tyde.Desktop) *bar {
 	bar := &bar{desk: desk}
 	bar.ExtendBaseWidget(bar)
-	bar.iconSize = float32(desk.Settings().LauncherIconSize())
 	bar.disableTaskbar = desk.Settings().LauncherDisableTaskbar()
 
 	if wm := desk.WindowManager(); wm != nil {

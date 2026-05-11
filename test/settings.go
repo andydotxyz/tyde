@@ -60,19 +60,6 @@ func (s *Settings) SetLauncherIcons(icons []string) {
 	s.launcherIcons = icons
 }
 
-// LauncherIconSize returns the standard (non-zoomed) icon size for app launcher
-func (s *Settings) LauncherIconSize() float32 {
-	if s.launcherIconSize == 0 {
-		return 32
-	}
-	return s.launcherIconSize
-}
-
-// SetLauncherIconSize allows configuring the icon size in app launcher
-func (s *Settings) SetLauncherIconSize(size float32) {
-	s.launcherIconSize = size
-}
-
 // LauncherDisableTaskbar returns true if the taskbar should be disabled
 func (s *Settings) LauncherDisableTaskbar() bool {
 	return s.launcherDisableTaskbar

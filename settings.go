@@ -11,7 +11,6 @@ type DeskSettings interface {
 	NarrowWidgetPanel() bool
 
 	LauncherIcons() []string
-	LauncherIconSize() float32
 	LauncherDisableTaskbar() bool
 
 	KeyboardModifier() fyne.KeyModifier

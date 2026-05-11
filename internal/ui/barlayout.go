@@ -38,43 +38,19 @@ func (bl *barLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 // For a barLayout this is the width of the widest item and the height is
 // the sum of of all children combined with padding between each.
 func (bl *barLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	barWidth := bl.calculateBarWidth(objects)
+	barWidth := bl.calculateBarHeight(objects)
 
 	return fyne.NewSize(wmtheme.NarrowBarWidth, barWidth)
 }
 
-func (bl *barLayout) calculateBarWidth(objects []fyne.CanvasObject) float32 {
+func (bl *barLayout) calculateBarHeight(objects []fyne.CanvasObject) float32 {
 	iconCount := float32(len(objects))
 	if !bl.bar.disableTaskbar {
 		iconCount--
-		return (iconCount * (bl.bar.iconSize + theme.Padding())) + separatorWidth
+		return (iconCount * (bl.bar.iconSize() + theme.Padding())) + separatorWidth
 	}
 
-	return iconCount * (bl.bar.iconSize + theme.Padding())
-}
-
-func (bl *barLayout) layoutFullBar(size fyne.Size, icons []fyne.CanvasObject) (x float32) {
-	offset := float32(0.0)
-	barWidth := bl.calculateBarWidth(icons)
-	barLeft := (size.Width - barWidth) / 2
-	iconLeft := barLeft
-
-	for _, child := range icons {
-		if _, ok := child.(*canvas.Rectangle); ok {
-			child.Resize(fyne.NewSize(separatorWidth, bl.bar.iconSize))
-		} else {
-			child.Resize(fyne.NewSize(bl.bar.iconSize, bl.bar.iconSize))
-		}
-
-		if _, ok := child.(*canvas.Rectangle); ok {
-			iconLeft += separatorWidth
-		} else {
-			iconLeft += bl.bar.iconSize
-		}
-		iconLeft += theme.Padding()
-	}
-
-	return barLeft - offset
+	return iconCount * (bl.bar.iconSize() + theme.Padding())
 }
 
 func (bl *barLayout) layoutNarrowBar(icons []fyne.CanvasObject) {

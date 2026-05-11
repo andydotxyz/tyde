@@ -621,7 +621,6 @@ func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.updateBackgrounds(s.Background())
 	l.widgets.reloadModules(l.Modules())
 
-	l.bar.iconSize = l.Settings().LauncherIconSize()
 	l.bar.updateIcons()
 	l.bar.updateIconOrder()
 	l.bar.updateTaskbar()

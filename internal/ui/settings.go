@@ -45,10 +45,6 @@ func (d *deskSettings) LauncherIcons() []string {
 	return d.launcherIcons
 }
 
-func (d *deskSettings) LauncherIconSize() float32 {
-	return d.launcherIconSize
-}
-
 func (d *deskSettings) LauncherDisableTaskbar() bool {
 	return d.launcherDisableTaskbar
 }
