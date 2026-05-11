@@ -46,9 +46,7 @@ func (c *clientProperties) Icon() fyne.Resource {
 		return c.iconCache
 	}
 
-	settings := tyde.Instance().Settings()
-	iconSize := int(settings.LauncherIconSize())
-	xIcon := windowIcon(c.c.wm.X(), c.c.win, iconSize, iconSize)
+	xIcon := windowIcon(c.c.wm.X(), c.c.win, 64, 64)
 	if xIcon == nil {
 		return nil
 	}
