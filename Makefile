@@ -12,7 +12,7 @@ build:
 
 install:
 	install -Dm00755 tyde_runner $(DESTDIR)$(PREFIX)/bin/tyde_runner
-	install -Dm00755 tyde_runner $(DESTDIR)$(PREFIX)/bin/tyde_ctl
+	install -Dm00755 tyde_ctl $(DESTDIR)$(PREFIX)/bin/tyde_ctl
 	install -Dm00755 tyde $(DESTDIR)$(PREFIX)/bin/tyde
 	install -Dm00644 tyde.desktop $(DESTDIR)$(PREFIX)/share/xsessions/tyde.desktop
 
