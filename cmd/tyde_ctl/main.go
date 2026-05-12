@@ -17,7 +17,7 @@ func main() {
 
 	client, err := rpc.Dial("unix", frpc.SocketPath())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to connect to fynedesk:", err)
+		fmt.Fprintln(os.Stderr, "failed to connect to tyde:", err)
 		os.Exit(1)
 	}
 	defer client.Close()
@@ -45,39 +45,24 @@ func main() {
 }
 
 func printHelp() {
-	fmt.Print(`fynedesk_ctl - command line interface for FyneDesk
+	fmt.Print(`tyde_ctl - command line interface for Tyde
 
 Usage:
-  fynedesk_ctl <command> [args...]
-  fynedesk_ctl list
-  fynedesk_ctl help
+  tyde_ctl <command> [args...]
+  tyde_ctl list
+  tyde_ctl help
 
-Commands are passed to FyneDesk's launch suggestion modules, the same
+Commands are passed to Tyde's launch suggestion modules, the same
 way text typed into the app launcher is processed.
 
 Examples:
-  fynedesk_ctl brightness up       Increase screen brightness
-  fynedesk_ctl brightness 50       Set brightness to 50%
-  fynedesk_ctl big Hello World     Show "Hello World" in large type
-  fynedesk_ctl 2+2                 Evaluate expression
+  tyde_ctl brightness up       Increase screen brightness
+  tyde_ctl brightness 50       Set brightness to 50%
+  tyde_ctl big Hello World     Show "Hello World" in large type
+  tyde_ctl 2+2                 Evaluate expression
 
 Built-in commands:
   list    Show loaded suggestion modules
   help    Show this help message
 `)
-
-	client, err := rpc.Dial("unix", frpc.SocketPath())
-	if err != nil {
-		return
-	}
-	defer client.Close()
-
-	var modules []string
-	if err := client.Call("Service.ListModules", "", &modules); err != nil {
-		return
-	}
-	fmt.Println("Loaded modules:")
-	for _, m := range modules {
-		fmt.Println("  -", m)
-	}
 }

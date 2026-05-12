@@ -16,12 +16,12 @@ import (
 
 func TestSocketPath_XDGRuntime(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
-	assert.Equal(t, "/run/user/1000/fynedesk.sock", SocketPath())
+	assert.Equal(t, "/run/user/1000/tyde.sock", SocketPath())
 }
 
 func TestSocketPath_Fallback(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", "")
-	expected := "/tmp/fynedesk-" + strconv.Itoa(os.Getuid()) + ".sock"
+	expected := "/tmp/tyde-" + strconv.Itoa(os.Getuid()) + ".sock"
 	assert.Equal(t, expected, SocketPath())
 }
 

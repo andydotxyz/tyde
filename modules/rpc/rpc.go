@@ -60,9 +60,9 @@ var rpcMeta = tyde.ModuleMetadata{
 func SocketPath() string {
 	dir := os.Getenv("XDG_RUNTIME_DIR")
 	if dir != "" {
-		return filepath.Join(dir, "fynedesk.sock")
+		return filepath.Join(dir, "tyde.sock")
 	}
-	return "/tmp/fynedesk-" + strconv.Itoa(os.Getuid()) + ".sock"
+	return "/tmp/tyde-" + strconv.Itoa(os.Getuid()) + ".sock"
 }
 
 type rpcModule struct {
