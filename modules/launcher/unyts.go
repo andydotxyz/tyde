@@ -87,5 +87,10 @@ func (r *unytResult) Title() string {
 }
 
 func (r *unytResult) Launch() {
-	_ = exec.Command("unyts", "-c", r.conversion).Run()
+	cmd := exec.Command("unyts", "-c", r.conversion)
+	if err := cmd.Start(); err != nil {
+		fyne.LogError("Failed to launch unyts", err)
+		return
+	}
+	go func() { _ = cmd.Wait() }()
 }
