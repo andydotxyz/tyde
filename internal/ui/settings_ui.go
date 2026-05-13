@@ -453,13 +453,7 @@ func (w *widgetPanel) showSettings() {
 	if w.settings != nil {
 		w.settings.CenterOnScreen()
 		w.settings.Show()
-
-		for _, win := range w.desk.WindowManager().Windows() {
-			if win.Properties().Title() == w.settings.Title() {
-				w.desk.WindowManager().RaiseToTop(win)
-				break
-			}
-		}
+		w.settings.(deskDriver.Window).RequestAlwaysOnTop()
 		return
 	}
 

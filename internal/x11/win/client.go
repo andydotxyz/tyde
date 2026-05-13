@@ -77,6 +77,16 @@ func (c *client) MarkDestroyed() {
 	}
 }
 
+// Reframe replaces the current frame with a freshly-built one. This is the
+// same path NotifyUnIconify uses to bring a minimised window back: a brand-new
+// frame X11 window is created, the inner client is reparented into it, and
+// it's shown + themed + geometry-notified. The previous frame is orphaned
+// (not destroyed) to avoid Destroy/Reparent event churn racing with the
+// in-flight MapRequest that triggered the restore.
+func (c *client) Reframe() {
+	c.newFrame()
+}
+
 func (c *client) Close() {
 	winProtos, err := icccm.WmProtocolsGet(c.wm.X(), c.win)
 	if err != nil {

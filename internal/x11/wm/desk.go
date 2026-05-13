@@ -904,6 +904,19 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 	// reparented — just map it. This avoids re-framing a window when
 	// frame.show() maps the client inside a frame with SubstructureRedirect.
 	if parent != x.x.RootWin() {
+		// If this is a previously-hidden (soft-closed) window being re-shown,
+		// the frame was unmapped and the client removed from the live stack
+		// in hideWindow. Re-map the frame and restore the stack entry so it
+		// becomes visible again and behaves like a normal managed window.
+		if c := x.deletedClientForWin(win); c != nil {
+			c.Reframe() // rebuilds the frame from scratch — same path NotifyUnIconify uses
+			x.restoreWindow(c)
+			c.RaiseToTop()
+			c.Focus()
+			windowClientListUpdate(x)
+			windowClientListStackingUpdate(x)
+			return
+		}
 		xproto.MapWindow(x.x.Conn(), win)
 		return
 	}
