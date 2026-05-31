@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	a := app.NewWithID("com.fyshos.fynedesk")
+	a := app.NewWithID("com.fyshos.tyde")
 	a.SetIcon(wmtheme.AppIcon)
 	desk := setupDesktop(a)
 
