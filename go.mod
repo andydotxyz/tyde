@@ -40,7 +40,7 @@ require (
 )
 
 require (
-	fyne.io/systray v1.12.0 // indirect
+	fyne.io/systray v1.12.1 // indirect
 	github.com/ActiveState/termtest/conpty v0.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
@@ -71,3 +71,5 @@ require (
 replace github.com/BurntSushi/xgb => github.com/fyne-io/xgb v0.0.0-20260101193816-5f7669354be2
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20260101194047-3bb9400654c0
+
+replace fyne.io/fyne/v2 => github.com/andydotxyz/fyne/v2 v2.2.0-rc1.0.20260531094943-0d23cff56d7b
