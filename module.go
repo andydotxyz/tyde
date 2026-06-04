@@ -47,6 +47,16 @@ type ScreenAreaModule interface {
 	ScreenAreaWidget() fyne.CanvasObject
 }
 
+// OverlayAreaModule describes a module that can draw over the whole screen
+// ABOVE application windows (but below the bar, widget panel, menus and the
+// mouse cursor). The returned content must be visual-only (non-interactive)
+// so that it does not capture pointer input destined for the windows beneath
+// it - decorative overlays such as desktop pets are the intended use.
+type OverlayAreaModule interface {
+	Module
+	OverlayAreaWidget() fyne.CanvasObject
+}
+
 var modules []ModuleMetadata
 
 // AvailableModules lists all the Tyde modules that were found at runtime.

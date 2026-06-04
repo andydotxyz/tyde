@@ -74,6 +74,7 @@ type desktop struct {
 	bar             *bar
 	widgets         *widgetPanel
 	mouse           fyne.CanvasObject
+	overlayLayer    *overlayLayer // above-windows layer for OverlayAreaModule widgets (primary screen)
 	screenWindows   []*screenWindow
 	primaryWin      *screenWindow
 	desk            int
@@ -495,13 +496,18 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 
 	sw.bg = newBackground()
 
-	// Order: background -> compositor -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
+	// Order: background -> compositor -> overlay modules -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
 	objects := []fyne.CanvasObject{sw.bg}
 
 	// Normal compositor for regular windows below desktop chrome
 	if sw.compositor != nil {
 		objects = append(objects, sw.compositor)
 	}
+
+	// Overlay-area modules (e.g. desktop pets) draw above regular windows but
+	// below the bar, widget panel, fullscreen windows, menus and the cursor.
+	l.overlayLayer = newOverlayLayer(l)
+	objects = append(objects, l.overlayLayer)
 
 	objects = append(objects, l.bar, l.widgets)
 
@@ -519,6 +525,44 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	sw.deskShader = newDeskShader()
 	objects = append(objects, sw.deskShaderBG, sw.deskShader)
 	return container.New(l, objects...)
+}
+
+// overlayLayer is the full-screen, visual-only layer that renders the widgets
+// of any OverlayAreaModule above application windows. It can be rebuilt at
+// runtime (rebuild) so that enabling or disabling such a module takes effect
+// immediately. Wired to the primary screen only.
+type overlayLayer struct {
+	widget.BaseWidget
+	desk    *desktop
+	content *fyne.Container
+}
+
+func newOverlayLayer(d *desktop) *overlayLayer {
+	o := &overlayLayer{desk: d, content: container.NewStack()}
+	o.ExtendBaseWidget(o)
+	o.rebuild()
+	return o
+}
+
+func (o *overlayLayer) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(o.content)
+}
+
+// rebuild repopulates the layer from the currently enabled overlay-area
+// modules. Calling OverlayAreaWidget on a freshly created module instance is
+// what starts it (e.g. a desktop pet's animation loop); previous instances
+// were already torn down via Module.Destroy in clearModuleCache.
+func (o *overlayLayer) rebuild() {
+	var objs []fyne.CanvasObject
+	for _, m := range o.desk.Modules() {
+		if om, ok := m.(tyde.OverlayAreaModule); ok {
+			if w := om.OverlayAreaWidget(); w != nil {
+				objs = append(objs, w)
+			}
+		}
+	}
+	o.content.Objects = objs
+	o.content.Refresh()
 }
 
 // secondaryLayout is a simple layout for non-primary screen windows (no bar/widgets).
@@ -777,6 +821,9 @@ func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.clearModuleCache()
 	l.updateBackgrounds(s.Background())
 	l.widgets.reloadModules(l.Modules())
+	if l.overlayLayer != nil {
+		l.overlayLayer.rebuild()
+	}
 
 	l.bar.updateIcons()
 	l.bar.updateIconOrder()

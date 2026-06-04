@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "fyshos.com/tyde/modules/desktops"
+	_ "fyshos.com/tyde/modules/esheep"
 	_ "fyshos.com/tyde/modules/fyles"
 	_ "fyshos.com/tyde/modules/launcher"
 	_ "fyshos.com/tyde/modules/quaketerm"
