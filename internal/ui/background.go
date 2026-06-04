@@ -14,11 +14,13 @@ import (
 
 type background struct {
 	widget.BaseWidget
+
+	stack *fyne.Container
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
-	c := container.NewStack(b.loadModules()...)
-	return widget.NewSimpleRenderer(c)
+	b.stack = container.NewStack(b.loadModules()...)
+	return widget.NewSimpleRenderer(b.stack)
 }
 
 func (b *background) loadModules() []fyne.CanvasObject {
@@ -36,8 +38,16 @@ func (b *background) loadModules() []fyne.CanvasObject {
 	return objects
 }
 
+// updateBackground rebuilds the background content - the wallpaper and the
+// screen area module overlays.
 func (b *background) updateBackground(_ string) {
-	b.Refresh()
+	if b.stack == nil {
+		b.Refresh()
+		return
+	}
+
+	b.stack.Objects = b.loadModules()
+	b.stack.Refresh()
 }
 
 func loadWallpaper() fyne.CanvasObject {

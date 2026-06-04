@@ -1,5 +1,7 @@
 codeberg.org/sdassow/unyts v0.4.1 h1:nLYkLu0E1tO9+6mKzGFf3aDaV0YSiR2msous9t5LQ0Y=
 codeberg.org/sdassow/unyts v0.4.1/go.mod h1:VlI7KnjFURzz7TQNla4308PgEUt4VVrfYbf0AGiqyoI=
+fyne.io/fyne/v2 v2.7.5-0.20260604095833-51fd5575d290 h1:BNDk4SZ3syzIuPpQGbhfkRZfqxsDiDyry9le+qbsUqE=
+fyne.io/fyne/v2 v2.7.5-0.20260604095833-51fd5575d290/go.mod h1:MEWwWTgsffhd9B79f31GXZLPfnrlXJVavETgNPzrsG0=
 fyne.io/systray v1.12.1 h1:ygBD6aZXwiOmZoY5N+ukbH9pih0Kq6fYgVeMYbr5skQ=
 fyne.io/systray v1.12.1/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
@@ -27,8 +29,6 @@ github.com/FyshOS/saver v0.1.1-0.20260407200543-762135717028 h1:gnZOxK+y64+zaAre
 github.com/FyshOS/saver v0.1.1-0.20260407200543-762135717028/go.mod h1:WvBivsR68hbiahFFjEf5Yzv1chBd/Slo8TRziPgzEOY=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
-github.com/andydotxyz/fyne/v2 v2.2.0-rc1.0.20260531094943-0d23cff56d7b h1:PKG9oE17XhURv0dCL8GoKD8CFuZcnIwTkxkrPAfRInA=
-github.com/andydotxyz/fyne/v2 v2.2.0-rc1.0.20260531094943-0d23cff56d7b/go.mod h1:MEWwWTgsffhd9B79f31GXZLPfnrlXJVavETgNPzrsG0=
 github.com/anthonynsimon/bild v0.13.0 h1:mN3tMaNds1wBWi1BrJq0ipDBhpkooYfu7ZFSMhXt1C8=
 github.com/anthonynsimon/bild v0.13.0/go.mod h1:tpzzp0aYkAsMi1zmfhimaDyX1xjn2OUc1AJZK/TF0AE=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
