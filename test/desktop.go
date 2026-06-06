@@ -130,6 +130,10 @@ func (td *Desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fy
 func (td *Desktop) HideOverlay(content fyne.CanvasObject) {
 }
 
+// RefreshWindowAccessories is a no-op in the test desktop (no compositor).
+func (td *Desktop) RefreshWindowAccessories() {
+}
+
 // WindowManager returns the window manager for this desktop, an in-memory test instance unless
 // configured through the constructor
 func (td *Desktop) WindowManager() tyde.WindowManager {

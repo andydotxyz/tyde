@@ -3,6 +3,8 @@ package esheep
 import (
 	"math/rand"
 	"testing"
+
+	wmtest "fyshos.com/tyde/test"
 )
 
 // floorWorld is a simple play area with just the screen floor.
@@ -51,7 +53,7 @@ func TestSupportLostWhenWindowMovesAway(t *testing.T) {
 	}
 	// 50 units above any surface => unsupported.
 	if s := w.supportAt(400, 550, snapTol); s != nil {
-		t.Fatalf("expected no support in mid-air, got %+v", s)
+		t.Fatalf("expected no win in mid-air, got %+v", s)
 	}
 }
 
@@ -214,6 +216,36 @@ func TestSheepTurnsAndKeepsFootingOnWindow(t *testing.T) {
 	}
 	if turns < 5 {
 		t.Fatalf("expected the sheep to turn at the window edges repeatedly, got %d", turns)
+	}
+}
+
+// TestSupportZLevelFollowsSurface verifies the sheep keeps a reference to the
+// window it is standing on while walking and hopping (so the compositor draws it
+// at that window's z-level and higher windows occlude it), and that only a fresh
+// fall from the sky detaches that reference (drawn on top).
+func TestSupportZLevelFollowsSurface(t *testing.T) {
+	rng := rand.New(rand.NewSource(9))
+	win := wmtest.NewWindow("w")
+	w := floorWorld(800, 600)
+	w.ledges = append(w.ledges, ledge{y: 300, x0: 200, x1: 400, win: win})
+
+	s := &sheep{x: 300, y: 300 - spriteSize, facing: 1, state: stateWalking}
+	s.timer = 1e6 // suppress behaviour changes so we isolate win tracking
+	s.advance(frameDur, w, rng)
+	if s.win != win {
+		t.Fatalf("a walking sheep should anchor to its window, got %v", s.win)
+	}
+
+	// Hopping happens on the surface, so it stays at the window's z-level.
+	s.startHop(rng)
+	if s.win != win {
+		t.Fatalf("a hopping sheep should stay anchored to its window, got %v", s.win)
+	}
+
+	// A fresh fall from above is not yet on any window => drawn on top.
+	s.launchFromTop(w, rng, false)
+	if s.win != nil {
+		t.Fatalf("a sky drop should draw on top (nil support), got %v", s.win)
 	}
 }
 

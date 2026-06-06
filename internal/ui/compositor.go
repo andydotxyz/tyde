@@ -40,6 +40,12 @@ type CompositorWidget struct {
 	Screen *tyde.Screen // the screen this widget renders on
 	mu     sync.RWMutex
 	images []*WindowImage // Fyne draw order: first = bottom, last = top
+
+	// accessories are decorative objects (e.g. desktop pets) drawn just above
+	// the window image with the given frame id. accessoriesTop are drawn above
+	// all windows. The objects are owned and positioned by their module.
+	accessories    map[uint32][]fyne.CanvasObject
+	accessoriesTop []fyne.CanvasObject
 }
 
 // NewCompositorWidget creates a new compositor widget for the given screen.
@@ -89,6 +95,16 @@ func (cw *CompositorWidget) RemoveWindow(id uint32) {
 			return
 		}
 	}
+}
+
+// SetAccessories sets the decorative objects to interleave among the windows:
+// byWindow[id] is drawn just above the window with that frame id, and top is
+// drawn above all windows. It does not by itself repaint - call Refresh after.
+func (cw *CompositorWidget) SetAccessories(byWindow map[uint32][]fyne.CanvasObject, top []fyne.CanvasObject) {
+	cw.mu.Lock()
+	cw.accessories = byWindow
+	cw.accessoriesTop = top
+	cw.mu.Unlock()
 }
 
 // TopImage returns the image of the topmost window, or nil if empty.
@@ -165,8 +181,9 @@ func (r *compositorRenderer) Refresh() {
 		scale = r.widget.Screen.CanvasScale()
 	}
 
-	objs := make([]fyne.CanvasObject, len(r.widget.images))
-	for i, wi := range r.widget.images {
+	seen := make(map[uint32]bool, len(r.widget.images))
+	objs := make([]fyne.CanvasObject, 0, len(r.widget.images))
+	for _, wi := range r.widget.images {
 		// Swap back→front: pick up the latest frame from the compositor.
 		if wi.Pending.Load() {
 			if back := wi.Back.Load(); back != nil {
@@ -177,8 +194,22 @@ func (r *compositorRenderer) Refresh() {
 
 		wi.Img.Move(fyne.NewPos(float32(wi.X)/scale, float32(wi.Y)/scale))
 		wi.Img.Resize(fyne.NewSize(float32(wi.W)/scale, float32(wi.H)/scale))
-		objs[i] = wi.Img
+		objs = append(objs, wi.Img)
+
+		// Decorations sitting on this window are drawn directly above it (and so
+		// below any window stacked higher).
+		seen[wi.ID] = true
+		objs = append(objs, r.widget.accessories[wi.ID]...)
 	}
+
+	// Accessories anchored to a window no longer present fall back to the top so
+	// they are not lost mid-frame, followed by the always-on-top accessories.
+	for id, objsForWin := range r.widget.accessories {
+		if !seen[id] {
+			objs = append(objs, objsForWin...)
+		}
+	}
+	objs = append(objs, r.widget.accessoriesTop...)
 
 	// Update the stable container's objects in place — never replace the container itself.
 	r.cont.Objects = objs

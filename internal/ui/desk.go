@@ -817,6 +817,19 @@ func (l *desktop) scaleVars(scale float32) []string {
 	}
 }
 
+// AccessoryRefresher is installed by the platform compositor so that
+// RefreshWindowAccessories can ask it to re-assemble WindowAccessoryModule
+// items. It is nil before the compositor starts (and in embedded mode).
+var AccessoryRefresher func()
+
+// RefreshWindowAccessories asks the compositor to re-pull and re-stack the
+// WindowAccessoryModule items (see modules implementing that interface).
+func (l *desktop) RefreshWindowAccessories() {
+	if AccessoryRefresher != nil {
+		AccessoryRefresher()
+	}
+}
+
 func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.clearModuleCache()
 	l.updateBackgrounds(s.Background())
@@ -824,6 +837,7 @@ func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	if l.overlayLayer != nil {
 		l.overlayLayer.rebuild()
 	}
+	l.RefreshWindowAccessories() // pick up enabling/disabling of accessory modules
 
 	l.bar.updateIcons()
 	l.bar.updateIconOrder()

@@ -4,34 +4,32 @@
 // another - a tribute to the 1990s eSheep desktop mate.
 package esheep
 
-import (
-	"fyne.io/fyne/v2"
-
-	"fyshos.com/tyde"
-)
+import "fyshos.com/tyde"
 
 var esheepMeta = tyde.ModuleMetadata{
 	Name:        "eSheep",
 	NewInstance: newESheep,
 }
 
-// esheep is the module instance. It owns a herd that is started lazily when the
-// overlay widget is first requested by the desktop.
+// esheep is the module instance. It owns a herd and exposes the sheep to the
+// compositor as window accessories so they stack at the z-level of the window
+// each one walks on.
 type esheep struct {
 	herd *herd
 }
 
 func newESheep() tyde.Module {
-	return &esheep{herd: newHerd()}
+	e := &esheep{herd: newHerd()}
+	e.herd.start()
+	return e
 }
 
 func (e *esheep) Metadata() tyde.ModuleMetadata { return esheepMeta }
 
-// OverlayAreaWidget returns the full-screen, visual-only layer the sheep are
-// drawn into and starts the simulation.
-func (e *esheep) OverlayAreaWidget() fyne.CanvasObject {
-	e.herd.start()
-	return e.herd.container
+// WindowAccessories returns the live sheep as decorations anchored to the
+// windows they stand on (see herd.WindowAccessories).
+func (e *esheep) WindowAccessories() []tyde.WindowAccessory {
+	return e.herd.WindowAccessories()
 }
 
 func (e *esheep) Destroy() {

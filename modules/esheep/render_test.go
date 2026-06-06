@@ -6,10 +6,10 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-// TestHerdRenderSmoke drives the full step+render path (without the ticker /
-// fyne.Do, which a unit test cannot run) to ensure the canvas reconciliation -
-// adding sheep, swapping animation frames and spawning/removing daisies - never
-// panics and actually produces drawable objects.
+// TestHerdRenderSmoke drives the full step+image-update path (without the ticker
+// fyne.Do, which a unit test cannot run) to ensure image reconciliation -
+// creating sheep, swapping animation frames and spawning daisies - never panics
+// and yields drawable accessories.
 func TestHerdRenderSmoke(t *testing.T) {
 	test.NewApp()
 
@@ -28,11 +28,11 @@ func TestHerdRenderSmoke(t *testing.T) {
 		for _, s := range h.sheep {
 			s.advance(frameDur, h.world, h.rng)
 		}
-		h.render()
+		h.updateImages()
 	}
 
-	if len(h.container.Objects) == 0 {
-		t.Fatal("expected sheep to be drawn into the container")
+	if len(h.WindowAccessories()) == 0 {
+		t.Fatal("expected sheep to be reported as window accessories")
 	}
 }
 

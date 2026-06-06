@@ -5,6 +5,8 @@ import (
 	"math/rand"
 
 	"fyne.io/fyne/v2/canvas"
+
+	"fyshos.com/tyde"
 )
 
 // Simulation constants, all in canvas units and seconds.
@@ -62,10 +64,11 @@ type sheep struct {
 	wantDaisy  bool
 	daisyX     float32
 	daisyY     float32
-	daisyState int     // index into the daisy plant frames while eating (0 = full)
-	requestHop bool    // herd sets this to make the sheep hop (e.g. over a neighbour)
-	hopCD      float32 // seconds remaining before this sheep may hop again
-	doomed     bool    // this fall will end in a splat
+	daisyState int         // index into the daisy plant frames while eating (0 = full)
+	requestHop bool        // herd sets this to make the sheep hop (e.g. over a neighbour)
+	hopCD      float32     // seconds remaining before this sheep may hop again
+	doomed     bool        // this fall will end in a splat
+	win        tyde.Window // window the sheep currently stands on (nil = floor/airborne => drawn on top)
 
 	img   *canvas.Image
 	daisy *canvas.Image
@@ -159,6 +162,7 @@ func (s *sheep) advanceAir(dt float32, w *world, rng *rand.Rand) {
 		if l := w.landing(s.centerX(), prevFeet, s.feet()); l != nil {
 			s.y = l.y - spriteSize
 			s.vx, s.vy = 0, 0
+			s.win = l.win // draw at this surface's z-level from now on
 			if s.doomed {
 				s.splat()
 			} else {
@@ -184,13 +188,16 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 	sup := w.supportAt(s.centerX(), s.feet(), snapTol)
 	if sup == nil {
 		// The surface vanished (window moved/closed): start falling. A short
-		// fall like this is never fatal.
+		// fall like this is never fatal. Keep the window so the sheep
+		// stays at that z-level as it falls (and is occluded by higher windows)
+		// until it lands somewhere new.
 		s.state = stateFalling
 		s.vx, s.vy = 0, 0
 		s.doomed = false
 		s.frame, s.frameTime = 0, 0
 		return
 	}
+	s.win = sup.win
 	s.y = sup.y - spriteSize
 	s.x += float32(s.facing) * walkSpeed * dt
 
@@ -207,6 +214,8 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 		// Reached the end of a window border: usually turn back, occasionally
 		// step off.
 		if rng.Float32() < fallOffOdds {
+			// Step off the edge: keep the window so the sheep stays at
+			// that z-level (occluded by higher windows) until it lands.
 			s.state = stateFalling
 			s.vx = float32(s.facing) * 12
 			s.vy = 0
@@ -273,6 +282,9 @@ func (s *sheep) startHop(rng *rand.Rand) {
 	s.state = stateJumping
 	s.vy = -jumpSpeedY
 	s.vx = float32(s.facing) * jumpSpeedX
+	// Keep the current window: a hop happens on (or just above) the
+	// surface the sheep is standing on, so it stays at that window's z-level and
+	// is still occluded by windows above it - unlike a fall from the sky.
 	s.frame, s.frameTime = 0, 0
 	s.hopCD = hopCooldown + rng.Float32()*2
 }
@@ -286,6 +298,7 @@ func (s *sheep) launchFromTop(w *world, rng *rand.Rand, canDie bool) {
 	s.vx, s.vy = 0, 0
 	s.facing = 0
 	s.state = stateFalling
+	s.win = nil // airborne => drawn on top
 	s.frame, s.frameTime = 0, 0
 	s.doomed = canDie && rng.Float32() < deathOdds
 }

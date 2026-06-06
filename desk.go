@@ -25,6 +25,7 @@ type Desktop interface {
 	ShowMenuAt(menu *fyne.Menu, pos fyne.Position)
 	ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position)
 	HideOverlay(content fyne.CanvasObject)
+	RefreshWindowAccessories() // ask the compositor to re-assemble WindowAccessoryModule items
 	Root() fyne.Window
 
 	Desktop() int

@@ -6,7 +6,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
+
+	"fyshos.com/tyde"
 )
 
 const (
@@ -23,14 +24,15 @@ const (
 	redropMax = 16.0
 )
 
-// herd owns the simulation: the live sheep, the canvas container they draw
-// into, and the ticker goroutine that drives them.
+// herd owns the simulation: the live sheep, the canvas images they animate and
+// the ticker goroutine that drives them. The images are handed to the
+// compositor as WindowAccessory items (see WindowAccessories) so they stack at
+// the z-level of the window each sheep stands on.
 type herd struct {
-	container *fyne.Container
-	poses     *poses
-	rng       *rand.Rand
-	world     *world
-	sheep     []*sheep
+	poses *poses
+	rng   *rand.Rand
+	world *world
+	sheep []*sheep
 
 	redropTimer float32
 
@@ -40,10 +42,9 @@ type herd struct {
 
 func newHerd() *herd {
 	return &herd{
-		container: container.NewWithoutLayout(),
-		poses:     sheepPoses(),
-		rng:       rand.New(rand.NewSource(time.Now().UnixNano())),
-		done:      make(chan struct{}),
+		poses: sheepPoses(),
+		rng:   rand.New(rand.NewSource(time.Now().UnixNano())),
+		done:  make(chan struct{}),
 	}
 }
 
@@ -100,7 +101,8 @@ func (h *herd) loop() {
 	}
 }
 
-// step advances every sheep one timestep and redraws them.
+// step advances every sheep one timestep, updates their images and asks the
+// compositor to re-stack them at their windows' z-levels.
 func (h *herd) step() {
 	h.world = buildWorld()
 	h.maybeRedrop()
@@ -108,7 +110,27 @@ func (h *herd) step() {
 	for _, s := range h.sheep {
 		s.advance(frameDur, h.world, h.rng)
 	}
-	h.render()
+	h.updateImages()
+	if inst := tyde.Instance(); inst != nil {
+		inst.RefreshWindowAccessories()
+	}
+}
+
+// WindowAccessories returns the live sheep (and any daisy plants) as decorations
+// anchored to the window each one stands on. Dead/gone sheep are omitted so the
+// compositor drops them.
+func (h *herd) WindowAccessories() []tyde.WindowAccessory {
+	var acc []tyde.WindowAccessory
+	for _, s := range h.sheep {
+		if s.state == stateGone || s.img == nil {
+			continue
+		}
+		acc = append(acc, tyde.WindowAccessory{Object: s.img, Window: s.win})
+		if s.wantDaisy && s.daisy != nil {
+			acc = append(acc, tyde.WindowAccessory{Object: s.daisy, Window: s.win})
+		}
+	}
+	return acc
 }
 
 // maybeRedrop occasionally sends a grounded sheep back above the screen so it
@@ -161,17 +183,14 @@ func (h *herd) detectHops() {
 }
 
 // render reconciles each sheep's logical state with its canvas objects. Must be
-// called on the main goroutine (it is, via fyne.Do in loop).
-func (h *herd) render() {
+// called on the main goroutine (it is, via fyne.Do in loop). The compositor owns
+// parenting of the images; here we only create/position/animate them. Membership
+// (which images are drawn, and at what z-level) is reported by WindowAccessories.
+func (h *herd) updateImages() {
 	for _, s := range h.sheep {
 		frames := s.currentFrames(h.poses)
 		if len(frames) == 0 {
-			// Dead and gone: hide the sprite until it respawns.
-			if s.img != nil {
-				s.img.Hide()
-			}
-			h.renderDaisy(s)
-			continue
+			continue // dead and gone: omitted from WindowAccessories
 		}
 		img := frames[s.frame%len(frames)]
 
@@ -179,42 +198,32 @@ func (h *herd) render() {
 			s.img = canvas.NewImageFromImage(img)
 			s.img.ScaleMode = canvas.ImageScalePixels
 			s.img.Resize(fyne.NewSize(spriteSize, spriteSize))
-			h.container.Add(s.img)
 		} else if s.img.Image != img {
 			s.img.Image = img
 			s.img.Refresh()
 		}
-		if !s.img.Visible() {
-			s.img.Show()
-		}
 		s.img.Move(fyne.NewPos(s.x, s.y))
 
-		h.renderDaisy(s)
+		h.updateDaisy(s)
 	}
 }
 
-func (h *herd) renderDaisy(s *sheep) {
-	frames := h.poses.daisies
-	if s.wantDaisy && len(frames) > 0 {
-		state := s.daisyState
-		if state >= len(frames) {
-			state = len(frames) - 1
-		}
-		img := frames[state]
-		if s.daisy == nil {
-			s.daisy = canvas.NewImageFromImage(img)
-			s.daisy.ScaleMode = canvas.ImageScalePixels
-			s.daisy.Resize(fyne.NewSize(daisySize, daisySize))
-			h.container.Add(s.daisy)
-		} else if s.daisy.Image != img {
-			s.daisy.Image = img
-			s.daisy.Refresh()
-		}
-		s.daisy.Move(fyne.NewPos(s.daisyX, s.daisyY))
+func (h *herd) updateDaisy(s *sheep) {
+	if !s.wantDaisy || len(h.poses.daisies) == 0 {
 		return
 	}
-	if s.daisy != nil {
-		h.container.Remove(s.daisy)
-		s.daisy = nil
+	state := s.daisyState
+	if state >= len(h.poses.daisies) {
+		state = len(h.poses.daisies) - 1
 	}
+	img := h.poses.daisies[state]
+	if s.daisy == nil {
+		s.daisy = canvas.NewImageFromImage(img)
+		s.daisy.ScaleMode = canvas.ImageScalePixels
+		s.daisy.Resize(fyne.NewSize(daisySize, daisySize))
+	} else if s.daisy.Image != img {
+		s.daisy.Image = img
+		s.daisy.Refresh()
+	}
+	s.daisy.Move(fyne.NewPos(s.daisyX, s.daisyY))
 }

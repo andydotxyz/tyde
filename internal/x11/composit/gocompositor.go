@@ -197,6 +197,10 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 		})
 	}
 
+	// Let modules' window accessories (e.g. desktop pets) be re-assembled onto
+	// the compositor. Invoked on the main thread by Desktop.RefreshWindowAccessories.
+	ui.AccessoryRefresher = func() { rebuildAccessories(ws) }
+
 	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
 	x11.VisualMoveCallback = func(winID uint32, absX, absY int16, width, height uint16) {
@@ -490,6 +494,52 @@ func (ws *widgets) refreshAll() {
 			ws.screens[i].overlay.Refresh()
 		}
 	})
+}
+
+// rebuildAccessories pulls WindowAccessory items from the enabled modules and
+// stacks them onto the primary screen's normal compositor at the z-level of the
+// window each one sits on (a nil window draws above all windows). It must run on
+// the main (fyne.Do) goroutine; the installed AccessoryRefresher is always
+// invoked from there.
+func rebuildAccessories(ws *widgets) {
+	inst := tyde.Instance()
+	if inst == nil {
+		return
+	}
+
+	byWindow := map[uint32][]fyne.CanvasObject{}
+	var top []fyne.CanvasObject
+	for _, m := range inst.Modules() {
+		am, ok := m.(tyde.WindowAccessoryModule)
+		if !ok {
+			continue
+		}
+		for _, acc := range am.WindowAccessories() {
+			if acc.Object == nil {
+				continue
+			}
+			if xw, ok := acc.Window.(x11.XWin); ok {
+				id := uint32(xw.FrameID())
+				byWindow[id] = append(byWindow[id], acc.Object)
+			} else {
+				top = append(top, acc.Object) // nil/unknown window => above everything
+			}
+		}
+	}
+
+	var primaryName string
+	if p := inst.Screens().Primary(); p != nil {
+		primaryName = p.Name
+	}
+	for i := range ws.screens {
+		sw := &ws.screens[i]
+		if sw.screen != nil && sw.screen.Name == primaryName {
+			sw.normal.SetAccessories(byWindow, top)
+			sw.normal.Refresh()
+		} else {
+			sw.normal.SetAccessories(nil, nil)
+		}
+	}
 }
 
 // intersectsScreen returns whether a rectangle overlaps a screen.

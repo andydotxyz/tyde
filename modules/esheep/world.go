@@ -8,9 +8,10 @@ import (
 // a window or the screen floor. All coordinates are in primary-screen canvas
 // units (the same space as Window.Position()/Size()).
 type ledge struct {
-	y      float32 // height of the walkable surface
-	x0, x1 float32 // horizontal extent [x0, x1]
-	floor  bool    // true for the screen floor (turn at screen edges, never fall off)
+	y      float32     // height of the walkable surface
+	x0, x1 float32     // horizontal extent [x0, x1]
+	floor  bool        // true for the screen floor (turn at screen edges, never fall off)
+	win    tyde.Window // the window this ledge belongs to (nil for the floor)
 }
 
 // world is the per-frame snapshot of walkable surfaces and the play area.
@@ -61,7 +62,7 @@ func buildWorld() *world {
 		if top < 0 || top >= w.height {
 			continue
 		}
-		w.ledges = append(w.ledges, ledge{y: top, x0: pos.X, x1: pos.X + sz.Width})
+		w.ledges = append(w.ledges, ledge{y: top, x0: pos.X, x1: pos.X + sz.Width, win: win})
 	}
 	return w
 }
