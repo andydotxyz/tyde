@@ -51,7 +51,7 @@ type client struct {
 	// Double-buffered capture: the compositor writes to bufs[writeIdx] and
 	// toggles writeIdx on each successful push so that the buffer being
 	// displayed by the renderer is never mutated.
-	bufs     [2]*image.NRGBA
+	bufs     [2]*image.RGBA
 	writeIdx int
 }
 
@@ -394,8 +394,6 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			refreshWindows(conn, ws)
 			allDamage = false
 		}
-
-		conn.Sync()
 	}
 }
 
