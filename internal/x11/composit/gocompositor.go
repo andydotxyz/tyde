@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"github.com/FyshOS/saver"
 
 	"github.com/BurntSushi/xgb"
@@ -670,7 +671,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			if len(ws.screens) > 0 {
 				scale = ws.screens[0].screen.CanvasScale()
 			}
-			roundCorners(img, int(5*scale))
+			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
 		}
 
 		translucency := computeTranslucency(conn, c)
