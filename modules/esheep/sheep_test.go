@@ -135,24 +135,39 @@ func TestDoomedSheepSplatsAndRespawns(t *testing.T) {
 	}
 }
 
-func TestEatingUsesSideOnGrazeFrames(t *testing.T) {
+func TestEatingUsesEatCycleAndRemovesOneFlowerPerChomp(t *testing.T) {
 	p := sheepPoses()
-	// Open phase is the latter part of each bite (timer low) => the mouth-open
-	// (second) graze frame, so the mouth is open as the flower is taken.
-	left := &sheep{state: stateEating, facing: -1, timer: 0}
-	right := &sheep{state: stateEating, facing: 1, timer: 0}
-	if got := left.currentFrames(p); len(got) == 0 || &got[0] != &p.grazeLeft[1] {
-		t.Fatal("left-facing eater (open) should use grazeLeft mouth-open frame")
+	// The eat cycle uses the dedicated eat frames, mirrored by facing.
+	left := &sheep{state: stateEating, facing: -1}
+	right := &sheep{state: stateEating, facing: 1}
+	if got := left.currentFrames(p); len(got) != len(p.eatLeft) || &got[0] != &p.eatLeft[0] {
+		t.Fatal("left-facing eater should use the eatLeft cycle")
 	}
-	if got := right.currentFrames(p); len(got) == 0 || &got[0] != &p.grazeRight[1] {
-		t.Fatal("right-facing eater (open) should use grazeRight mouth-open frame")
+	if got := right.currentFrames(p); &got[0] != &p.eatRight[0] {
+		t.Fatal("right-facing eater should use the eatRight cycle")
 	}
-	// Start of the bite (timer high) => the standing, mouth-closed (first) frame.
-	leftClosed := &sheep{state: stateEating, facing: -1, timer: biteDur}
-	if got := leftClosed.currentFrames(p); len(got) == 0 || &got[0] != &p.grazeLeft[0] {
-		t.Fatal("left-facing eater (closed) should use the standing graze frame")
+
+	// One chomp removes exactly one flower, and it comes off as the head drops to
+	// chew (frame 2), not during the reach (frames 0,1).
+	rng := rand.New(rand.NewSource(1))
+	s := &sheep{state: stateEating, facing: -1, wantDaisy: true}
+	before := s.daisyState
+	for s.daisyState == before {
+		s.advance(frameDur, w0, rng)
+		if s.daisyState == before && s.frame >= 2 {
+			t.Fatal("flower removed too early: head not yet down to chew")
+		}
+	}
+	if s.daisyState != before+1 {
+		t.Fatalf("a chomp should remove exactly one flower: %d -> %d", before, s.daisyState)
+	}
+	if s.frame != 2 {
+		t.Fatalf("flower should come off as the head drops (frame 2), was frame %d", s.frame)
 	}
 }
+
+// w0 is a throwaway floor world for eat-cycle tests (the sheep does not move).
+var w0 = floorWorld(800, 600)
 
 func TestEatingDepletesDaisyThenLeaves(t *testing.T) {
 	rng := rand.New(rand.NewSource(11))
@@ -181,6 +196,81 @@ func TestEatingDepletesDaisyThenLeaves(t *testing.T) {
 	}
 	if s.wantDaisy {
 		t.Fatal("daisy should be gone once eating finished")
+	}
+}
+
+func TestRunningSheepOutpacesWalkAndUsesRunGait(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	w := floorWorld(4000, 600)
+	walk := &sheep{x: 100, y: 600 - spriteSize, facing: 1, state: stateWalking, timer: 1e6}
+	run := &sheep{x: 100, y: 600 - spriteSize, facing: 1, state: stateWalking, timer: 1e6, running: true, runTimer: 1e6}
+
+	for i := 0; i < tickRate; i++ { // ~1s
+		walk.advance(frameDur, w, rng)
+		run.advance(frameDur, w, rng)
+	}
+	if run.x <= walk.x {
+		t.Fatalf("running sheep should outpace a walking one: walk=%.1f run=%.1f", walk.x, run.x)
+	}
+
+	p := sheepPoses()
+	if got := run.currentFrames(p); &got[0] != &p.runRight[0] {
+		t.Fatal("running sheep should use the run gait frames")
+	}
+	if got := walk.currentFrames(p); &got[0] != &p.walkRight[0] {
+		t.Fatal("walking sheep should use the walk gait frames")
+	}
+
+	// A sprint is finite: once its timer runs out the sheep drops back to a walk.
+	run.running, run.runTimer = true, 0.1
+	for i := 0; i < tickRate && run.running; i++ {
+		run.advance(frameDur, w, rng)
+	}
+	if run.running {
+		t.Fatal("sprint should end after its timer expires")
+	}
+}
+
+func TestSleepingSheepNapsThenWakes(t *testing.T) {
+	rng := rand.New(rand.NewSource(13))
+	w := floorWorld(800, 600)
+	s := &sheep{x: 400, y: 600 - spriteSize, facing: -1, state: stateSleeping}
+
+	// It nods off and reaches (and holds on) the deep-sleep frame.
+	for i := 0; i < 30 && s.frame != sleepAsleepFrame; i++ {
+		s.advance(frameDur, w, rng)
+	}
+	if s.state != stateSleeping || s.frame != sleepAsleepFrame {
+		t.Fatalf("sheep never reached the deep-sleep frame; state=%d frame=%d", s.state, s.frame)
+	}
+	// The asleep frame is the head-resting pose, and it does not drift.
+	if got := s.currentFrames(sheepPoses()); &got[s.frame] != &sheepPoses().sleepLeft[sleepAsleepFrame] {
+		t.Fatal("deep sleep should show the asleep frame")
+	}
+
+	// The nap holds for at least sleepHoldMin seconds before the sheep stirs.
+	napStart := s.x
+	naps := 0
+	for s.frame == sleepAsleepFrame && s.state == stateSleeping {
+		s.advance(frameDur, w, rng)
+		naps++
+		if naps > int((sleepHoldMax+5)*tickRate) {
+			t.Fatal("sheep never woke from its nap")
+		}
+	}
+	if napped := float32(naps) * frameDur; napped < sleepHoldMin-frameDur {
+		t.Fatalf("nap too short: %.2fs (want >= %.1fs)", napped, sleepHoldMin)
+	}
+	if s.x != napStart {
+		t.Fatalf("a sleeping sheep should not move: %.1f -> %.1f", napStart, s.x)
+	}
+
+	// It finishes waking and walks off.
+	for i := 0; i < 30 && s.state == stateSleeping; i++ {
+		s.advance(frameDur, w, rng)
+	}
+	if s.state != stateWalking {
+		t.Fatalf("sheep did not wake into a walk; state=%d", s.state)
 	}
 }
 

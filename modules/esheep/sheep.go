@@ -16,7 +16,8 @@ const (
 
 	gravity     = 900.0 // downward acceleration
 	maxFall     = 640.0 // terminal velocity
-	walkSpeed   = 34.0  // horizontal walking speed
+	walkSpeed   = 28.0  // horizontal walking speed
+	runSpeed    = 82.0  // horizontal speed during an occasional sprint
 	jumpSpeedY  = 360.0 // initial upward speed of a hop
 	jumpSpeedX  = 70.0  // horizontal drift while hopping
 	snapTol     = 8.0   // how far a surface may move and still carry the sheep
@@ -29,11 +30,24 @@ const (
 	goneDur  = 1.6 // seconds a dead sheep stays gone before raining down again
 
 	walkFrameDur   = 0.13
+	runFrameDur    = 0.08 // legs cycle faster while sprinting
 	tumbleFrameDur = 0.07
 	splatFrameDur  = 0.35
 
-	biteDur         = 0.5 // seconds per chomp (one daisy eaten per chomp)
+	runDurMin = 1.5 // shortest sprint, seconds
+	runDurMax = 3.5 // longest sprint, seconds
+
+	eatFrameDur     = 0.2 // seconds per frame of the eat cycle
 	daisyStateCount = 5   // daisy plant frames, full -> bare (must match daisyCells)
+
+	// Sleeping: the sheep nods off, naps a while, then wakes the same way in
+	// reverse. The frame indices below address poses.sleepLeft/Right, which is
+	// laid out [nod, deeper-nod, asleep, deeper-nod, nod] (see sprites.go).
+	sleepFrameDur      = 0.45 // seconds per nod-off / wake frame
+	sleepHoldMin       = 5.0  // shortest nap, seconds
+	sleepHoldMax       = 10.0 // longest nap, seconds
+	sleepAsleepFrame   = 2    // index of the deep-sleep (held) frame
+	sleepWakeLastFrame = 4    // last wake frame; past this the sheep is back up
 )
 
 type sheepState int
@@ -43,6 +57,7 @@ const (
 	stateWalking
 	stateSitting
 	stateEating
+	stateSleeping // nodding off, napping, then waking
 	stateJumping
 	stateSplat // landed fatally: showing charred remains
 	stateGone  // dead and hidden, waiting to respawn
@@ -67,6 +82,8 @@ type sheep struct {
 	daisyState int         // index into the daisy plant frames while eating (0 = full)
 	requestHop bool        // herd sets this to make the sheep hop (e.g. over a neighbour)
 	hopCD      float32     // seconds remaining before this sheep may hop again
+	running    bool        // sprinting: moves faster with the run gait
+	runTimer   float32     // seconds left in the current sprint
 	doomed     bool        // this fall will end in a splat
 	win        tyde.Window // window the sheep currently stands on (nil = floor/airborne => drawn on top)
 
@@ -98,23 +115,14 @@ func (s *sheep) advance(dt float32, w *world, rng *rand.Rand) {
 		if s.timer <= 0 {
 			// Start grazing: a fresh, full daisy plant.
 			s.state = stateEating
-			s.timer = biteDur
 			s.daisyState = 0
 			s.frame, s.frameTime = 0, 0
 			s.wantDaisy = true
 		}
 	case stateEating:
-		s.timer -= dt
-		if s.timer <= 0 {
-			if s.daisyState >= daisyStateCount-1 {
-				// The plant is bare - finished eating.
-				s.wantDaisy = false
-				s.beginWalking(rng)
-				return
-			}
-			s.daisyState++ // chomp: one daisy gone
-			s.timer = biteDur
-		}
+		s.advanceEat(dt, rng)
+	case stateSleeping:
+		s.advanceSleep(dt, rng)
 	case stateSplat:
 		s.timer -= dt
 		s.frameTime += dt
@@ -184,6 +192,76 @@ func (s *sheep) splat() {
 	}
 }
 
+// startSleep settles the sheep down for a nap: it nods off, holds the asleep
+// frame for a few seconds, then wakes (see advanceSleep). It keeps its window so
+// it naps at that surface's z-level.
+func (s *sheep) startSleep(rng *rand.Rand) {
+	s.state = stateSleeping
+	s.frame, s.frameTime = 0, 0
+	s.wantDaisy = false
+	if s.facing == 0 {
+		s.facing = -1
+	}
+}
+
+// advanceSleep steps the sleep animation: nod off, nap for sleepHoldMin..Max
+// seconds on the asleep frame, then play the nod frames in reverse and walk off.
+func (s *sheep) advanceSleep(dt float32, rng *rand.Rand) {
+	s.frameTime += dt
+	switch {
+	case s.frame < sleepAsleepFrame:
+		// Eyes drooping shut.
+		if s.frameTime >= sleepFrameDur {
+			s.frameTime = 0
+			s.frame++
+			if s.frame == sleepAsleepFrame {
+				s.timer = sleepHoldMin + rng.Float32()*(sleepHoldMax-sleepHoldMin)
+			}
+		}
+	case s.frame == sleepAsleepFrame:
+		// Napping: hold the asleep frame until the timer runs out.
+		s.timer -= dt
+		if s.timer <= 0 {
+			s.frame++ // start waking
+			s.frameTime = 0
+		}
+	default:
+		// Waking up, replaying the nod frames in reverse, then back on its feet.
+		if s.frameTime >= sleepFrameDur {
+			s.frameTime = 0
+			s.frame++
+			if s.frame > sleepWakeLastFrame {
+				s.beginWalking(rng)
+			}
+		}
+	}
+}
+
+// advanceEat steps the four-frame eat cycle: reach for the plant (frames 0,1),
+// then drop the head to chew (frames 2,3). One flower comes off as the head goes
+// down for each chomp; the sheep walks off once the plant is bare.
+func (s *sheep) advanceEat(dt float32, rng *rand.Rand) {
+	s.frameTime += dt
+	if s.frameTime < eatFrameDur {
+		return
+	}
+	s.frameTime = 0
+	s.frame++
+	switch {
+	case s.frame == 2:
+		// The bite: one daisy gone as the head goes down to chew.
+		s.daisyState++
+	case s.frame >= len(eatCells):
+		// Chomp finished.
+		s.frame = 0
+		if s.daisyState >= daisyStateCount-1 {
+			// The plant is bare - finished eating.
+			s.wantDaisy = false
+			s.beginWalking(rng)
+		}
+	}
+}
+
 func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 	sup := w.supportAt(s.centerX(), s.feet(), snapTol)
 	if sup == nil {
@@ -197,9 +275,20 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 		s.frame, s.frameTime = 0, 0
 		return
 	}
+	if s.running {
+		s.runTimer -= dt
+		if s.runTimer <= 0 {
+			s.running = false
+		}
+	}
+
 	s.win = sup.win
 	s.y = sup.y - spriteSize
-	s.x += float32(s.facing) * walkSpeed * dt
+	speed := float32(walkSpeed)
+	if s.running {
+		speed = runSpeed
+	}
+	s.x += float32(s.facing) * speed * dt
 
 	c := s.centerX()
 	if sup.floor {
@@ -233,9 +322,13 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 		s.facing = -s.facing
 	}
 
-	// Walk-cycle animation.
+	// Walk- (or run-) cycle animation.
+	fd := float32(walkFrameDur)
+	if s.running {
+		fd = runFrameDur
+	}
 	s.frameTime += dt
-	if s.frameTime >= walkFrameDur {
+	if s.frameTime >= fd {
 		s.frameTime = 0
 		s.frame++
 	}
@@ -252,12 +345,18 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 // not constantly bounce around.
 func (s *sheep) chooseBehaviour(rng *rand.Rand) {
 	switch r := rng.Float32(); {
-	case r < 0.34:
-		// Sit down and eat a daisy.
+	case r < 0.08:
+		// Settle down for a nap.
+		s.startSleep(rng)
+	case r < 0.42:
+		// Settle in front of a fresh daisy plant, then eat it (see advanceEat).
+		// The plant appears now, during the brief pause, so it is already there
+		// before the sheep first opens its mouth to bite.
 		s.state = stateSitting
 		s.timer = 0.5 + rng.Float32()*0.4
 		s.frame, s.frameTime = 0, 0
-		s.wantDaisy = false
+		s.wantDaisy = true
+		s.daisyState = 0
 		// Place the daisy plant just in front of the sheep, tucked in slightly so
 		// the snout reaches it without the plant covering the body. The plant is
 		// drawn at daisySize and rests on the ground - see renderDaisy.
@@ -268,10 +367,15 @@ func (s *sheep) chooseBehaviour(rng *rand.Rand) {
 			s.daisyX = s.x + spriteSize - daisyInset
 		}
 		s.daisyY = s.feet() - daisySize
-	case r < 0.40 && s.hopCD <= 0:
+	case r < 0.48 && s.hopCD <= 0:
 		s.startHop(rng)
-	case r < 0.54:
+	case r < 0.62:
 		s.facing = -s.facing
+		s.resetWalkTimer(rng)
+	case r < 0.74:
+		// Break into a sprint for a little while.
+		s.running = true
+		s.runTimer = runDurMin + rng.Float32()*(runDurMax-runDurMin)
 		s.resetWalkTimer(rng)
 	default:
 		s.resetWalkTimer(rng)
@@ -306,6 +410,7 @@ func (s *sheep) launchFromTop(w *world, rng *rand.Rand, canDie bool) {
 // beginWalking settles the sheep into a walk after landing.
 func (s *sheep) beginWalking(rng *rand.Rand) {
 	s.state = stateWalking
+	s.running, s.runTimer = false, 0
 	if s.facing == 0 {
 		s.facing = 1
 		if rng.Float32() < 0.5 {
@@ -333,26 +438,22 @@ func (s *sheep) currentFrames(p *poses) []image.Image {
 	switch s.state {
 	case stateFalling, stateJumping:
 		return p.tumble
+	case stateSleeping:
+		return pick(p.sleepLeft, p.sleepRight)
 	case stateSplat:
 		return p.splat
 	case stateGone:
 		return nil
 	case stateSitting:
-		// First graze frame (head up), facing the daisy.
-		return pick(p.grazeLeft, p.grazeRight)[:1]
+		// Standing over the daisy with mouth closed, before leaning in to bite.
+		return pick(p.walkLeft, p.walkRight)[1:]
 	case stateEating:
-		// Each bite: the head dips and the mouth opens (medium) for the first
-		// part of the chomp, then closes. Both frames share the same feet, so
-		// nothing bobs - only the head and mouth move.
-		// Each bite: stand briefly, then dip the head and open the mouth for the
-		// rest of the chomp, so the mouth is open as the flower is taken (the
-		// daisy is consumed when timer reaches 0).
-		g := pick(p.grazeLeft, p.grazeRight)
-		if s.timer < biteDur*0.65 {
-			return g[1:] // mouth open (head down on the plant) - the bite
-		}
-		return g[:1] // mouth closed (standing) - brief, at the start of the bite
+		// The full eat cycle (reach, bite, chew, chew); s.frame indexes it.
+		return pick(p.eatLeft, p.eatRight)
 	default:
+		if s.running {
+			return pick(p.runLeft, p.runRight)
+		}
 		return pick(p.walkLeft, p.walkRight)
 	}
 }

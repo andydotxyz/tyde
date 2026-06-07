@@ -34,9 +34,13 @@ type poses struct {
 	walkLeft   []image.Image
 	walkRight  []image.Image
 	tumble     []image.Image // a fall
-	grazeLeft  []image.Image // side-on eating bob: head up, then head down with mouth open
-	grazeRight []image.Image
+	eatLeft    []image.Image // side-on eat cycle: reach + bite, then two head-down chew frames
+	eatRight   []image.Image
 	splat      []image.Image // "fall death": front-on, plus-sign eyes, limbs splayed
+	runLeft    []image.Image // faster, longer-strided gait used during a sprint
+	runRight   []image.Image
+	sleepLeft  []image.Image // nod off (eyes droop, then shut), curl up asleep, then wake (reverse)
+	sleepRight []image.Image
 	jumpLeft   image.Image
 	jumpRight  image.Image
 	daisies    []image.Image // daisy plant, most flowers (full) to none (eaten)
@@ -46,10 +50,16 @@ type poses struct {
 // implementation notes). Row 0 is the banner so all rows are >= 1. All sheep
 // poses here face left; right-facing variants are mirrored at load time.
 var (
-	walkLeftCells = []cell{{0, 1}, {2, 1}, {1, 1}, {3, 1}}
+	walkLeftCells = []cell{{2, 1}, {3, 1}} // side-on walk: legs apart, then together
+	runLeftCells  = []cell{{4, 1}, {5, 1}} // side-on run: a faster, longer stride
 	tumbleCells   = []cell{{0, 8}, {4, 8}, {8, 8}, {12, 8}}
-	grazeCells    = []cell{{3, 1}, {5, 3}} // standing mouth-closed, then head-down mouth-open bite; identical feet so only the head/mouth move
-	splatCells    = []cell{{5, 6}}         // front-on KO: plus-sign eyes, legs splayed
+	eatCells      = []cell{{10, 4}, {11, 4}, {12, 4}, {13, 4}} // reach, then bite the plant, then two head-down chew frames
+	splatCells    = []cell{{5, 6}}                             // front-on KO: plus-sign eyes, legs splayed
+	// Falling asleep: the eyes droop then shut while standing. The deep-sleep
+	// frame is the head-resting-on-foreleg pose; waking replays the nod frames in
+	// reverse (see sleepLeft assembly below).
+	sleepNodCells = []cell{{0, 3}, {1, 3}}
+	sleepDeepCell = cell{1, 1}
 	jumpCell      = cell{2, 1}
 	// daisy plant states ordered full -> empty (4,3,2,1,0 flowers); each chomp
 	// advances one frame, and the sheep is done once the plant is bare.
@@ -93,16 +103,27 @@ func sheepPoses() *poses {
 		}
 
 		left := tilesLeft(walkLeftCells)
-		graze := tilesLeft(grazeCells)
+		run := tilesLeft(runLeftCells)
+		eat := tilesLeft(eatCells)
 		jump := tile(jumpCell)
+
+		// Sleep sequence: nod off (eyes droop, then shut), curl up asleep, then
+		// wake by replaying the nod frames in reverse. sleepAsleepFrame indexes the
+		// deep-sleep frame in the middle of this slice (see sheep.go).
+		nod := tilesLeft(sleepNodCells)
+		sleep := []image.Image{nod[0], nod[1], tile(sleepDeepCell), nod[1], nod[0]}
 
 		loadedPoses = &poses{
 			walkLeft:   left,
 			walkRight:  mirror(left),
 			tumble:     tilesLeft(tumbleCells),
-			grazeLeft:  graze,
-			grazeRight: mirror(graze),
+			eatLeft:    eat,
+			eatRight:   mirror(eat),
 			splat:      tilesLeft(splatCells),
+			runLeft:    run,
+			runRight:   mirror(run),
+			sleepLeft:  sleep,
+			sleepRight: mirror(sleep),
 			jumpLeft:   jump,
 			jumpRight:  flipH(jump),
 			daisies:    tilesLeft(daisyCells),

@@ -52,11 +52,11 @@ func TestSpritesSliced(t *testing.T) {
 			t.Fatalf("unexpected frame size %dx%d", b.Dx(), b.Dy())
 		}
 	}
-	if len(p.daisies) == 0 || len(p.tumble) == 0 || len(p.grazeLeft) == 0 || len(p.splat) == 0 {
+	if len(p.daisies) == 0 || len(p.tumble) == 0 || len(p.eatLeft) == 0 || len(p.splat) == 0 {
 		t.Fatal("a required pose is missing")
 	}
-	if len(p.grazeLeft) != len(p.grazeRight) {
-		t.Fatal("mirrored graze frame counts differ")
+	if len(p.eatLeft) != len(p.eatRight) {
+		t.Fatal("mirrored eat frame counts differ")
 	}
 	if len(p.daisies) != daisyStateCount {
 		t.Fatalf("daisy frame count %d does not match daisyStateCount %d", len(p.daisies), daisyStateCount)
