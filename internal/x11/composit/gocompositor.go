@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"github.com/FyshOS/saver"
 
 	"github.com/BurntSushi/xgb"
@@ -51,7 +52,7 @@ type client struct {
 	// Double-buffered capture: the compositor writes to bufs[writeIdx] and
 	// toggles writeIdx on each successful push so that the buffer being
 	// displayed by the renderer is never mutated.
-	bufs     [2]*image.NRGBA
+	bufs     [2]*image.RGBA
 	writeIdx int
 }
 
@@ -398,8 +399,6 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			refreshWindows(conn, ws)
 			allDamage = false
 		}
-
-		conn.Sync()
 	}
 }
 
@@ -722,7 +721,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			if len(ws.screens) > 0 {
 				scale = ws.screens[0].screen.CanvasScale()
 			}
-			roundCorners(img, int(5*scale))
+			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
 		}
 
 		translucency := computeTranslucency(conn, c)

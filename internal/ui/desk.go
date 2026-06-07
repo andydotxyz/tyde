@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 
+	"fyne.io/fyne/v2/theme"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -358,7 +359,8 @@ type backdrop struct {
 }
 
 func (b *backdrop) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+	rad := theme.Size(theme.SizeNameModalBlurRadius)
+	return widget.NewSimpleRenderer(canvas.NewBlur(rad))
 }
 
 func (b *backdrop) Tapped(*fyne.PointEvent) {
