@@ -82,6 +82,10 @@ type desktop struct {
 	deskAnimTargets map[tyde.Window]fyne.Position // where the in-flight animation is heading
 	deskCubeAnim    *fyne.Animation               // drives the 3D cube transition overlay
 	compositorDone  chan struct{}
+
+	// overlayShapes maps each shown overlay to the screen-pixel rectangle it occupies,
+	// so frame input shapes can be made transparent only under the overlay content.
+	overlayShapes map[fyne.CanvasObject]image.Rectangle
 }
 
 func (l *desktop) Desktop() int {
@@ -345,7 +349,7 @@ func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 // inputShaper is implemented by window managers that can update X11 input shapes
 // on the root and frame windows to control which areas receive mouse events.
 type inputShaper interface {
-	SetOverlayActive(active bool)
+	SetOverlayActive(active bool, regions []image.Rectangle)
 }
 
 // backdrop is a full-screen widget that dismisses an overlay on tap or mouse-in
@@ -455,14 +459,54 @@ func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyn
 		overlay.Add(content)
 		overlay.Refresh()
 
-		if is, ok := l.wm.(inputShaper); ok {
-			is.SetOverlayActive(true)
+		if l.overlayShapes == nil {
+			l.overlayShapes = map[fyne.CanvasObject]image.Rectangle{}
 		}
+		l.overlayShapes[content] = l.overlayRegion(pos, size)
+		l.applyOverlayShapes()
 
 		if focus != nil {
 			win.Canvas().Focus(focus)
 		}
 	})
+}
+
+// overlayRegion converts an overlay's canvas position and size into the screen-pixel
+// rectangle it covers on the primary screen. Callers pass the overlay's resting
+// position, so an overlay that animates into place still reports its final area.
+func (l *desktop) overlayRegion(pos fyne.Position, size fyne.Size) image.Rectangle {
+	screen := l.screens.Primary()
+	if screen == nil {
+		return image.Rectangle{}
+	}
+
+	scale := screen.CanvasScale()
+	return image.Rect(
+		screen.X+int(pos.X*scale),
+		screen.Y+int(pos.Y*scale),
+		screen.X+int((pos.X+size.Width)*scale),
+		screen.Y+int((pos.Y+size.Height)*scale),
+	)
+}
+
+// applyOverlayShapes pushes the union of the current overlay rectangles to the window
+// manager, or clears the overlay state when no overlays remain.
+func (l *desktop) applyOverlayShapes() {
+	is, ok := l.wm.(inputShaper)
+	if !ok {
+		return
+	}
+
+	if len(l.overlayShapes) == 0 {
+		is.SetOverlayActive(false, nil)
+		return
+	}
+
+	regions := make([]image.Rectangle, 0, len(l.overlayShapes))
+	for _, r := range l.overlayShapes {
+		regions = append(regions, r)
+	}
+	is.SetOverlayActive(true, regions)
 }
 
 // HideOverlay removes content from the desktop overlay layer.
@@ -473,11 +517,8 @@ func (l *desktop) HideOverlay(content fyne.CanvasObject) {
 		overlay.Remove(content)
 		overlay.Refresh()
 
-		if len(overlay.Objects) == 0 {
-			if is, ok := l.wm.(inputShaper); ok {
-				is.SetOverlayActive(false)
-			}
-		}
+		delete(l.overlayShapes, content)
+		l.applyOverlayShapes()
 	})
 }
 
