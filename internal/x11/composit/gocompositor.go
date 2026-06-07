@@ -37,6 +37,7 @@ type opaqueType string
 type client struct {
 	win          xproto.Window
 	opacity      uint32
+	opacitySet   bool // true if the window has an explicit _NET_WM_WINDOW_OPACITY value
 	opaqueType   opaqueType
 	damaged      bool
 	skipped      bool // Fyne Desktop window or other skipped windows
@@ -85,6 +86,10 @@ const (
 	argb        opaqueType = "ARGB"
 
 	opaque = math.MaxUint32
+
+	// backgroundDim is the translucency applied to background windows that have no explicit opacity.
+	// (see win.defaultBackgroundTransparency).
+	backgroundDim = 0.2
 )
 
 type cookieReply[R any] interface {
@@ -818,13 +823,12 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 		}
 	}
 
-	if !isTop {
-		return 0.2
+	if c.opacitySet {
+		return 1.0 - float64(c.opacity)/float64(opaque)
 	}
 
-	// Check custom opacity
-	if c.opacity != opaque {
-		return 1.0 - float64(c.opacity)/float64(opaque)
+	if !isTop {
+		return backgroundDim
 	}
 
 	return 0.0
@@ -1179,6 +1183,7 @@ func damageClient(conn *xgb.Conn, e *damage.NotifyEvent) error {
 
 func updateOpacity(conn *xgb.Conn, fallback float32, c *client) {
 	opacity, err := getOpacity(conn, c.win)
+	c.opacitySet = err == nil
 	if err != nil {
 		if fallback < 1.0 {
 			opacity = uint32(fallback * float32(opaque))
