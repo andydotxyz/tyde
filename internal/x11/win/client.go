@@ -322,8 +322,10 @@ func (c *client) NotifyMoveResizeEnded() {
 }
 
 func (c *client) NotifyUnFullscreen() {
-	c.frame.unmaximizeApply() // c.full is left true so the size-hint guards are bypassed
+	// Clear fullscreen before re-applying geometry so the border offsets and
+	// decorations are restored; force bypasses the size-hint guards.
 	c.full = false
+	c.frame.unmaximizeApply(true)
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_FULLSCREEN")
 }
 
@@ -340,7 +342,7 @@ func (c *client) NotifyUnIconify() {
 
 func (c *client) NotifyUnMaximize() {
 	c.maximized = false
-	c.frame.unmaximizeApply()
+	c.frame.unmaximizeApply(false)
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_MAXIMIZED_VERT")
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_MAXIMIZED_HORZ")
 }

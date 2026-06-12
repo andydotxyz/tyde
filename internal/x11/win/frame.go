@@ -999,10 +999,10 @@ func (f *frame) topRightPixelWidth() uint16 {
 	return iconAndBorderPix - uint16(theme.Padding()*scale)
 }
 
-func (f *frame) unmaximizeApply() {
-	// When leaving fullscreen, NotifyUnFullscreen calls this with c.full still
-	// true so we can detect the transition and bypass the maximize guards.
-	if !f.client.Fullscreened() {
+func (f *frame) unmaximizeApply(force bool) {
+	// When leaving fullscreen, force is set so we bypass the maximize guards and
+	// always restore the previous geometry, even for fixed-size windows.
+	if !force {
 		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
 			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
 			return
