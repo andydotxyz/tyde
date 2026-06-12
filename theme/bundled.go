@@ -16,6 +16,14 @@ var resourceAirplaneSvg = &fyne.StaticResource{
 	StaticContent: resourceAirplaneSvgData,
 }
 
+//go:embed assets/logo_fade.png
+var resourceLogoFadePngData []byte
+var resourceLogoFadePng = &fyne.StaticResource{
+	StaticName:    "assets/logo_fade.png",
+	StaticContent: resourceLogoFadePngData,
+}
+
+
 //go:embed assets/battery.svg
 var resourceBatterySvgData []byte
 var resourceBatterySvg = &fyne.StaticResource{
@@ -58,11 +66,11 @@ var resourceEthernetSvg = &fyne.StaticResource{
 	StaticContent: resourceEthernetSvgData,
 }
 
-//go:embed assets/fish_onwhite.png
-var resourceFishonwhitePngData []byte
-var resourceFishonwhitePng = &fyne.StaticResource{
-	StaticName:    "assets/fish_onwhite.png",
-	StaticContent: resourceFishonwhitePngData,
+//go:embed assets/fish_logo.png
+var resourceFishLogoPngData []byte
+var resourceFishLogoPng = &fyne.StaticResource{
+	StaticName:    "assets/fish_logo.png",
+	StaticContent: resourceFishLogoPngData,
 }
 
 //go:embed assets/fyne.png
@@ -142,6 +150,13 @@ var resourcePowerSvg = &fyne.StaticResource{
 	StaticContent: resourcePowerSvgData,
 }
 
+//go:embed assets/screens.svg
+var resourceScreensSvgData []byte
+var resourceScreensSvg = &fyne.StaticResource{
+	StaticName:    "assets/screens.svg",
+	StaticContent: resourceScreensSvgData,
+}
+
 //go:embed assets/sound-high.svg
 var resourceSoundHighSvgData []byte
 var resourceSoundHighSvg = &fyne.StaticResource{
@@ -161,6 +176,13 @@ var resourceSoundMidSvgData []byte
 var resourceSoundMidSvg = &fyne.StaticResource{
 	StaticName:    "assets/sound-mid.svg",
 	StaticContent: resourceSoundMidSvgData,
+}
+
+//go:embed assets/wallpaper.svg
+var resourceWallpaperSvgData []byte
+var resourceWallpaperSvg = &fyne.StaticResource{
+	StaticName:    "assets/wallpaper.svg",
+	StaticContent: resourceWallpaperSvgData,
 }
 
 //go:embed assets/wifi.svg

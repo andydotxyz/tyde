@@ -14,6 +14,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -202,6 +203,11 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			overlay: sc.Overlay,
 		})
 	}
+
+	// Receive runtime screen-set changes from the desktop. The list is stashed
+	// and applied from the event loop below so ws.screens stays single-writer.
+	ui.CompositorScreensChanged = ws.setPending
+	defer func() { ui.CompositorScreensChanged = nil }()
 
 	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
@@ -395,6 +401,13 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			}
 		}
 
+		// Pick up any screen-set change handed in from the desktop. A new
+		// screen always brings X events (its root window is mapped) so the
+		// loop wakes promptly; applyPending repopulates it on its own.
+		if ws.applyPending(conn) {
+			repaint = true
+		}
+
 		if allDamage || repaint {
 			refreshTranslucency(conn, ws)
 			refreshWindows(conn, ws)
@@ -452,6 +465,76 @@ type screenWidgets struct {
 // widgets holds per-screen compositor widget pairs.
 type widgets struct {
 	screens []screenWidgets
+
+	// pending holds a screen-widget list handed in from the desktop's main
+	// goroutine when screens change at runtime. It is applied from the
+	// compositor event loop (applyPending) so ws.screens is only ever mutated
+	// by the event-loop goroutine.
+	mu         sync.Mutex
+	pending    []ui.ScreenCompositors
+	hasPending bool
+}
+
+// setPending records a new screen-widget list to be applied by the event loop.
+// Safe to call from any goroutine.
+func (ws *widgets) setPending(comps []ui.ScreenCompositors) {
+	ws.mu.Lock()
+	ws.pending = comps
+	ws.hasPending = true
+	ws.mu.Unlock()
+}
+
+// applyPending reconciles ws.screens with the latest list from the desktop and
+// returns true if the set changed. Existing screens reuse their widgets (so
+// cached window images survive); newly connected screens are repopulated with
+// every currently visible client. Must run on the event-loop goroutine.
+func (ws *widgets) applyPending(conn *xgb.Conn) bool {
+	ws.mu.Lock()
+	if !ws.hasPending {
+		ws.mu.Unlock()
+		return false
+	}
+	comps := ws.pending
+	ws.pending = nil
+	ws.hasPending = false
+	ws.mu.Unlock()
+
+	known := make(map[string]bool, len(ws.screens))
+	for _, sw := range ws.screens {
+		known[sw.screen.Name] = true
+	}
+
+	var next []screenWidgets
+	var added []*screenWidgets
+	for _, sc := range comps {
+		next = append(next, screenWidgets{screen: sc.Screen, normal: sc.Normal, overlay: sc.Overlay})
+		if !known[sc.Screen.Name] {
+			added = append(added, &next[len(next)-1])
+		}
+	}
+	ws.screens = next
+
+	if len(added) == 0 {
+		return true
+	}
+
+	// Populate freshly connected screens with the windows already on display
+	// and force a recapture so their images land in the new widgets.
+	for _, c := range clients {
+		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+		if isFullscreenClient(c) {
+			updateFullscreen(conn, ws, c)
+		} else {
+			ensureWindowOnScreens(ws, c)
+		}
+		c.damaged = true
+	}
+	syncOrder(ws)
+	refreshWindows(conn, ws)
+	ws.refreshAll()
+	return true
 }
 
 // targetFor returns the appropriate widget type name for a client based on fullscreen state.

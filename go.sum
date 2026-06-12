@@ -2,8 +2,12 @@ codeberg.org/sdassow/unyts v0.4.1 h1:nLYkLu0E1tO9+6mKzGFf3aDaV0YSiR2msous9t5LQ0Y
 codeberg.org/sdassow/unyts v0.4.1/go.mod h1:VlI7KnjFURzz7TQNla4308PgEUt4VVrfYbf0AGiqyoI=
 fyne.io/fyne/v2 v2.7.5-0.20260607091156-29dabfaa0200 h1:As0cxGA09FhzYUfncSijs6oKAI1mc5y4pMxIkhCMxJM=
 fyne.io/fyne/v2 v2.7.5-0.20260607091156-29dabfaa0200/go.mod h1:MEWwWTgsffhd9B79f31GXZLPfnrlXJVavETgNPzrsG0=
+fyne.io/fyne/v2 v2.7.5-0.20260611121725-ccd9d3f45998 h1:t9rEs4rXZMTSt80TC4saVmfeSxyiUw3eMeu5kBYaF68=
+fyne.io/fyne/v2 v2.7.5-0.20260611121725-ccd9d3f45998/go.mod h1:+QHmxyt889RWLBt6HjSY04BmnO+IUQClMPkRVKltTyY=
 fyne.io/systray v1.12.1 h1:ygBD6aZXwiOmZoY5N+ukbH9pih0Kq6fYgVeMYbr5skQ=
 fyne.io/systray v1.12.1/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
+fyne.io/systray v1.12.2 h1:Y8DZxgLHsVQt6rY9Zrkkg+j67S7vv/1F2viOWKPpVeA=
+fyne.io/systray v1.12.2/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
 github.com/ActiveState/termtest/conpty v0.5.0/go.mod h1:LO4208FLsxw6DcNZ1UtuGUMW+ga9PFtX4ntv8Ymg9og=
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 h1:w+iIsaOQNcT7OZ575w+acHgRric5iCyQh+xv+KJ4HB8=

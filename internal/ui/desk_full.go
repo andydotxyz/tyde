@@ -24,6 +24,7 @@ func (l *desktop) runFull() {
 	}()
 
 	// Show secondary windows before starting the event loop on primary
+	l.running = true
 	for _, sw := range l.screenWindows {
 		if sw != l.primaryWin {
 			sw.win.Show()

@@ -15,6 +15,7 @@ func (l *desktop) newDesktopWindowEmbed() fyne.Window {
 }
 
 func (l *desktop) runEmbed() {
+	l.running = true
 	l.primaryWin.win.ShowAndRun()
 }
 

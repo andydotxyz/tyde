@@ -59,6 +59,12 @@ type ScreenCompositors struct {
 	Overlay *CompositorWidget
 }
 
+// CompositorScreensChanged is registered by the running compositor so the
+// desktop can hand it an updated per-screen widget list when screens are
+// added, removed or resized at runtime. It is called on the Fyne main
+// goroutine and is nil when no compositor is running.
+var CompositorScreensChanged func([]ScreenCompositors)
+
 type desktop struct {
 	wm.ShortcutHandler
 	app      fyne.App
@@ -77,6 +83,7 @@ type desktop struct {
 	mouse           fyne.CanvasObject
 	screenWindows   []*screenWindow
 	primaryWin      *screenWindow
+	running         bool // true once the run loop has started and windows can be shown directly
 	desk            int
 	deskAnim        *fyne.Animation
 	deskAnimTargets map[tyde.Window]fyne.Position // where the in-flight animation is heading
@@ -611,7 +618,7 @@ func (l *desktop) setupRoot() {
 		existingByName[sw.screen.Name] = sw
 	}
 
-	var newWindows []*screenWindow
+	var newWindows, createdWindows []*screenWindow
 	for _, screen := range l.screens.Screens() {
 		sw := existingByName[screen.Name]
 		if sw != nil {
@@ -647,6 +654,7 @@ func (l *desktop) setupRoot() {
 			} else {
 				win.SetContent(l.createSecondaryContent(sw))
 			}
+			createdWindows = append(createdWindows, sw)
 		}
 
 		newWindows = append(newWindows, sw)
@@ -666,6 +674,24 @@ func (l *desktop) setupRoot() {
 	for _, sw := range l.screenWindows {
 		scale := sw.screen.CanvasScale()
 		sw.win.Resize(fyne.NewSize(float32(sw.screen.Width)/scale, float32(sw.screen.Height)/scale))
+	}
+
+	// At startup runFull/runEmbed shows the windows once the run loop starts.
+	// For screens hot-plugged at runtime the loop is already running, so the
+	// newly created windows must be shown here or they never get mapped.
+	if l.running {
+		for _, sw := range createdWindows {
+			if sw != l.primaryWin {
+				sw.win.Show()
+			}
+		}
+	}
+
+	// Hand the running compositor the current per-screen widgets so windows
+	// drawn on a newly connected screen get composited (and geometry stays in
+	// sync). The initial list is passed to the compositor at startup instead.
+	if CompositorScreensChanged != nil {
+		CompositorScreensChanged(l.screenCompositors())
 	}
 }
 
@@ -880,7 +906,17 @@ func NewDesktop(app fyne.App, mgr tyde.WindowManager, icons appie.Provider, scre
 	if compositorRun != nil {
 		desk.compositorDone = make(chan struct{})
 	}
-	screenProvider.AddChangeListener(desk.setupRoot)
+	// Screen changes arrive on the X11 event goroutine. Once the run loop is
+	// up, the window operations in setupRoot must happen on the Fyne main
+	// goroutine, so marshal them with fyne.Do. Before the loop starts (the
+	// initial call below) we run it directly, as fyne.Do requires a running loop.
+	screenProvider.AddChangeListener(func() {
+		if desk.running {
+			fyne.Do(desk.setupRoot)
+		} else {
+			desk.setupRoot()
+		}
+	})
 	desk.screens = screenProvider
 
 	desk.setupRoot()

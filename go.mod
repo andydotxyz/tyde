@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	codeberg.org/sdassow/unyts v0.4.1
-	fyne.io/fyne/v2 v2.7.5-0.20260607091156-29dabfaa0200
+	fyne.io/fyne/v2 v2.7.5-0.20260611121725-ccd9d3f45998
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
@@ -34,13 +34,14 @@ require github.com/creack/pty v1.1.21 // indirect
 
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
+	github.com/FyshOS/screens v0.0.0-20260610214144-9cfd0d9bedf7
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.22.0
 )
 
 require (
-	fyne.io/systray v1.12.1 // indirect
+	fyne.io/systray v1.12.2 // indirect
 	github.com/ActiveState/termtest/conpty v0.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
@@ -71,3 +72,5 @@ require (
 replace github.com/BurntSushi/xgb => github.com/fyne-io/xgb v0.0.0-20260101193816-5f7669354be2
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20260101194047-3bb9400654c0
+
+replace github.com/FyshOS/screens => ../screens
