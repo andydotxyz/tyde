@@ -9,6 +9,8 @@ import (
 // Settings is a simple struct for managing settings within our tests
 type Settings struct {
 	background             string
+	backgroundFill         string
+	backgroundColor        string
 	iconTheme              string
 	launcherIcons          []string
 	launcherDisableTaskbar bool
@@ -37,6 +39,16 @@ func (s *Settings) Background() string {
 // SetBackground configures a background image path, passing "" removes the configuration
 func (s *Settings) SetBackground(bg string) {
 	s.background = bg
+}
+
+// BackgroundFill returns how the background image should fill the screen.
+func (s *Settings) BackgroundFill() string {
+	return s.backgroundFill
+}
+
+// BackgroundColor returns the color drawn behind the background image, as a hex string.
+func (s *Settings) BackgroundColor() string {
+	return s.backgroundColor
 }
 
 // IconTheme returns the configured icon theme

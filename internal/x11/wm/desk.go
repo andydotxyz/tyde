@@ -6,6 +6,8 @@ package wm // import "fyshos.com/tyde/internal/x11/wm"
 import (
 	"errors"
 	"image"
+	"image/color"
+	"image/draw"
 	"math"
 	"os"
 	"os/exec"
@@ -1119,7 +1121,8 @@ func (x *x11WM) unbindShortcuts(win xproto.Window) {
 }
 
 func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
-	path := tyde.Instance().Settings().Background()
+	settings := tyde.Instance().Settings()
+	path := settings.Background()
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -1130,7 +1133,8 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 				fyne.LogError("Failed to read background image", err)
 			} else {
 				_ = file.Close()
-				return resize.Resize(uint(w), uint(h), img, resize.Lanczos3)
+				return fitBackgroundImage(img, w, h, settings.BackgroundFill(),
+					ui.ParseHexColor(settings.BackgroundColor()))
 			}
 		}
 	}
@@ -1142,6 +1146,43 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 	c.SetScale(1.0)
 	c.Resize(fyne.NewSize(float32(w), float32(h)))
 	return c.Capture()
+}
+
+// fitBackgroundImage scales src into a w*h image according to the chosen fill
+// mode, painting any uncovered area with the given background colour.
+//   - "Fit" preserves aspect ratio and fits the whole image inside the screen.
+//   - "Fill" preserves aspect ratio and covers the screen, cropping overflow.
+//   - "Stretch" (default) scales to the exact screen size, ignoring aspect.
+func fitBackgroundImage(src image.Image, w, h int, fill string, bg color.NRGBA) image.Image {
+	if fill != "Fit" && fill != "Fill" {
+		return resize.Resize(uint(w), uint(h), src, resize.Lanczos3)
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(bg), image.Point{}, draw.Src)
+
+	sb := src.Bounds()
+	sw, sh := sb.Dx(), sb.Dy()
+	if sw == 0 || sh == 0 {
+		return dst
+	}
+
+	// Choose the scale that fits inside (min) or covers (max) the screen.
+	scaleX := float64(w) / float64(sw)
+	scaleY := float64(h) / float64(sh)
+	scale := math.Min(scaleX, scaleY)
+	if fill == "Fill" {
+		scale = math.Max(scaleX, scaleY)
+	}
+
+	dw := uint(math.Round(float64(sw) * scale))
+	dh := uint(math.Round(float64(sh) * scale))
+	scaled := resize.Resize(dw, dh, src, resize.Lanczos3)
+
+	// Centre the scaled image; for "Fill" the overflow is cropped by the draw.
+	offset := image.Pt((w-int(dw))/2, (h-int(dh))/2)
+	draw.Draw(dst, scaled.Bounds().Add(offset), scaled, scaled.Bounds().Min, draw.Over)
+	return dst
 }
 
 func (x *x11WM) updateBackgrounds() {

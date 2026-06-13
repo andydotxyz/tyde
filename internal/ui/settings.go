@@ -15,6 +15,8 @@ import (
 
 type deskSettings struct {
 	background             string
+	backgroundFill         string
+	backgroundColor        string
 	iconTheme              string
 	launcherIcons          []string
 	launcherIconSize       float32
@@ -35,6 +37,14 @@ type deskSettings struct {
 
 func (d *deskSettings) Background() string {
 	return d.background
+}
+
+func (d *deskSettings) BackgroundFill() string {
+	return d.backgroundFill
+}
+
+func (d *deskSettings) BackgroundColor() string {
+	return d.backgroundColor
 }
 
 func (d *deskSettings) IconTheme() string {
@@ -112,6 +122,18 @@ func isModuleEnabled(name string, settings tyde.DeskSettings) bool {
 func (d *deskSettings) setBackground(name string) {
 	d.background = name
 	fyne.CurrentApp().Preferences().SetString("background", d.background)
+	d.apply()
+}
+
+func (d *deskSettings) setBackgroundFill(fill string) {
+	d.backgroundFill = fill
+	fyne.CurrentApp().Preferences().SetString("backgroundfill", d.backgroundFill)
+	d.apply()
+}
+
+func (d *deskSettings) setBackgroundColor(hex string) {
+	d.backgroundColor = hex
+	fyne.CurrentApp().Preferences().SetString("backgroundcolor", d.backgroundColor)
 	d.apply()
 }
 
@@ -197,6 +219,9 @@ func (d *deskSettings) load() {
 	} else {
 		d.background = fyne.CurrentApp().Preferences().String("background")
 	}
+
+	d.backgroundFill = fyne.CurrentApp().Preferences().StringWithFallback("backgroundfill", "Stretch")
+	d.backgroundColor = fyne.CurrentApp().Preferences().StringWithFallback("backgroundcolor", "#000000")
 
 	env = os.Getenv("FYNEDESK_ICONTHEME")
 	if env != "" {

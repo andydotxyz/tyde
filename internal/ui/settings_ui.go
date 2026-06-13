@@ -16,6 +16,7 @@ import (
 
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"github.com/FyshOS/appie"
+	"github.com/FyshOS/backgrounds"
 	"github.com/FyshOS/screens/pkg/screenmanager"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -158,47 +159,100 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 	}
 
 	bgButtons := container.NewHBox(bgPathClear,
-		widget.NewButtonWithIcon("", theme.SearchIcon(), func() {
+		widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() {
 			bgDialog.Show()
 		}))
 
 	// Live preview of the chosen image, rendered inside a monitor surround.
 	screen := canvas.NewImageFromFile("")
 	screen.ScaleMode = canvas.ImageScaleFastest
-	bgPath.OnChanged = func(path string) {
-		if path == "" {
+
+	// Solid colour drawn behind the image, shown wherever it does not cover.
+	screenColor := canvas.NewRectangle(ParseHexColor(d.settings.BackgroundColor()))
+	preview := container.NewCenter(monitorSurround(screen, screenColor))
+
+	// The default wallpaper used by the desktop when no image is configured.
+	set := fyne.CurrentApp().Settings()
+	defaultBg, _ := backgrounds.Default().Load(set.Theme(), set.ThemeVariant()).(*canvas.Image)
+
+	fillSelect := widget.NewSelect(backgroundFillModes, nil)
+
+	refreshPreview := func() {
+		if bgPath.Text == "" {
+			// No image set: mirror the desktop's default wallpaper, which
+			// always covers the screen and ignores the fill/colour options.
 			screen.File = ""
-			screen.Resource = nil
+			if defaultBg != nil {
+				screen.Resource = defaultBg.Resource
+			}
+			screen.FillMode = canvas.ImageFillCover
 		} else {
-			screen.File = path
 			screen.Resource = nil
+			screen.File = bgPath.Text
+			screen.FillMode = backgroundFillMode(fillSelect.Selected)
 		}
 		screen.Refresh()
 	}
-	bgPath.OnChanged(bgPath.Text) // initialise from the current setting
-	preview := container.NewCenter(monitorSurround(screen))
+
+	fillSelect.OnChanged = func(string) { refreshPreview() }
+	fillSelect.SetSelected(d.settings.BackgroundFill())
+	bgPath.OnChanged = func(string) { refreshPreview() }
+	refreshPreview() // initialise from the current setting
+
+	// A small swatch showing the currently selected background colour.
+	colorSwatch := canvas.NewRectangle(screenColor.FillColor)
+	colorSwatch.CornerRadius = theme.Size(theme.SizeNameInputRadius)
+	colorSwatch.SetMinSize(fyne.NewSize(24, 24))
+
+	colorButton := widget.NewButtonWithIcon("Colour", theme.ColorChromaticIcon(), func() {
+		picker := dialog.NewColorPicker("Background colour", "Colour drawn behind the image",
+			func(c color.Color) {
+				screenColor.FillColor = c
+				screenColor.Refresh()
+				colorSwatch.FillColor = c
+				colorSwatch.Refresh()
+			}, d.win)
+		picker.Advanced = true
+		picker.SetColor(screenColor.FillColor)
+		picker.Show()
+	})
+	colorControls := container.NewHBox(container.NewCenter(colorSwatch), colorButton)
+	fillRow := container.NewBorder(nil, nil, widget.NewLabel("Fill"), colorControls, fillSelect)
 
 	applyButton := container.NewHBox(layout.NewSpacer(),
 		&widget.Button{Text: "Apply", Importance: widget.HighImportance, OnTapped: func() {
 			d.settings.setBackground(bgPath.Text)
+			d.settings.setBackgroundFill(fillSelect.Selected)
+			d.settings.setBackgroundColor(HexColor(screenColor.FillColor))
 		}})
 
 	return container.NewBorder(nil, applyButton, nil, nil,
 		widget.NewCard("Background", "",
-			container.NewBorder(container.NewBorder(nil, nil, nil, bgButtons, bgPath),
+			container.NewBorder(
+				container.NewVBox(
+					container.NewBorder(nil, nil, nil, bgButtons, bgPath),
+					fillRow),
 				nil, nil, nil, preview)))
 }
 
 // monitorSurround wraps the given screen image in a simple monitor-shaped frame:
-// a dark bezel around a 16:9 screen area sitting on a small stand.
-func monitorSurround(screen *canvas.Image) fyne.CanvasObject {
+// a dark bezel around the screen area sitting on a small stand. The screen area
+// matches the aspect ratio of the primary display so the preview is faithful.
+func monitorSurround(screen *canvas.Image, screenColor *canvas.Rectangle) fyne.CanvasObject {
 	frameColor := color.NRGBA{R: 0x2b, G: 0x2b, B: 0x2b, A: 0xff}
 
-	screen.SetMinSize(fyne.NewSize(256, 144)) // 16:9
+	const previewHeight = 144
+	previewWidth := float32(previewHeight) * 16.0 / 9.0 // default 16:9
+	if screens := tyde.Instance().Screens(); screens != nil {
+		if primary := screens.Primary(); primary != nil && primary.Height > 0 {
+			previewWidth = float32(previewHeight) * float32(primary.Width) / float32(primary.Height)
+		}
+	}
+	screen.SetMinSize(fyne.NewSize(previewWidth, previewHeight))
 
 	bezel := canvas.NewRectangle(frameColor)
 	bezel.CornerRadius = theme.Size(theme.SizeNameInputRadius)
-	display := container.NewStack(bezel, container.NewPadded(screen))
+	display := container.NewStack(bezel, container.NewPadded(container.NewStack(screenColor, screen)))
 
 	neck := canvas.NewRectangle(frameColor)
 	neck.SetMinSize(fyne.NewSize(28, 14))
