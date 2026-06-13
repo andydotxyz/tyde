@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/draw"
 	"log"
 	"math"
 	"os"
@@ -208,6 +209,13 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 	// and applied from the event loop below so ws.screens stays single-writer.
 	ui.CompositorScreensChanged = ws.setPending
 	defer func() { ui.CompositorScreensChanged = nil }()
+
+	// Let the desktop synthesise the cube's rolling face for a desktop that has
+	// never been on screen by reading its windows' pixmaps directly.
+	ui.CompositorWindowSnapshot = func(screen *tyde.Screen, offsetY int) image.Image {
+		return snapshotWindows(conn, screen, offsetY)
+	}
+	defer func() { ui.CompositorWindowSnapshot = nil }()
 
 	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
@@ -817,6 +825,77 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			}
 		})
 	}
+}
+
+// snapshotWindows composes the windows of the desktop offsetY pixels from the
+// current viewport into a transparent RGBA image the size of the screen, by
+// reading each mapped client's content pixmap directly. offsetY is the same
+// pixel slide SetDesktop applies when switching (negative to reveal a desktop
+// further down). Because every mapped window keeps a composite-redirected
+// pixmap regardless of position, this works even for a desktop that has never
+// been on screen — which is exactly when the cube has no live capture to roll
+// in. Pinned windows live on every desktop, so they are drawn at their current
+// position without the offset. The bar, widget panel and wallpaper are the
+// caller's concern; this returns windows on a transparent background.
+//
+// Called on the Fyne main goroutine via the ui.CompositorWindowSnapshot hook.
+// The clients slice is copied first so a concurrent add/remove in the event
+// loop can't corrupt the iteration; reads of per-client geometry remain
+// best-effort, matching the existing main-thread access in VisualMoveCallback.
+func snapshotWindows(conn *xgb.Conn, screen *tyde.Screen, offsetY int) image.Image {
+	if conn == nil || screen == nil || screen.Width <= 0 || screen.Height <= 0 {
+		return nil
+	}
+
+	cs := make([]*client, len(clients))
+	copy(cs, clients)
+
+	out := image.NewRGBA(image.Rect(0, 0, screen.Width, screen.Height))
+	scale := screen.CanvasScale()
+
+	// clients is top-first, so draw back-to-front for correct stacking.
+	for i := len(cs) - 1; i >= 0; i-- {
+		c := cs[i]
+		if c == nil || c.skipped || c.fullscreened {
+			continue
+		}
+		if c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+
+		off := offsetY
+		w := wmWindow(c)
+		if w != nil && w.Pinned() {
+			off = 0 // pinned windows appear on every desktop
+		}
+
+		if c.pixmap == 0 {
+			pixmap, err := xproto.NewPixmapId(conn)
+			if err != nil {
+				continue
+			}
+			if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
+				continue
+			}
+			c.pixmap = pixmap
+		}
+
+		totalW := c.geom.Width + c.geom.BorderWidth*2
+		totalH := c.geom.Height + c.geom.BorderWidth*2
+		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, c.opaqueType == argb, nil)
+		if img == nil {
+			continue
+		}
+		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
+			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
+		}
+
+		dstX := int(c.geom.X) - screen.X
+		dstY := int(c.geom.Y) - screen.Y + off
+		draw.Draw(out, image.Rect(dstX, dstY, dstX+int(totalW), dstY+int(totalH)),
+			img, image.Point{}, draw.Over)
+	}
+	return out
 }
 
 func checkPending(c *client, ws *widgets) (uint32, bool, bool) {

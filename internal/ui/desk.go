@@ -65,6 +65,14 @@ type ScreenCompositors struct {
 // goroutine and is nil when no compositor is running.
 var CompositorScreensChanged func([]ScreenCompositors)
 
+// CompositorWindowSnapshot is registered by the running compositor so the
+// desktop can build the cube's rolling face for a desktop it has never captured
+// live. It renders that desktop's windows — the one offsetY pixels from the
+// current viewport, matching SetDesktop's slide — into a transparent RGBA image
+// for the given screen. It is called on the Fyne main goroutine and is nil when
+// no compositor is running.
+var CompositorWindowSnapshot func(screen *tyde.Screen, offsetY int) image.Image
+
 type desktop struct {
 	wm.ShortcutHandler
 	app      fyne.App
@@ -250,7 +258,14 @@ func (l *desktop) startDeskCube(old, id int) {
 
 		to := sw.deskSnapshots[id]
 		if to == nil {
-			to = from // never visited: the roll reveals the live desktop at the end
+			// Never captured live: synthesise the face from the compositor's
+			// window pixmaps over the wallpaper. Falls back to the current frame
+			// only if that isn't available.
+			if face := l.synthesizeDeskFace(sw, old, id); face != nil {
+				to = face
+			} else {
+				to = from
+			}
 		}
 
 		// desk0 is the lower-numbered (upper) desktop, desk1 the higher one, so
@@ -303,6 +318,34 @@ func (l *desktop) startDeskCube(old, id int) {
 	a.Curve = fyne.AnimationLinear
 	l.deskCubeAnim = a
 	a.Start()
+}
+
+// synthesizeDeskFace builds a best-effort image of desktop id for the cube's
+// rolling face when no live capture of it exists yet: that desktop's windows,
+// read straight from the compositor, drawn over the shared wallpaper. The bar
+// and widget panel are omitted; the real desktop, with full chrome, is revealed
+// when the roll completes (and cached for next time, so this is only ever the
+// first roll onto a given desktop). Returns nil if the compositor or wallpaper
+// pieces aren't available, leaving the caller to fall back to the current frame.
+func (l *desktop) synthesizeDeskFace(sw *screenWindow, old, id int) image.Image {
+	snap := CompositorWindowSnapshot
+	if snap == nil || sw.screen == nil {
+		return nil
+	}
+
+	_, height := l.RootSizePixels()
+	wins := snap(sw.screen, (id-old)*-int(height))
+	if wins == nil {
+		return nil
+	}
+
+	b := wins.Bounds()
+	face := renderWallpaper(b.Dx(), b.Dy())
+	if face == nil {
+		face = image.NewRGBA(b)
+	}
+	draw.Draw(face, face.Bounds(), wins, b.Min, draw.Over)
+	return face
 }
 
 func (l *desktop) ShowSettings() {

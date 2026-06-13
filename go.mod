@@ -36,6 +36,7 @@ require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
 	github.com/FyshOS/screens v0.0.0-20260610214144-9cfd0d9bedf7
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
+	golang.org/x/image v0.24.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/text v0.22.0
 )
@@ -64,7 +65,6 @@ require (
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
-	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
