@@ -34,6 +34,9 @@ import (
 
 const unmaximizeThreshold = 84
 
+// defaultBackgroundTransparency is the default background opacity.
+const defaultBackgroundTransparency = 20
+
 type frame struct {
 	x, y                                int16
 	width, height                       uint16
@@ -57,6 +60,7 @@ type frame struct {
 	pendingGeometry chan *configureGeometry
 	pendingMu       sync.Mutex
 	transparency    int
+	transparencySet bool
 	closed          atomic.Bool
 
 	canvas test.WindowlessCanvas
@@ -750,6 +754,13 @@ func (f *frame) lookupResizeCursor(x, y int16) xproto.Cursor {
 
 func (f *frame) mousePress(x, y int16, b xproto.Button, mods uint16) {
 	if b >= xproto.ButtonIndex4 && mods > 0 {
+		if !f.transparencySet {
+			f.transparencySet = true
+			if !f.client.Focused() {
+				f.transparency = defaultBackgroundTransparency
+			}
+		}
+
 		f.transparency -= 5
 		if b == xproto.ButtonIndex5 {
 			f.transparency += 10
@@ -988,10 +999,10 @@ func (f *frame) topRightPixelWidth() uint16 {
 	return iconAndBorderPix - uint16(theme.Padding()*scale)
 }
 
-func (f *frame) unmaximizeApply() {
-	// When leaving fullscreen, NotifyUnFullscreen calls this with c.full still
-	// true so we can detect the transition and bypass the maximize guards.
-	if !f.client.Fullscreened() {
+func (f *frame) unmaximizeApply(force bool) {
+	// When leaving fullscreen, force is set so we bypass the maximize guards and
+	// always restore the previous geometry, even for fixed-size windows.
+	if !force {
 		if windowSizeFixed(f.client.wm.X(), f.client.win) ||
 			!windowSizeCanMaximize(f.client.wm.X(), f.client) {
 			return

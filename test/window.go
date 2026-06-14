@@ -68,6 +68,10 @@ func (w *Window) Iconify() {
 func (w *Window) MarkDestroyed() {
 }
 
+// Reframe would rebuild the frame X11 window, we do nothing for tests
+func (w *Window) Reframe() {
+}
+
 // Maximize simulates this window becoming maximized
 func (w *Window) Maximize() {
 	w.maximized = true

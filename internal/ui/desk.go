@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"image"
 	"image/color"
+	"image/draw"
 	"math"
 	"os/exec"
 	"strconv"
 
+	"fyne.io/fyne/v2/theme"
 	"github.com/FyshOS/appie"
 
 	"fyne.io/fyne/v2"
@@ -33,6 +36,19 @@ type screenWindow struct {
 	compositorOverlay *CompositorWidget
 	bg                *background
 	overlay           *fyne.Container
+
+	// deskShaderBG is a black rectangle drawn directly behind deskShader so the
+	// transparent area around the cube reads as empty rather than letting the
+	// live desktop show through. Shown and hidden together with deskShader.
+	deskShaderBG *canvas.Rectangle
+	// deskShader is a full-window overlay that plays the 3D cube transition
+	// between virtual desktops. It is hidden except while a switch is animating.
+	deskShader *canvas.Shader
+	// deskSnapshots caches the last seen frame of each virtual desktop, keyed by
+	// desktop id, so a switch can show the target desktop on the rolling face.
+	// Only genuine captures are stored here, never derived images, so an entry
+	// always faithfully represents that desktop.
+	deskSnapshots map[int]image.Image
 }
 
 // ScreenCompositors groups the compositor widgets for a single screen,
@@ -42,6 +58,20 @@ type ScreenCompositors struct {
 	Normal  *CompositorWidget
 	Overlay *CompositorWidget
 }
+
+// CompositorScreensChanged is registered by the running compositor so the
+// desktop can hand it an updated per-screen widget list when screens are
+// added, removed or resized at runtime. It is called on the Fyne main
+// goroutine and is nil when no compositor is running.
+var CompositorScreensChanged func([]ScreenCompositors)
+
+// CompositorWindowSnapshot is registered by the running compositor so the
+// desktop can build the cube's rolling face for a desktop it has never captured
+// live. It renders that desktop's windows — the one offsetY pixels from the
+// current viewport, matching SetDesktop's slide — into a transparent RGBA image
+// for the given screen. It is called on the Fyne main goroutine and is nil when
+// no compositor is running.
+var CompositorWindowSnapshot func(screen *tyde.Screen, offsetY int) image.Image
 
 type desktop struct {
 	wm.ShortcutHandler
@@ -61,10 +91,16 @@ type desktop struct {
 	mouse           fyne.CanvasObject
 	screenWindows   []*screenWindow
 	primaryWin      *screenWindow
+	running         bool // true once the run loop has started and windows can be shown directly
 	desk            int
 	deskAnim        *fyne.Animation
 	deskAnimTargets map[tyde.Window]fyne.Position // where the in-flight animation is heading
+	deskCubeAnim    *fyne.Animation               // drives the 3D cube transition overlay
 	compositorDone  chan struct{}
+
+	// overlayShapes maps each shown overlay to the screen-pixel rectangle it occupies,
+	// so frame input shapes can be made transparent only under the overlay content.
+	overlayShapes map[fyne.CanvasObject]image.Rectangle
 }
 
 func (l *desktop) Desktop() int {
@@ -72,6 +108,12 @@ func (l *desktop) Desktop() int {
 }
 
 func (l *desktop) SetDesktop(id int) {
+	old := l.desk
+	if id != old {
+		// Roll the 3D cube over the top while the windows below slide into place.
+		l.startDeskCube(old, id)
+	}
+
 	diff := id - l.desk
 	prevTargets := l.deskAnimTargets
 
@@ -145,6 +187,167 @@ func (l *desktop) SetDesktop(id int) {
 	a.Start()
 }
 
+// newDeskShader builds the hidden full-window cube transition overlay. All
+// screens share the same shader source (and therefore the compiled program),
+// each driving its own captured desktop faces.
+func newDeskShader() *canvas.Shader {
+	s := canvas.NewShader("tydeDeskCube", cubeShaderGL, cubeShaderES)
+	s.Uniforms = map[string]float32{"progress": 0}
+	s.Hide()
+	return s
+}
+
+// newDeskShaderBG builds the hidden black backdrop drawn behind the cube overlay.
+func newDeskShaderBG() *canvas.Rectangle {
+	r := canvas.NewRectangle(color.Black)
+	r.Hide()
+	return r
+}
+
+// captureOpaque grabs the canvas content as a fully opaque RGBA image.
+//
+// Canvas().Capture() reads the GL framebuffer with glReadPixels. The default
+// framebuffer's alpha channel is not meaningful and commonly reads back as zero,
+// so the raw capture has correct colour but zero alpha. Uploaded as a shader
+// texture that samples straight through, the face renders transparent (it looks
+// "missing"). Copying into a fresh RGBA and forcing every alpha byte to 255
+// yields a guaranteed-opaque snapshot, and the concrete *image.RGBA type also
+// takes the painter's fast texture-upload path.
+func captureOpaque(c fyne.Canvas) image.Image {
+	src := c.Capture()
+	if src == nil {
+		return nil
+	}
+
+	b := src.Bounds()
+	out := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	draw.Draw(out, out.Bounds(), src, b.Min, draw.Src)
+	for i := 3; i < len(out.Pix); i += 4 {
+		out.Pix[i] = 0xff
+	}
+	return out
+}
+
+// startDeskCube begins the 3D cube transition from desktop old to id. For each
+// screen it captures the current desktop as the front face and uses the cached
+// snapshot of the target desktop (or the current frame, first time) as the face
+// rolling in, then animates the shader's progress uniform. The overlay covers
+// the screen, so the window slide driven by SetDesktop happens unseen beneath
+// it and the live target desktop is revealed when the roll completes.
+func (l *desktop) startDeskCube(old, id int) {
+	if l.deskCubeAnim != nil {
+		l.deskCubeAnim.Stop()
+		l.deskCubeAnim = nil
+	}
+
+	var shaders []*canvas.Shader
+	var bgs []*canvas.Rectangle
+	for _, sw := range l.screenWindows {
+		if sw.deskShader == nil || sw.win == nil {
+			continue
+		}
+		if sw.deskSnapshots == nil {
+			sw.deskSnapshots = make(map[int]image.Image)
+		}
+
+		from := captureOpaque(sw.win.Canvas())
+		if from == nil {
+			continue
+		}
+		sw.deskSnapshots[old] = from
+
+		to := sw.deskSnapshots[id]
+		if to == nil {
+			// Never captured live: synthesise the face from the compositor's
+			// window pixmaps over the wallpaper. Falls back to the current frame
+			// only if that isn't available.
+			if face := l.synthesizeDeskFace(sw, old, id); face != nil {
+				to = face
+			} else {
+				to = from
+			}
+		}
+
+		// desk0 is the lower-numbered (upper) desktop, desk1 the higher one, so
+		// the roll direction matches the vertical window slide.
+		if id > old {
+			sw.deskShader.Textures = map[string]image.Image{"desk0": from, "desk1": to}
+		} else {
+			sw.deskShader.Textures = map[string]image.Image{"desk0": to, "desk1": from}
+		}
+		sw.deskShaderBG.Show()
+		sw.deskShader.Show()
+		shaders = append(shaders, sw.deskShader)
+		bgs = append(bgs, sw.deskShaderBG)
+	}
+
+	if len(shaders) == 0 {
+		return
+	}
+
+	// Going to a higher desktop rolls forward (0->1); going back rolls in reverse.
+	start, end := float32(0), float32(1)
+	if id < old {
+		start, end = 1, 0
+	}
+
+	var a *fyne.Animation
+	a = fyne.NewAnimation(canvas.DurationStandard, func(f float32) {
+		if l.deskCubeAnim != a {
+			return // superseded by a newer transition
+		}
+
+		p := start + (end-start)*f
+		for _, s := range shaders {
+			s.Uniforms["progress"] = p
+			s.Refresh()
+		}
+
+		if f >= 1.0 {
+			l.deskCubeAnim = nil
+			for _, s := range shaders {
+				s.Hide()
+			}
+			for _, b := range bgs {
+				if b != nil {
+					b.Hide()
+				}
+			}
+		}
+	})
+	a.Curve = fyne.AnimationLinear
+	l.deskCubeAnim = a
+	a.Start()
+}
+
+// synthesizeDeskFace builds a best-effort image of desktop id for the cube's
+// rolling face when no live capture of it exists yet: that desktop's windows,
+// read straight from the compositor, drawn over the shared wallpaper. The bar
+// and widget panel are omitted; the real desktop, with full chrome, is revealed
+// when the roll completes (and cached for next time, so this is only ever the
+// first roll onto a given desktop). Returns nil if the compositor or wallpaper
+// pieces aren't available, leaving the caller to fall back to the current frame.
+func (l *desktop) synthesizeDeskFace(sw *screenWindow, old, id int) image.Image {
+	snap := CompositorWindowSnapshot
+	if snap == nil || sw.screen == nil {
+		return nil
+	}
+
+	_, height := l.RootSizePixels()
+	wins := snap(sw.screen, (id-old)*-int(height))
+	if wins == nil {
+		return nil
+	}
+
+	b := wins.Bounds()
+	face := renderWallpaper(b.Dx(), b.Dy())
+	if face == nil {
+		face = image.NewRGBA(b)
+	}
+	draw.Draw(face, face.Bounds(), wins, b.Min, draw.Over)
+	return face
+}
+
 func (l *desktop) ShowSettings() {
 	l.widgets.showSettings()
 }
@@ -196,7 +399,7 @@ func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
 // inputShaper is implemented by window managers that can update X11 input shapes
 // on the root and frame windows to control which areas receive mouse events.
 type inputShaper interface {
-	SetOverlayActive(active bool)
+	SetOverlayActive(active bool, regions []image.Rectangle)
 }
 
 // backdrop is a full-screen widget that dismisses an overlay on tap or mouse-in
@@ -209,7 +412,8 @@ type backdrop struct {
 }
 
 func (b *backdrop) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+	rad := theme.Size(theme.SizeNameModalBlurRadius)
+	return widget.NewSimpleRenderer(canvas.NewBlur(rad))
 }
 
 func (b *backdrop) Tapped(*fyne.PointEvent) {
@@ -305,14 +509,54 @@ func (l *desktop) showOverlay(content fyne.CanvasObject, size fyne.Size, pos fyn
 		overlay.Add(content)
 		overlay.Refresh()
 
-		if is, ok := l.wm.(inputShaper); ok {
-			is.SetOverlayActive(true)
+		if l.overlayShapes == nil {
+			l.overlayShapes = map[fyne.CanvasObject]image.Rectangle{}
 		}
+		l.overlayShapes[content] = l.overlayRegion(pos, size)
+		l.applyOverlayShapes()
 
 		if focus != nil {
 			win.Canvas().Focus(focus)
 		}
 	})
+}
+
+// overlayRegion converts an overlay's canvas position and size into the screen-pixel
+// rectangle it covers on the primary screen. Callers pass the overlay's resting
+// position, so an overlay that animates into place still reports its final area.
+func (l *desktop) overlayRegion(pos fyne.Position, size fyne.Size) image.Rectangle {
+	screen := l.screens.Primary()
+	if screen == nil {
+		return image.Rectangle{}
+	}
+
+	scale := screen.CanvasScale()
+	return image.Rect(
+		screen.X+int(pos.X*scale),
+		screen.Y+int(pos.Y*scale),
+		screen.X+int((pos.X+size.Width)*scale),
+		screen.Y+int((pos.Y+size.Height)*scale),
+	)
+}
+
+// applyOverlayShapes pushes the union of the current overlay rectangles to the window
+// manager, or clears the overlay state when no overlays remain.
+func (l *desktop) applyOverlayShapes() {
+	is, ok := l.wm.(inputShaper)
+	if !ok {
+		return
+	}
+
+	if len(l.overlayShapes) == 0 {
+		is.SetOverlayActive(false, nil)
+		return
+	}
+
+	regions := make([]image.Rectangle, 0, len(l.overlayShapes))
+	for _, r := range l.overlayShapes {
+		regions = append(regions, r)
+	}
+	is.SetOverlayActive(true, regions)
 }
 
 // HideOverlay removes content from the desktop overlay layer.
@@ -323,11 +567,8 @@ func (l *desktop) HideOverlay(content fyne.CanvasObject) {
 		overlay.Remove(content)
 		overlay.Refresh()
 
-		if len(overlay.Objects) == 0 {
-			if is, ok := l.wm.(inputShaper); ok {
-				is.SetOverlayActive(false)
-			}
-		}
+		delete(l.overlayShapes, content)
+		l.applyOverlayShapes()
 	})
 }
 
@@ -365,6 +606,11 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	// UI overlay for menus, dialogs, switcher, notifications
 	sw.overlay = container.NewWithoutLayout()
 	objects = append(objects, sw.overlay, l.mouse)
+
+	// Desktop transition cube, topmost so it covers the whole screen while playing.
+	sw.deskShaderBG = newDeskShaderBG()
+	sw.deskShader = newDeskShader()
+	objects = append(objects, sw.deskShaderBG, sw.deskShader)
 	return container.New(l, objects...)
 }
 
@@ -399,6 +645,10 @@ func (l *desktop) createSecondaryContent(sw *screenWindow) fyne.CanvasObject {
 
 	sw.overlay = container.NewWithoutLayout()
 	objects = append(objects, sw.overlay)
+
+	sw.deskShaderBG = newDeskShaderBG()
+	sw.deskShader = newDeskShader()
+	objects = append(objects, sw.deskShaderBG, sw.deskShader)
 	return container.New(&secondaryLayout{}, objects...)
 }
 
@@ -411,7 +661,7 @@ func (l *desktop) setupRoot() {
 		existingByName[sw.screen.Name] = sw
 	}
 
-	var newWindows []*screenWindow
+	var newWindows, createdWindows []*screenWindow
 	for _, screen := range l.screens.Screens() {
 		sw := existingByName[screen.Name]
 		if sw != nil {
@@ -447,6 +697,7 @@ func (l *desktop) setupRoot() {
 			} else {
 				win.SetContent(l.createSecondaryContent(sw))
 			}
+			createdWindows = append(createdWindows, sw)
 		}
 
 		newWindows = append(newWindows, sw)
@@ -466,6 +717,24 @@ func (l *desktop) setupRoot() {
 	for _, sw := range l.screenWindows {
 		scale := sw.screen.CanvasScale()
 		sw.win.Resize(fyne.NewSize(float32(sw.screen.Width)/scale, float32(sw.screen.Height)/scale))
+	}
+
+	// At startup runFull/runEmbed shows the windows once the run loop starts.
+	// For screens hot-plugged at runtime the loop is already running, so the
+	// newly created windows must be shown here or they never get mapped.
+	if l.running {
+		for _, sw := range createdWindows {
+			if sw != l.primaryWin {
+				sw.win.Show()
+			}
+		}
+	}
+
+	// Hand the running compositor the current per-screen widgets so windows
+	// drawn on a newly connected screen get composited (and geometry stays in
+	// sync). The initial list is passed to the compositor at startup instead.
+	if CompositorScreensChanged != nil {
+		CompositorScreensChanged(l.screenCompositors())
 	}
 }
 
@@ -680,7 +949,17 @@ func NewDesktop(app fyne.App, mgr tyde.WindowManager, icons appie.Provider, scre
 	if compositorRun != nil {
 		desk.compositorDone = make(chan struct{})
 	}
-	screenProvider.AddChangeListener(desk.setupRoot)
+	// Screen changes arrive on the X11 event goroutine. Once the run loop is
+	// up, the window operations in setupRoot must happen on the Fyne main
+	// goroutine, so marshal them with fyne.Do. Before the loop starts (the
+	// initial call below) we run it directly, as fyne.Do requires a running loop.
+	screenProvider.AddChangeListener(func() {
+		if desk.running {
+			fyne.Do(desk.setupRoot)
+		} else {
+			desk.setupRoot()
+		}
+	})
 	desk.screens = screenProvider
 
 	desk.setupRoot()

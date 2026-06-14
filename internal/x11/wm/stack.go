@@ -119,6 +119,38 @@ func (s *stack) clientForWin(id xproto.Window) x11.XWin {
 	return nil
 }
 
+// deletedClientForWin looks up a previously-removed client by frame or child
+// window id. It is used to detect a soft-hidden window being re-shown so the
+// WM can restore its stack entry instead of treating it as a fresh window.
+func (s *stack) deletedClientForWin(id xproto.Window) x11.XWin {
+	for _, w := range s.deleted {
+		if w.(x11.XWin).FrameID() == id || w.(x11.XWin).ChildID() == id {
+			return w.(x11.XWin)
+		}
+	}
+
+	return nil
+}
+
+// restoreWindow reverses RemoveWindow for a soft-hidden client that is being
+// re-shown, returning it to s.clients and notifying listeners.
+func (s *stack) restoreWindow(win tyde.Window) {
+	for i, w := range s.deleted {
+		if w == win {
+			s.deleted = append(s.deleted[:i], s.deleted[i+1:]...)
+			break
+		}
+	}
+	s.addToStack(win)
+
+	listeners := s.listeners
+	fyne.Do(func() {
+		for _, l := range listeners {
+			l.WindowAdded(win)
+		}
+	})
+}
+
 func (s *stack) getWindowsFromClients(clients []tyde.Window) []xproto.Window {
 	var wins []xproto.Window
 	for _, cli := range clients {

@@ -5,6 +5,8 @@ import "fyne.io/fyne/v2"
 // DeskSettings describes the configuration options available for Fyne desktop
 type DeskSettings interface {
 	Background() string
+	BackgroundFill() string
+	BackgroundColor() string
 	IconTheme() string
 	BorderButtonPosition() string
 	ClockFormatting() string

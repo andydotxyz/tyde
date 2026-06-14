@@ -10,7 +10,7 @@ import (
 )
 
 // ColorNamePanelBackground is used in themes to look up the background color
-const ColorNamePanelBackground fyne.ThemeColorName = "fynedeskPanelBackground"
+const ColorNamePanelBackground fyne.ThemeColorName = "tydePanelBackground"
 
 var (
 	// PointerDefault is the standard pointer resource
@@ -19,7 +19,9 @@ var (
 	// FyneLogo is the fyne tooklit icon
 	FyneLogo = resourceFynePng
 	// FyshOSLogo is the fyne tooklit icon
-	FyshOSLogo = resourceFishonwhitePng
+	FyshOSLogo = resourceFishLogoPng
+	// LogoFade is the logo with a semi-transparent background (faded).
+	LogoFade = resourceLogoFadePng
 	// AppIcon is the image for this application icon
 	AppIcon = resourceIconPng
 
@@ -56,6 +58,8 @@ var (
 	KeyboardIcon = theme.NewThemedResource(resourceKeyboardSvg)
 	// LockIcon is the material design icon for the screen lock icon
 	LockIcon = theme.NewThemedResource(resourceLockSvg)
+	// ScreensIcon is the material design icon for multiple screens
+	ScreensIcon = theme.NewThemedResource(resourceScreensSvg)
 	// SoundHighIcon is the material design icon for sound in light and dark theme
 	SoundHighIcon = theme.NewThemedResource(resourceSoundHighSvg)
 	// SoundMidIcon is the material design icon for sound in light and dark theme
@@ -64,6 +68,8 @@ var (
 	SoundLowIcon = theme.NewThemedResource(resourceSoundLowSvg)
 	// MuteIcon is the material design icon for mute in light and dark theme
 	MuteIcon = theme.NewThemedResource(resourceMuteSvg)
+	// WallpaperIcon is the material design icon for a desktop wallpaper
+	WallpaperIcon = theme.NewThemedResource(resourceWallpaperSvg)
 
 	// BorderWidth is the width of window frames
 	BorderWidth = float32(4)

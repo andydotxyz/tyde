@@ -10,13 +10,16 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/draw"
 	"log"
 	"math"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"github.com/FyshOS/saver"
 
 	"github.com/BurntSushi/xgb"
@@ -36,6 +39,7 @@ type opaqueType string
 type client struct {
 	win          xproto.Window
 	opacity      uint32
+	opacitySet   bool // true if the window has an explicit _NET_WM_WINDOW_OPACITY value
 	opaqueType   opaqueType
 	damaged      bool
 	skipped      bool // Fyne Desktop window or other skipped windows
@@ -51,7 +55,7 @@ type client struct {
 	// Double-buffered capture: the compositor writes to bufs[writeIdx] and
 	// toggles writeIdx on each successful push so that the buffer being
 	// displayed by the renderer is never mutated.
-	bufs     [2]*image.NRGBA
+	bufs     [2]*image.RGBA
 	writeIdx int
 }
 
@@ -84,6 +88,10 @@ const (
 	argb        opaqueType = "ARGB"
 
 	opaque = math.MaxUint32
+
+	// backgroundDim is the translucency applied to background windows that have no explicit opacity.
+	// (see win.defaultBackgroundTransparency).
+	backgroundDim = 0.2
 )
 
 type cookieReply[R any] interface {
@@ -196,6 +204,18 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			overlay: sc.Overlay,
 		})
 	}
+
+	// Receive runtime screen-set changes from the desktop. The list is stashed
+	// and applied from the event loop below so ws.screens stays single-writer.
+	ui.CompositorScreensChanged = ws.setPending
+	defer func() { ui.CompositorScreensChanged = nil }()
+
+	// Let the desktop synthesise the cube's rolling face for a desktop that has
+	// never been on screen by reading its windows' pixmaps directly.
+	ui.CompositorWindowSnapshot = func(screen *tyde.Screen, offsetY int) image.Image {
+		return snapshotWindows(conn, screen, offsetY)
+	}
+	defer func() { ui.CompositorWindowSnapshot = nil }()
 
 	// Set up visual move callback for fast drag repositioning.
 	// Called from the main thread (fyne.Do context) so no additional queueing needed.
@@ -389,13 +409,18 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 			}
 		}
 
+		// Pick up any screen-set change handed in from the desktop. A new
+		// screen always brings X events (its root window is mapped) so the
+		// loop wakes promptly; applyPending repopulates it on its own.
+		if ws.applyPending(conn) {
+			repaint = true
+		}
+
 		if allDamage || repaint {
 			refreshTranslucency(conn, ws)
 			refreshWindows(conn, ws)
 			allDamage = false
 		}
-
-		conn.Sync()
 	}
 }
 
@@ -448,6 +473,76 @@ type screenWidgets struct {
 // widgets holds per-screen compositor widget pairs.
 type widgets struct {
 	screens []screenWidgets
+
+	// pending holds a screen-widget list handed in from the desktop's main
+	// goroutine when screens change at runtime. It is applied from the
+	// compositor event loop (applyPending) so ws.screens is only ever mutated
+	// by the event-loop goroutine.
+	mu         sync.Mutex
+	pending    []ui.ScreenCompositors
+	hasPending bool
+}
+
+// setPending records a new screen-widget list to be applied by the event loop.
+// Safe to call from any goroutine.
+func (ws *widgets) setPending(comps []ui.ScreenCompositors) {
+	ws.mu.Lock()
+	ws.pending = comps
+	ws.hasPending = true
+	ws.mu.Unlock()
+}
+
+// applyPending reconciles ws.screens with the latest list from the desktop and
+// returns true if the set changed. Existing screens reuse their widgets (so
+// cached window images survive); newly connected screens are repopulated with
+// every currently visible client. Must run on the event-loop goroutine.
+func (ws *widgets) applyPending(conn *xgb.Conn) bool {
+	ws.mu.Lock()
+	if !ws.hasPending {
+		ws.mu.Unlock()
+		return false
+	}
+	comps := ws.pending
+	ws.pending = nil
+	ws.hasPending = false
+	ws.mu.Unlock()
+
+	known := make(map[string]bool, len(ws.screens))
+	for _, sw := range ws.screens {
+		known[sw.screen.Name] = true
+	}
+
+	var next []screenWidgets
+	var added []*screenWidgets
+	for _, sc := range comps {
+		next = append(next, screenWidgets{screen: sc.Screen, normal: sc.Normal, overlay: sc.Overlay})
+		if !known[sc.Screen.Name] {
+			added = append(added, &next[len(next)-1])
+		}
+	}
+	ws.screens = next
+
+	if len(added) == 0 {
+		return true
+	}
+
+	// Populate freshly connected screens with the windows already on display
+	// and force a recapture so their images land in the new widgets.
+	for _, c := range clients {
+		if c.skipped || c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+		if isFullscreenClient(c) {
+			updateFullscreen(conn, ws, c)
+		} else {
+			ensureWindowOnScreens(ws, c)
+		}
+		c.damaged = true
+	}
+	syncOrder(ws)
+	refreshWindows(conn, ws)
+	ws.refreshAll()
+	return true
 }
 
 // targetFor returns the appropriate widget type name for a client based on fullscreen state.
@@ -672,7 +767,7 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			if len(ws.screens) > 0 {
 				scale = ws.screens[0].screen.CanvasScale()
 			}
-			roundCorners(img, int(5*scale))
+			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
 		}
 
 		translucency := computeTranslucency(conn, c)
@@ -730,6 +825,77 @@ func refreshWindows(conn *xgb.Conn, ws *widgets) {
 			}
 		})
 	}
+}
+
+// snapshotWindows composes the windows of the desktop offsetY pixels from the
+// current viewport into a transparent RGBA image the size of the screen, by
+// reading each mapped client's content pixmap directly. offsetY is the same
+// pixel slide SetDesktop applies when switching (negative to reveal a desktop
+// further down). Because every mapped window keeps a composite-redirected
+// pixmap regardless of position, this works even for a desktop that has never
+// been on screen — which is exactly when the cube has no live capture to roll
+// in. Pinned windows live on every desktop, so they are drawn at their current
+// position without the offset. The bar, widget panel and wallpaper are the
+// caller's concern; this returns windows on a transparent background.
+//
+// Called on the Fyne main goroutine via the ui.CompositorWindowSnapshot hook.
+// The clients slice is copied first so a concurrent add/remove in the event
+// loop can't corrupt the iteration; reads of per-client geometry remain
+// best-effort, matching the existing main-thread access in VisualMoveCallback.
+func snapshotWindows(conn *xgb.Conn, screen *tyde.Screen, offsetY int) image.Image {
+	if conn == nil || screen == nil || screen.Width <= 0 || screen.Height <= 0 {
+		return nil
+	}
+
+	cs := make([]*client, len(clients))
+	copy(cs, clients)
+
+	out := image.NewRGBA(image.Rect(0, 0, screen.Width, screen.Height))
+	scale := screen.CanvasScale()
+
+	// clients is top-first, so draw back-to-front for correct stacking.
+	for i := len(cs) - 1; i >= 0; i-- {
+		c := cs[i]
+		if c == nil || c.skipped || c.fullscreened {
+			continue
+		}
+		if c.attributes.MapState != xproto.MapStateViewable {
+			continue
+		}
+
+		off := offsetY
+		w := wmWindow(c)
+		if w != nil && w.Pinned() {
+			off = 0 // pinned windows appear on every desktop
+		}
+
+		if c.pixmap == 0 {
+			pixmap, err := xproto.NewPixmapId(conn)
+			if err != nil {
+				continue
+			}
+			if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
+				continue
+			}
+			c.pixmap = pixmap
+		}
+
+		totalW := c.geom.Width + c.geom.BorderWidth*2
+		totalH := c.geom.Height + c.geom.BorderWidth*2
+		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, c.opaqueType == argb, nil)
+		if img == nil {
+			continue
+		}
+		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
+			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
+		}
+
+		dstX := int(c.geom.X) - screen.X
+		dstY := int(c.geom.Y) - screen.Y + off
+		draw.Draw(out, image.Rect(dstX, dstY, dstX+int(totalW), dstY+int(totalH)),
+			img, image.Point{}, draw.Over)
+	}
+	return out
 }
 
 func checkPending(c *client, ws *widgets) (uint32, bool, bool) {
@@ -819,13 +985,12 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 		}
 	}
 
-	if !isTop {
-		return 0.2
+	if c.opacitySet {
+		return 1.0 - float64(c.opacity)/float64(opaque)
 	}
 
-	// Check custom opacity
-	if c.opacity != opaque {
-		return 1.0 - float64(c.opacity)/float64(opaque)
+	if !isTop {
+		return backgroundDim
 	}
 
 	return 0.0
@@ -1180,6 +1345,7 @@ func damageClient(conn *xgb.Conn, e *damage.NotifyEvent) error {
 
 func updateOpacity(conn *xgb.Conn, fallback float32, c *client) {
 	opacity, err := getOpacity(conn, c.win)
+	c.opacitySet = err == nil
 	if err != nil {
 		if fallback < 1.0 {
 			opacity = uint32(fallback * float32(opaque))

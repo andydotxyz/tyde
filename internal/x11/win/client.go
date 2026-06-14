@@ -77,6 +77,16 @@ func (c *client) MarkDestroyed() {
 	}
 }
 
+// Reframe replaces the current frame with a freshly-built one. This is the
+// same path NotifyUnIconify uses to bring a minimised window back: a brand-new
+// frame X11 window is created, the inner client is reparented into it, and
+// it's shown + themed + geometry-notified. The previous frame is orphaned
+// (not destroyed) to avoid Destroy/Reparent event churn racing with the
+// in-flight MapRequest that triggered the restore.
+func (c *client) Reframe() {
+	c.newFrame()
+}
+
 func (c *client) Close() {
 	winProtos, err := icccm.WmProtocolsGet(c.wm.X(), c.win)
 	if err != nil {
@@ -312,8 +322,10 @@ func (c *client) NotifyMoveResizeEnded() {
 }
 
 func (c *client) NotifyUnFullscreen() {
-	c.frame.unmaximizeApply() // c.full is left true so the size-hint guards are bypassed
+	// Clear fullscreen before re-applying geometry so the border offsets and
+	// decorations are restored; force bypasses the size-hint guards.
 	c.full = false
+	c.frame.unmaximizeApply(true)
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_FULLSCREEN")
 }
 
@@ -330,7 +342,7 @@ func (c *client) NotifyUnIconify() {
 
 func (c *client) NotifyUnMaximize() {
 	c.maximized = false
-	c.frame.unmaximizeApply()
+	c.frame.unmaximizeApply(false)
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_MAXIMIZED_VERT")
 	x11.WindowExtendedHintsRemove(c.wm.X(), c.win, "_NET_WM_STATE_MAXIMIZED_HORZ")
 }
@@ -360,6 +372,9 @@ func (c *client) Pinned() bool {
 }
 
 func (c *client) Position() fyne.Position {
+	if c.frame == nil {
+		return fyne.Position{}
+	}
 	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	return fyne.NewPos(

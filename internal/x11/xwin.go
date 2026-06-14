@@ -22,6 +22,7 @@ type XWin interface {
 
 	Expose()
 	MarkDestroyed()
+	Reframe()
 	Refresh()
 	SettingsChanged()
 

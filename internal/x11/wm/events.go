@@ -73,6 +73,12 @@ func (x *x11WM) handleButtonPress(ev xproto.ButtonPressEvent) {
 			c.(x11.XWin).NotifyMousePress(ev.RootX, ev.RootY, ev.Detail, ev.State)
 		}
 	}
+	if x.isRoot(ev.Event) {
+		// A click landed on the desktop, a panel, or overlay content (e.g. the terminal):
+		// give the desktop window keyboard focus so the overlay receives input, then let
+		// the click reach Fyne via the replay below.
+		xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, ev.Event, xproto.TimeCurrentTime)
+	}
 	xevent.ReplayPointer(x.x)
 }
 

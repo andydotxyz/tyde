@@ -6,6 +6,8 @@ package wm // import "fyshos.com/tyde/internal/x11/wm"
 import (
 	"errors"
 	"image"
+	"image/color"
+	"image/draw"
 	"math"
 	"os"
 	"os/exec"
@@ -58,12 +60,13 @@ type x11WM struct {
 
 	currentBindings []*tyde.Shortcut
 
-	died         bool
-	rootIDs      map[string]xproto.Window
-	menuSize     fyne.Size
-	menuPos      fyne.Position
-	transientMap map[xproto.Window][]xproto.Window
-	oldRoot      *xgraphics.Image
+	died          bool
+	rootIDs       map[string]xproto.Window
+	overlayActive bool
+	menuSize      fyne.Size
+	menuPos       fyne.Position
+	transientMap  map[xproto.Window][]xproto.Window
+	oldRoot       *xgraphics.Image
 }
 
 type moveResizeType uint32
@@ -236,23 +239,69 @@ func (x *x11WM) Run() {
 }
 
 // SetOverlayActive updates X11 input shapes on the root and all frame windows.
-// When active is true, the root accepts input everywhere and frames become input-transparent,
-// so that Fyne overlay content receives all mouse events.
-// When active is false, the root accepts input only in panel areas and frames resume
-// normal input shapes (excluding panels).
-func (x *x11WM) SetOverlayActive(active bool) {
+// regions are the screen-pixel rectangles actually covered by Fyne overlay content.
+// When active is true, frames are made input-transparent only within those regions, so
+// clicks there fall through to the Fyne overlay while the rest of each window stays
+// interactive. A full-screen overlay (e.g. a menu backdrop) passes a region covering the
+// whole primary screen, blanking primary frames entirely as before.
+// When active is false, frames resume their normal input shapes (excluding panels).
+//
+// regions can change on every call (e.g. a second overlay opening), so shapes are always
+// updated. Focus and the desktop button grab only change on the inactive<->active edge:
+// the first overlay claims keyboard focus, and a passive button grab on the desktop
+// windows is installed so later clicks on the desktop/panels/overlay re-focus it (see
+// handleButtonPress). Re-grabbing focus on every call would steal it back from a window
+// the user selected while an overlay such as the terminal stays open.
+func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
 	x.updateRootInputShape(active)
-	x.updateFrameInputShapes(active)
+	x.updateFrameInputShapes(active, regions)
 
+	if active == x.overlayActive {
+		return
+	}
+	x.overlayActive = active
+
+	x.grabRootButtons(active)
 	if active {
-		// Focus the primary root window so overlays receive keyboard events
+		// Focus the primary root window so the overlay receives keyboard events.
 		if primary := x.RootID(); primary != 0 {
 			xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, primary, xproto.TimeCurrentTime)
 		}
 	}
 }
 
-func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
+// grabRootButtons installs (or removes) a passive sync grab of the primary mouse button
+// on the primary desktop window (the one that hosts the panels and overlays). While an
+// overlay is active this lets the window manager see clicks that land on the desktop,
+// panels, or overlay content — which otherwise go straight to Fyne — so it can move
+// keyboard focus to the desktop window before replaying the click (handleButtonPress).
+// It mirrors the click-to-focus grab used on client frames.
+func (x *x11WM) grabRootButtons(grab bool) {
+	primary := x.RootID()
+	if primary == 0 {
+		return
+	}
+
+	if grab {
+		xproto.GrabButton(x.x.Conn(), false, primary,
+			xproto.EventMaskButtonPress, xproto.GrabModeSync, xproto.GrabModeAsync,
+			x.x.RootWin(), xproto.CursorNone, xproto.ButtonIndex1, xproto.ModMaskAny)
+	} else {
+		xproto.UngrabButton(x.x.Conn(), xproto.ButtonIndex1, primary, xproto.ModMaskAny)
+	}
+}
+
+// isRoot reports whether win is one of the desktop (root) windows.
+func (x *x11WM) isRoot(win xproto.Window) bool {
+	for _, rootID := range x.rootIDs {
+		if rootID == win {
+			return true
+		}
+	}
+	return false
+}
+
+func (x *x11WM) updateFrameInputShapes(overlayActive bool, regions []image.Rectangle) {
 	inst := tyde.Instance()
 	if inst == nil {
 		return
@@ -262,24 +311,18 @@ func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
 	for _, win := range x.clients {
 		xwin := win.(x11.XWin)
 		frameID := xwin.FrameID()
+		fx, fy, fw, fh := xwin.Geometry()
 
-		if overlayActive {
-			shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
-				0, frameID, 0, 0, emptyRect)
-			continue
-		}
-
-		// Restore normal input shape: full frame clipped to content bounds
+		// Non-primary screens have no panels: accept input across the whole frame.
+		// Overlay regions live on the primary screen, so these frames stay interactive.
 		screen := inst.Screens().ScreenForWindow(win)
 		if screen == nil || screen != inst.Screens().Primary() {
-			// Non-primary screens have no panels; reset to default shape
 			shape.Mask(x.x.Conn(), shape.SoSet, shape.SkInput, frameID, 0, 0, xproto.PixmapNone)
 			continue
 		}
 
+		// Base shape: full frame clipped to the desktop content bounds (excludes panels).
 		cbX, cbY, cbW, cbH := inst.ContentBoundsPixels(screen)
-		fx, fy, fw, fh := xwin.Geometry()
-
 		cx1 := int(cbX) + screen.X
 		cy1 := int(cbY) + screen.Y
 		cx2 := cx1 + int(cbW)
@@ -305,6 +348,30 @@ func (x *x11WM) updateFrameInputShapes(overlayActive bool) {
 
 		shape.Rectangles(x.x.Conn(), shape.SoSet, shape.SkInput,
 			0, frameID, 0, 0, rects)
+
+		if !overlayActive {
+			continue
+		}
+
+		// Subtract the area covered by overlay content so clicks there fall through to
+		// the Fyne overlay; everything outside the overlay stays interactive.
+		for _, r := range regions {
+			sx1 := max(fx, r.Min.X)
+			sy1 := max(fy, r.Min.Y)
+			sx2 := min(fx+int(fw), r.Max.X)
+			sy2 := min(fy+int(fh), r.Max.Y)
+			if sx1 >= sx2 || sy1 >= sy2 {
+				continue
+			}
+
+			shape.Rectangles(x.x.Conn(), shape.SoSubtract, shape.SkInput,
+				0, frameID, 0, 0, []xproto.Rectangle{{
+					X:      int16(sx1 - fx),
+					Y:      int16(sy1 - fy),
+					Width:  uint16(sx2 - sx1),
+					Height: uint16(sy2 - sy1),
+				}})
+		}
 	}
 }
 
@@ -904,6 +971,19 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 	// reparented — just map it. This avoids re-framing a window when
 	// frame.show() maps the client inside a frame with SubstructureRedirect.
 	if parent != x.x.RootWin() {
+		// If this is a previously-hidden (soft-closed) window being re-shown,
+		// the frame was unmapped and the client removed from the live stack
+		// in hideWindow. Re-map the frame and restore the stack entry so it
+		// becomes visible again and behaves like a normal managed window.
+		if c := x.deletedClientForWin(win); c != nil {
+			c.Reframe() // rebuilds the frame from scratch — same path NotifyUnIconify uses
+			x.restoreWindow(c)
+			c.RaiseToTop()
+			c.Focus()
+			windowClientListUpdate(x)
+			windowClientListStackingUpdate(x)
+			return
+		}
 		xproto.MapWindow(x.x.Conn(), win)
 		return
 	}
@@ -1041,7 +1121,8 @@ func (x *x11WM) unbindShortcuts(win xproto.Window) {
 }
 
 func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
-	path := tyde.Instance().Settings().Background()
+	settings := tyde.Instance().Settings()
+	path := settings.Background()
 	if path != "" {
 		file, err := os.Open(path)
 		if err != nil {
@@ -1052,7 +1133,8 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 				fyne.LogError("Failed to read background image", err)
 			} else {
 				_ = file.Close()
-				return resize.Resize(uint(w), uint(h), img, resize.Lanczos3)
+				return fitBackgroundImage(img, w, h, settings.BackgroundFill(),
+					ui.ParseHexColor(settings.BackgroundColor()))
 			}
 		}
 	}
@@ -1064,6 +1146,43 @@ func (x *x11WM) updatedBackgroundImage(w, h int) image.Image {
 	c.SetScale(1.0)
 	c.Resize(fyne.NewSize(float32(w), float32(h)))
 	return c.Capture()
+}
+
+// fitBackgroundImage scales src into a w*h image according to the chosen fill
+// mode, painting any uncovered area with the given background colour.
+//   - "Fit" preserves aspect ratio and fits the whole image inside the screen.
+//   - "Fill" preserves aspect ratio and covers the screen, cropping overflow.
+//   - "Stretch" (default) scales to the exact screen size, ignoring aspect.
+func fitBackgroundImage(src image.Image, w, h int, fill string, bg color.NRGBA) image.Image {
+	if fill != "Fit" && fill != "Fill" {
+		return resize.Resize(uint(w), uint(h), src, resize.Lanczos3)
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(bg), image.Point{}, draw.Src)
+
+	sb := src.Bounds()
+	sw, sh := sb.Dx(), sb.Dy()
+	if sw == 0 || sh == 0 {
+		return dst
+	}
+
+	// Choose the scale that fits inside (min) or covers (max) the screen.
+	scaleX := float64(w) / float64(sw)
+	scaleY := float64(h) / float64(sh)
+	scale := math.Min(scaleX, scaleY)
+	if fill == "Fill" {
+		scale = math.Max(scaleX, scaleY)
+	}
+
+	dw := uint(math.Round(float64(sw) * scale))
+	dh := uint(math.Round(float64(sh) * scale))
+	scaled := resize.Resize(dw, dh, src, resize.Lanczos3)
+
+	// Centre the scaled image; for "Fill" the overflow is cropped by the draw.
+	offset := image.Pt((w-int(dw))/2, (h-int(dh))/2)
+	draw.Draw(dst, scaled.Bounds().Add(offset), scaled, scaled.Bounds().Min, draw.Over)
+	return dst
 }
 
 func (x *x11WM) updateBackgrounds() {
