@@ -372,6 +372,9 @@ func (c *client) Pinned() bool {
 }
 
 func (c *client) Position() fyne.Position {
+	if c.frame == nil {
+		return fyne.Position{}
+	}
 	screen := tyde.Instance().Screens().ScreenForWindow(c)
 
 	return fyne.NewPos(
