@@ -27,7 +27,7 @@ func TestSocketPath_Fallback(t *testing.T) {
 
 func TestRPCModule_Metadata(t *testing.T) {
 	m := &rpcModule{}
-	assert.Equal(t, "RPC", m.Metadata().Name)
+	assert.Equal(t, "Remote Control", m.Metadata().Name)
 }
 
 func TestRPCModule_Destroy_Empty(t *testing.T) {

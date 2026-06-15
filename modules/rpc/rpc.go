@@ -90,8 +90,10 @@ type Service struct {
 // Launch passes the input string through the launch suggestion modules
 // and executes the first match.
 func (s *Service) Launch(input string, reply *string) error {
-	if v, ok := s.module.commands[strings.ToLower(input)]; ok {
-		return v()
+	if s.module != nil {
+		if v, ok := s.module.commands[strings.ToLower(input)]; ok {
+			return v()
+		}
 	}
 	title, err := LaunchInput(input)
 	if err != nil {
