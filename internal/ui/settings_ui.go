@@ -579,6 +579,7 @@ func (w *widgetPanel) showSettings() {
 			Text: "Display", Icon: wmtheme.ScreensIcon,
 			Content: container.NewBorder(scale, nil, nil, nil, screenui),
 		},
+		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
 		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},
 		&container.TabItem{

@@ -23,7 +23,6 @@ var resourceLogoFadePng = &fyne.StaticResource{
 	StaticContent: resourceLogoFadePngData,
 }
 
-
 //go:embed assets/battery.svg
 var resourceBatterySvgData []byte
 var resourceBatterySvg = &fyne.StaticResource{
@@ -197,4 +196,11 @@ var resourceWifioffSvgData []byte
 var resourceWifioffSvg = &fyne.StaticResource{
 	StaticName:    "assets/wifi_off.svg",
 	StaticContent: resourceWifioffSvgData,
+}
+
+//go:embed assets/clock.svg
+var resourceClockSvgData []byte
+var resourceClockSvg = &fyne.StaticResource{
+	StaticName:    "assets/clock.svg",
+	StaticContent: resourceClockSvgData,
 }
