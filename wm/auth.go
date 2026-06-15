@@ -148,7 +148,9 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		delete(a.windows, cookie)
 		wg.Done()
 	})
-	tyde.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
+	fyne.Do(func() {
+		tyde.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
+	})
 
 	wg.Wait()
 	return nil
