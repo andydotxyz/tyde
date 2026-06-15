@@ -231,8 +231,10 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 			container.NewBorder(
 				container.NewVBox(
 					container.NewBorder(nil, nil, nil, bgButtons, bgPath),
-					fillRow),
-				nil, nil, nil, preview)))
+					fillRow,
+				),
+				nil, nil, nil, preview,
+			)))
 }
 
 // monitorSurround wraps the given screen image in a simple monitor-shaped frame:
@@ -438,7 +440,8 @@ func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 
 	return container.NewBorder(
 		widget.NewCard("Keyboard", "", container.NewHBox(widget.NewLabel("Preferred modifier key: "), modType)),
-		nil, nil, nil, grid)
+		nil, nil, nil, grid,
+	)
 }
 
 func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
@@ -530,7 +533,8 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 			l := inner.Objects[0].(*widget.RichText)
 			title := cases.Title(language.Make("en")).String(themeList[id])
 			l.ParseMarkdown(fmt.Sprintf("## %s\n\nDescription...", title))
-		})
+		},
+	)
 
 	addNew := widget.NewButton("More themes...", func() {
 		u, _ := url.Parse("https://fyshos.com/themes")
@@ -596,7 +600,8 @@ func (w *widgetPanel) showSettings() {
 	logo.SetMinSize(fyne.NewSquareSize(barWidth(tabs.Items)))
 	win.SetContent(container.NewStack(
 		container.NewVBox(layout.NewSpacer(), container.NewHBox(logo)),
-		tabs))
+		tabs,
+	))
 	win.Resize(fyne.NewSize(480, 320))
 
 	win.SetCloseIntercept(func() {
