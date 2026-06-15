@@ -16,7 +16,6 @@ type WindowManager interface {
 	Run()
 	ShowOverlay(fyne.Window, fyne.Size, fyne.Position)
 	ShowMenuOverlay(*fyne.Menu, fyne.Size, fyne.Position)
-	ShowModal(fyne.Window, fyne.Size)
 
 	ShowScreensaver(saver *saver.ScreenSaver)
 }

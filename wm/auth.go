@@ -17,7 +17,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -31,7 +30,7 @@ type subj struct {
 }
 
 type auth struct {
-	windows map[string]fyne.Window
+	dialogs map[string]func() // cookie -> dismiss the modal and end the session
 
 	rememberPass string
 	encoder      *base64.Encoding
@@ -91,8 +90,20 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 		widget.NewFormItem("Password", pass),
 		widget.NewFormItem("Remember", remember),
 	)
-	w := fyne.CurrentApp().Driver().(deskDriver.Driver).CreateSplashWindow()
-	a.windows[cookie] = w
+	// dismiss tears down the modal and ends the auth session. It is guarded so the
+	// buttons and a CancelAuthentication call cannot double-close.
+	var closeModal func()
+	var once sync.Once
+	dismiss := func() {
+		once.Do(func() {
+			if closeModal != nil {
+				closeModal()
+			}
+			delete(a.dialogs, cookie)
+			wg.Done()
+		})
+	}
+	a.dialogs[cookie] = dismiss
 
 	var auth *widget.Button
 	auth = widget.NewButton("Authorize", func() {
@@ -105,13 +116,13 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 			if remember.Checked {
 				a.rememberPass = a.encode(pass.Text)
 			}
-			w.Close()
+			dismiss()
 		}
 		auth.Enable()
 	})
 	auth.Importance = widget.HighImportance
 	cancel := widget.NewButton("Cancel", func() {
-		w.Close()
+		dismiss()
 	})
 	pass.OnSubmitted = func(string) {
 		auth.OnTapped()
@@ -119,6 +130,7 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 
 	header := widget.NewRichTextFromMarkdown(fmt.Sprintf("### Authorise\n\n_%s_", message))
 	header.Truncation = fyne.TextTruncateEllipsis
+	header.Refresh()
 	bottomPad := canvas.NewRectangle(color.Transparent)
 	bottomPad.SetMinSize(fyne.NewSquareSize(10))
 	content := container.NewBorder(
@@ -139,17 +151,16 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	iconBox := container.NewWithoutLayout(icon)
 	icon.Resize(fyne.NewSize(92, 92))
 	icon.Move(fyne.NewPos(300-92-theme.Padding(), theme.Padding()))
-	w.SetContent(container.NewStack(
+	dialog := container.NewStack(
 		iconBox, bg,
 		container.NewPadded(content),
-	))
+	)
 
-	w.SetOnClosed(func() {
-		delete(a.windows, cookie)
-		wg.Done()
-	})
+	// Show as a modal: the desktop centres the dialog over a blurred backdrop that
+	// does not dismiss on tap or mouse-out, so it stays until a button calls dismiss.
+	closeModal = tyde.Instance().ShowModal(dialog, fyne.NewSize(340, 250))
 	fyne.Do(func() {
-		tyde.Instance().WindowManager().ShowModal(w, fyne.NewSize(300, 210))
+		tyde.Instance().Root().Canvas().Focus(pass)
 	})
 
 	wg.Wait()
@@ -189,8 +200,8 @@ func (a *auth) reply(username string, cookie string, pass string) error {
 }
 
 func (a *auth) CancelAuthentication(cookie string, sender dbus.Sender) (err *dbus.Error) {
-	if w, ok := a.windows[cookie]; ok {
-		w.Close() // OnClose will tidy the session
+	if dismiss, ok := a.dialogs[cookie]; ok {
+		dismiss() // tears down the modal and ends the session
 	}
 	return nil
 }
@@ -210,6 +221,6 @@ func (a *auth) encode(in string) string {
 
 // StartAuthAgent asks our policy kit agent to start listening for auth requests.
 func StartAuthAgent() {
-	a := &auth{windows: make(map[string]fyne.Window), encoder: base64.StdEncoding}
+	a := &auth{dialogs: make(map[string]func()), encoder: base64.StdEncoding}
 	go a.register()
 }

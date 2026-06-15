@@ -493,6 +493,23 @@ func (l *desktop) showOverlayWithBackdrop(content fyne.CanvasObject, size fyne.S
 	return combined
 }
 
+// ShowModal centres content above a blurred, full-screen backdrop. Unlike the
+// menu overlays it does not dismiss on background tap or mouse-out (the backdrop
+// has no dismiss action), so the modal stays until the caller invokes the
+// returned hide function — typically from a button inside the content.
+func (l *desktop) ShowModal(content fyne.CanvasObject, size fyne.Size) func() {
+	winSize := l.primaryWin.win.Canvas().Size()
+	pos := fyne.NewPos((winSize.Width-size.Width)/2, (winSize.Height-size.Height)/2)
+
+	bg := newBackdrop(nil) // nil dismiss => modal: no tap or mouse-out dismissal
+	content.Move(pos)
+	content.Resize(size)
+	combined := container.NewStack(bg, container.NewWithoutLayout(content))
+
+	l.showOverlay(combined, winSize, fyne.NewPos(0, 0), nil)
+	return func() { l.HideOverlay(combined) }
+}
+
 // ShowOverlay adds content to the desktop overlay layer, above all chrome and windows.
 // The root window's input shape is expanded and frame input shapes are cleared
 // so that Fyne receives mouse events for the overlay.

@@ -132,6 +132,12 @@ func (td *Desktop) ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fy
 	content.Move(pos)
 }
 
+// ShowModal centres content above a backdrop and returns a no-op hide function
+func (td *Desktop) ShowModal(content fyne.CanvasObject, size fyne.Size) func() {
+	content.Resize(size)
+	return func() {}
+}
+
 // HideOverlay removes content from the desktop overlay
 func (td *Desktop) HideOverlay(content fyne.CanvasObject) {
 }

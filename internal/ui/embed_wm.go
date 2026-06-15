@@ -49,12 +49,6 @@ func (e *embededWM) ShowMenuOverlay(*fyne.Menu, fyne.Size, fyne.Position) {
 	// no-op, handled by desktop in embed mode
 }
 
-func (e *embededWM) ShowModal(w fyne.Window, s fyne.Size) {
-	w.Resize(s)
-	w.CenterOnScreen()
-	w.Show()
-}
-
 func (e *embededWM) TopWindow() tyde.Window {
 	if len(e.windows) == 0 {
 		return nil
