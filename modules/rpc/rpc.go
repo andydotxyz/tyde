@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/rpc"
 	"os"
@@ -52,7 +53,7 @@ func LaunchInput(input string) (string, error) {
 }
 
 var rpcMeta = tyde.ModuleMetadata{
-	Name:        "RPC",
+	Name:        "Remote Control",
 	NewInstance: newRPC,
 }
 
@@ -67,6 +68,7 @@ func SocketPath() string {
 
 type rpcModule struct {
 	listener net.Listener
+	commands map[string]func() error
 }
 
 func (r *rpcModule) Metadata() tyde.ModuleMetadata {
@@ -81,11 +83,16 @@ func (r *rpcModule) Destroy() {
 }
 
 // Service is the RPC service exposed over the Unix socket.
-type Service struct{}
+type Service struct {
+	module *rpcModule
+}
 
 // Launch passes the input string through the launch suggestion modules
 // and executes the first match.
 func (s *Service) Launch(input string, reply *string) error {
+	if v, ok := s.module.commands[strings.ToLower(input)]; ok {
+		return v()
+	}
 	title, err := LaunchInput(input)
 	if err != nil {
 		return err
@@ -118,13 +125,25 @@ func newRPC() tyde.Module {
 	sock := SocketPath()
 	os.Remove(sock) // clean up stale socket
 
+	mod := &rpcModule{commands: map[string]func() error{
+		"restart": func() error {
+			if os.Getenv("FYNE_DESK_RUNNER") != "" {
+				os.Exit(5)
+				return nil
+			} else {
+				return errors.New("tyde was not launched with tyde_runner, cannot restart")
+			}
+		},
+	}}
 	srv := rpc.NewServer()
-	srv.Register(&Service{})
+	srv.Register(&Service{module: mod})
 
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
 		fyne.LogError("RPC: failed to listen on "+sock, err)
 		return &rpcModule{}
+	} else {
+		log.Println("RPC: Listening on " + sock)
 	}
 
 	go func() {
@@ -137,5 +156,6 @@ func newRPC() tyde.Module {
 		}
 	}()
 
-	return &rpcModule{listener: ln}
+	mod.listener = ln
+	return mod
 }
