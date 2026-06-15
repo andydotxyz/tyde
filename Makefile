@@ -8,6 +8,7 @@ PREFIX ?= /usr$(LOCAL)
 build:
 	go build ./cmd/tyde_runner
 	go build ./cmd/tyde
+	go build ./cmd/tyde_ctl
 
 install:
 	install -Dm00755 tyde_runner $(DESTDIR)$(PREFIX)/bin/tyde_runner
