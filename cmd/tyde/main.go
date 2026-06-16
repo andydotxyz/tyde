@@ -1,7 +1,9 @@
 package main
 
 import (
+	_ "fyshos.com/tyde/modules/christmas"
 	_ "fyshos.com/tyde/modules/desktops"
+	_ "fyshos.com/tyde/modules/flames"
 	_ "fyshos.com/tyde/modules/fyles"
 	_ "fyshos.com/tyde/modules/launcher"
 	_ "fyshos.com/tyde/modules/quaketerm"

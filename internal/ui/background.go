@@ -8,6 +8,7 @@ import (
 	_ "image/gif"  // register decoders so renderWallpaper can read any wallpaper
 	_ "image/jpeg" // ...
 	_ "image/png"  // ...
+	"log"
 	"math"
 	"os"
 
@@ -28,13 +29,12 @@ type background struct {
 }
 
 func (b *background) CreateRenderer() fyne.WidgetRenderer {
-	c := container.NewStack(b.loadModules()...)
-	return widget.NewSimpleRenderer(c)
+	b.wallpaper = container.NewStack(b.loadModules()...)
+	return widget.NewSimpleRenderer(b.wallpaper)
 }
 
 func (b *background) loadModules() []fyne.CanvasObject {
-	b.wallpaper = container.NewStack(loadWallpaper())
-	objects := []fyne.CanvasObject{b.wallpaper}
+	objects := []fyne.CanvasObject{loadWallpaper()}
 
 	// Add screen area modules (e.g. desktop files)
 	for _, m := range tyde.Instance().Modules() {
@@ -48,9 +48,11 @@ func (b *background) loadModules() []fyne.CanvasObject {
 	return objects
 }
 
+// updateBackground rebuilds the background content - the wallpaper and the
+// screen area module overlays.
 func (b *background) updateBackground(_ string) {
 	if b.wallpaper != nil {
-		b.wallpaper.Objects = []fyne.CanvasObject{loadWallpaper()}
+		b.wallpaper.Objects = b.loadModules()
 		b.wallpaper.Refresh()
 	}
 }
