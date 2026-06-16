@@ -274,7 +274,17 @@ func (l *desktop) startDeskCube(old, id int) {
 		if from == nil {
 			continue
 		}
-		sw.deskSnapshots[old] = from
+		// A blank capture means GL front-buffer readback isn't working in this
+		// environment (e.g. tyde nested in Xephyr via "make embed"). Don't poison the
+		// shared snapshot cache - which the desktop overview also reads - with a black
+		// frame; synthesise the leaving face instead so the cube isn't black either.
+		if captureIsBlank(from) {
+			if face := l.synthesizeDeskFace(sw, old, old); face != nil {
+				from = face
+			}
+		} else {
+			sw.deskSnapshots[old] = from
+		}
 
 		to := sw.deskSnapshots[id]
 		if to == nil {
@@ -1205,17 +1215,23 @@ func (l *desktop) maximizeCurrentWindow() {
 	}
 }
 
-//func (l *desktop) runCommand() {
-//	w := l.app.NewWindow("Run Command")
-//	input := widget.NewEntry()
-//	// TODO add history etc...
-//	run := widget.NewButton("Run", func() {
-//
-//	})
-//	run.Importance = widget.HighImportance
-//
-//	w.SetContent(container.NewVBox(widget.NewLabel("Enter command to run:"),
-//		container.NewBorder(nil, nil, nil, run, input)))
-//	w.Resize(fyne.NewSize(250, 40))
-//	w.Show()
-//}
+// captureIsBlank reports whether a framebuffer capture came back empty - uniformly
+// black - when GL front-buffer readback is unsupported (e.g. Xephyr with "make embed")
+func captureIsBlank(img image.Image) bool {
+	b := img.Bounds()
+	if b.Empty() {
+		return true
+	}
+
+	const steps = 5
+	for i := 0; i <= steps; i++ {
+		for j := 0; j <= steps; j++ {
+			x := b.Min.X + (b.Dx()-1)*i/steps
+			y := b.Min.Y + (b.Dy()-1)*j/steps
+			if r, g, bl, _ := img.At(x, y).RGBA(); r != 0 || g != 0 || bl != 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
