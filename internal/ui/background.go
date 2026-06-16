@@ -8,7 +8,6 @@ import (
 	_ "image/gif"  // register decoders so renderWallpaper can read any wallpaper
 	_ "image/jpeg" // ...
 	_ "image/png"  // ...
-	"log"
 	"math"
 	"os"
 
