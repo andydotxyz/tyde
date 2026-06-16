@@ -47,6 +47,35 @@ type ScreenAreaModule interface {
 	ScreenAreaWidget() fyne.CanvasObject
 }
 
+// OverlayAreaModule describes a module that can draw over the whole screen
+// ABOVE application windows (but below the bar, widget panel, menus and the
+// mouse cursor). The returned content must be visual-only (non-interactive)
+// so that it does not capture pointer input destined for the windows beneath
+// it - decorative overlays such as desktop pets are the intended use.
+type OverlayAreaModule interface {
+	Module
+	OverlayAreaWidget() fyne.CanvasObject
+}
+
+// WindowAccessory is a decorative canvas object drawn at the z-level of a
+// particular window, so it is occluded by windows stacked above that one. A nil
+// Window means the object is drawn above all windows. The module owns the object
+// (it positions and animates it); the compositor only manages its stacking.
+type WindowAccessory struct {
+	Object fyne.CanvasObject
+	Window Window
+}
+
+// WindowAccessoryModule contributes WindowAccessory items that the compositor
+// interleaves among the window images - e.g. a desktop pet that walks along a
+// window's title bar and disappears behind windows above it. Call
+// Desktop.RefreshWindowAccessories when the set or stacking of accessories
+// changes so the compositor re-assembles them.
+type WindowAccessoryModule interface {
+	Module
+	WindowAccessories() []WindowAccessory
+}
+
 var modules []ModuleMetadata
 
 // AvailableModules lists all the Tyde modules that were found at runtime.

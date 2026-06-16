@@ -89,6 +89,8 @@ type desktop struct {
 	bar             *bar
 	widgets         *widgetPanel
 	mouse           fyne.CanvasObject
+	overlayLayer    *overlayLayer   // above-windows layer for OverlayAreaModule widgets (primary screen)
+	accessoryLayer  *fyne.Container // embedded-mode home for WindowAccessoryModule items (no compositor to host them)
 	screenWindows   []*screenWindow
 	primaryWin      *screenWindow
 	running         bool // true once the run loop has started and windows can be shown directly
@@ -623,13 +625,21 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 
 	sw.bg = newBackground()
 
-	// Order: background -> compositor -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
+	// Order: background -> compositor -> overlay modules -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
 	objects := []fyne.CanvasObject{sw.bg}
 
 	// Normal compositor for regular windows below desktop chrome
 	if sw.compositor != nil {
 		objects = append(objects, sw.compositor)
+	} else if l.accessoryLayer != nil {
+		// Embedded mode has no compositor to host window accessories, so add here.
+		objects = append(objects, l.accessoryLayer)
 	}
+
+	// Overlay-area modules (e.g. desktop pets) draw above regular windows but
+	// below the bar, widget panel, fullscreen windows, menus and the cursor.
+	l.overlayLayer = newOverlayLayer(l)
+	objects = append(objects, l.overlayLayer)
 
 	objects = append(objects, l.bar, l.widgets)
 
@@ -647,6 +657,44 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	sw.deskShader = newDeskShader()
 	objects = append(objects, sw.deskShaderBG, sw.deskShader)
 	return container.New(l, objects...)
+}
+
+// overlayLayer is the full-screen, visual-only layer that renders the widgets
+// of any OverlayAreaModule above application windows. It can be rebuilt at
+// runtime (rebuild) so that enabling or disabling such a module takes effect
+// immediately. Wired to the primary screen only.
+type overlayLayer struct {
+	widget.BaseWidget
+	desk    *desktop
+	content *fyne.Container
+}
+
+func newOverlayLayer(d *desktop) *overlayLayer {
+	o := &overlayLayer{desk: d, content: container.NewStack()}
+	o.ExtendBaseWidget(o)
+	o.rebuild()
+	return o
+}
+
+func (o *overlayLayer) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(o.content)
+}
+
+// rebuild repopulates the layer from the currently enabled overlay-area
+// modules. Calling OverlayAreaWidget on a freshly created module instance is
+// what starts it (e.g. a desktop pet's animation loop); previous instances
+// were already torn down via Module.Destroy in clearModuleCache.
+func (o *overlayLayer) rebuild() {
+	var objs []fyne.CanvasObject
+	for _, m := range o.desk.Modules() {
+		if om, ok := m.(tyde.OverlayAreaModule); ok {
+			if w := om.OverlayAreaWidget(); w != nil {
+				objs = append(objs, w)
+			}
+		}
+	}
+	o.content.Objects = objs
+	o.content.Refresh()
 }
 
 // secondaryLayout is a simple layout for non-primary screen windows (no bar/widgets).
@@ -920,10 +968,27 @@ func (l *desktop) scaleVars(scale float32) []string {
 	}
 }
 
+// AccessoryRefresher is installed by the platform compositor so that
+// RefreshWindowAccessories can ask it to re-assemble WindowAccessoryModule
+// items. It is nil before the compositor starts (and in embedded mode).
+var AccessoryRefresher func()
+
+// RefreshWindowAccessories asks the compositor to re-pull and re-stack the
+// WindowAccessoryModule items (see modules implementing that interface).
+func (l *desktop) RefreshWindowAccessories() {
+	if AccessoryRefresher != nil {
+		AccessoryRefresher()
+	}
+}
+
 func (l *desktop) fireSettingsChangeListener(s tyde.DeskSettings) {
 	l.clearModuleCache()
 	l.updateBackgrounds(s.Background())
 	l.widgets.reloadModules(l.Modules())
+	if l.overlayLayer != nil {
+		l.overlayLayer.rebuild()
+	}
+	l.RefreshWindowAccessories() // pick up enabling/disabling of accessory modules
 
 	l.bar.updateIcons()
 	l.bar.updateIconOrder()
@@ -1047,9 +1112,43 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) tyde.Desktop {
 	}
 	desk.screenWindows = []*screenWindow{sw}
 	desk.primaryWin = sw
+
+	// Embedded mode runs without the platform compositor that normally hosts
+	// window accessories, so install a refresher that renders them above desktop.
+	desk.accessoryLayer = container.NewWithoutLayout()
+	AccessoryRefresher = func() { rebuildEmbeddedAccessories(desk.accessoryLayer) }
+
 	over := wm.setWindow(win)
 	win.SetContent(container.NewStack(desk.createPrimaryContent(sw), over))
 	return desk
+}
+
+// rebuildEmbeddedAccessories collects the WindowAccessory items from the enabled
+// modules and renders them flat into layer. Embedded mode has no compositor to
+// interleave them with windows at the right z-levels, so they all draw together
+// in this single layer. Runs on the main goroutine (via RefreshWindowAccessories).
+func rebuildEmbeddedAccessories(layer *fyne.Container) {
+	inst := tyde.Instance()
+	if inst == nil || layer == nil {
+		return
+	}
+
+	var objs []fyne.CanvasObject
+	for _, m := range inst.Modules() {
+		am, ok := m.(tyde.WindowAccessoryModule)
+		if !ok {
+			continue
+		}
+		for _, acc := range am.WindowAccessories() {
+			if acc.Object == nil {
+				continue
+			}
+			objs = append(objs, acc.Object)
+		}
+	}
+
+	layer.Objects = objs
+	layer.Refresh()
 }
 
 func newDesktop(app fyne.App, wm tyde.WindowManager, icons appie.Provider) *desktop {

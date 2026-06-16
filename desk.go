@@ -26,6 +26,7 @@ type Desktop interface {
 	ShowOverlay(content fyne.CanvasObject, size fyne.Size, pos fyne.Position)
 	ShowModal(content fyne.CanvasObject, size fyne.Size) func()
 	HideOverlay(content fyne.CanvasObject)
+	RefreshWindowAccessories() // ask the compositor to re-assemble WindowAccessoryModule items
 	Root() fyne.Window
 
 	Desktop() int
