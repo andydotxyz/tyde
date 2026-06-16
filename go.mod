@@ -34,7 +34,7 @@ require github.com/creack/pty v1.1.21 // indirect
 
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
-	github.com/FyshOS/screens v0.0.0-20260610214144-9cfd0d9bedf7
+	github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	golang.org/x/image v0.24.0
 	golang.org/x/sys v0.30.0
@@ -72,5 +72,3 @@ require (
 replace github.com/BurntSushi/xgb => github.com/fyne-io/xgb v0.0.0-20260101193816-5f7669354be2
 
 replace github.com/BurntSushi/xgbutil => github.com/fyne-io/xgbutil v0.0.0-20260101194047-3bb9400654c0
-
-replace github.com/FyshOS/screens => ../screens
