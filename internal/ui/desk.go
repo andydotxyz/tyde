@@ -75,7 +75,8 @@ type desktop struct {
 	bar             *bar
 	widgets         *widgetPanel
 	mouse           fyne.CanvasObject
-	overlayLayer    *overlayLayer // above-windows layer for OverlayAreaModule widgets (primary screen)
+	overlayLayer    *overlayLayer   // above-windows layer for OverlayAreaModule widgets (primary screen)
+	accessoryLayer  *fyne.Container // embedded-mode home for WindowAccessoryModule items (no compositor to host them)
 	screenWindows   []*screenWindow
 	primaryWin      *screenWindow
 	desk            int
@@ -504,6 +505,9 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	// Normal compositor for regular windows below desktop chrome
 	if sw.compositor != nil {
 		objects = append(objects, sw.compositor)
+	} else if l.accessoryLayer != nil {
+		// Embedded mode has no compositor to host window accessories, so add here.
+		objects = append(objects, l.accessoryLayer)
 	}
 
 	// Overlay-area modules (e.g. desktop pets) draw above regular windows but
@@ -953,9 +957,43 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) tyde.Desktop {
 	}
 	desk.screenWindows = []*screenWindow{sw}
 	desk.primaryWin = sw
+
+	// Embedded mode runs without the platform compositor that normally hosts
+	// window accessories, so install a refresher that renders them above desktop.
+	desk.accessoryLayer = container.NewWithoutLayout()
+	AccessoryRefresher = func() { rebuildEmbeddedAccessories(desk.accessoryLayer) }
+
 	over := wm.setWindow(win)
 	win.SetContent(container.NewStack(desk.createPrimaryContent(sw), over))
 	return desk
+}
+
+// rebuildEmbeddedAccessories collects the WindowAccessory items from the enabled
+// modules and renders them flat into layer. Embedded mode has no compositor to
+// interleave them with windows at the right z-levels, so they all draw together
+// in this single layer. Runs on the main goroutine (via RefreshWindowAccessories).
+func rebuildEmbeddedAccessories(layer *fyne.Container) {
+	inst := tyde.Instance()
+	if inst == nil || layer == nil {
+		return
+	}
+
+	var objs []fyne.CanvasObject
+	for _, m := range inst.Modules() {
+		am, ok := m.(tyde.WindowAccessoryModule)
+		if !ok {
+			continue
+		}
+		for _, acc := range am.WindowAccessories() {
+			if acc.Object == nil {
+				continue
+			}
+			objs = append(objs, acc.Object)
+		}
+	}
+
+	layer.Objects = objs
+	layer.Refresh()
 }
 
 func newDesktop(app fyne.App, wm tyde.WindowManager, icons appie.Provider) *desktop {
