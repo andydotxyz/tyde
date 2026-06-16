@@ -175,6 +175,7 @@ func (l *desktop) SetDesktop(id int) {
 							desk.DesktopChangeNotify(id)
 						}
 					}
+					l.raiseTopWindow(id)
 				}
 			} else if vm, ok := item.(visualMover); ok {
 				vm.MoveVisual(pos)
@@ -185,6 +186,23 @@ func (l *desktop) SetDesktop(id int) {
 	})
 	l.deskAnim = a
 	a.Start()
+}
+
+// raiseTopWindow raises and focuses the topmost window that is visible on the
+// given desktop. Pinned windows count as visible on every desktop.
+func (l *desktop) raiseTopWindow(id int) {
+	for _, win := range l.wm.Windows() {
+		if win.Iconic() {
+			continue
+		}
+		if win.Desktop() != id && !win.Pinned() {
+			continue
+		}
+
+		win.RaiseToTop()
+		win.Focus()
+		return
+	}
 }
 
 // newDeskShader builds the hidden full-window cube transition overlay. All
