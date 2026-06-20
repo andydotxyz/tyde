@@ -248,6 +248,18 @@ func captureOpaque(c fyne.Canvas) image.Image {
 	return out
 }
 
+// refreshShaderParent repaints sw's window content so a child that was just
+// switched from hidden to visible (a transition shader) is rendered and
+// registered against the canvas.
+func refreshShaderParent(sw *screenWindow) {
+	if sw == nil || sw.win == nil {
+		return
+	}
+	if content := sw.win.Content(); content != nil {
+		content.Refresh()
+	}
+}
+
 // startDeskCube begins the 3D cube transition from desktop old to id. For each
 // screen it captures the current desktop as the front face and uses the cached
 // snapshot of the target desktop (or the current frame, first time) as the face
@@ -307,6 +319,8 @@ func (l *desktop) startDeskCube(old, id int) {
 		}
 		sw.deskShaderBG.Show()
 		sw.deskShader.Show()
+		// Force the first paint so the just-shown shader renders
+		refreshShaderParent(sw)
 		shaders = append(shaders, sw.deskShader)
 		bgs = append(bgs, sw.deskShaderBG)
 	}

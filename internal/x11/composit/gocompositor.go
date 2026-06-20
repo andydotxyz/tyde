@@ -251,6 +251,15 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 				wi.H = height
 				scale := sw.screen.CanvasScale()
 				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				// A cached entry can be blank: it was created before this window had been
+				// captured on any screen.
+				if wi.Img.Image == nil {
+					copyImageFromOtherScreen(ws, winID, wi, sw)
+					if wi.Img.Image != nil {
+						wi.Img.Refresh()
+						target.Refresh()
+					}
+				}
 			}
 
 			// If the window newly overlaps this screen and has no entry, create one.
@@ -654,8 +663,19 @@ func copyImageFromOtherScreen(ws *widgets, winID uint32, target *ui.WindowImage,
 			continue
 		}
 		for _, w := range []*ui.CompositorWidget{sw.normal, sw.overlay} {
-			if src := w.GetWindow(winID); src != nil && src.Img.Image != nil {
-				target.Img.Image = src.Img.Image
+			src := w.GetWindow(winID)
+			if src == nil {
+				continue
+			}
+			// Prefer the displayed image, but fall back to the latest captured buffer.
+			img := src.Img.Image
+			if img == nil {
+				if back := src.Back.Load(); back != nil {
+					img, _ = back.(image.Image)
+				}
+			}
+			if img != nil {
+				target.Img.Image = img
 				target.Img.Translucency = src.Img.Translucency
 				return
 			}
@@ -741,10 +761,16 @@ func ensureWindowOnScreens(ws *widgets, c *client) {
 	winID := uint32(c.win)
 	isFS := isFullscreenClient(c)
 	for _, sw := range ws.screensForClient(c) {
+		var wi *ui.WindowImage
 		if isFS {
-			sw.overlay.EnsureWindow(winID)
+			wi = sw.overlay.EnsureWindow(winID)
 		} else {
-			sw.normal.EnsureWindow(winID)
+			wi = sw.normal.EnsureWindow(winID)
+		}
+		// A freshly created entry has no image yet. Seed it from a screen that
+		// already shows this window.
+		if wi != nil && wi.Img.Image == nil {
+			copyImageFromOtherScreen(ws, winID, wi, sw)
 		}
 	}
 }
