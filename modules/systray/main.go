@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/FyshOS/appie"
@@ -56,12 +57,14 @@ type tray struct {
 	menu *menu.Dbusmenu
 
 	box   *fyne.Container
+	lock  sync.Mutex
 	nodes map[dbus.Sender]*node
 }
 
 type node struct {
 	ico *multiButton
 	ni  *notifier.StatusNotifierItem
+	pid uint32
 }
 
 // NewTray creates a new module that will show a system tray in the status area
@@ -83,7 +86,6 @@ func NewTray() tyde.Module {
 		return t
 	}
 
-	// TODO this is create watcher (optional)
 	err = conn.ExportAll(t, path, "org.kde.StatusNotifierWatcher")
 	if err != nil {
 		fyne.LogError("Unable to register watcher", err)
@@ -116,19 +118,16 @@ func NewTray() tyde.Module {
 		log.Printf("Failed to export introspection %v", err)
 		return t
 	}
-	// End TODO
 
 	hostErr := t.RegisterStatusNotifierHost(conn.Names()[0])
 	if hostErr != nil {
 		fyne.LogError("Failed to register our systray host, another may already be running", hostErr)
-		return t
 	}
 
 	watchErr := t.conn.AddMatchSignal(dbus.WithMatchInterface("org.freedesktop.DBus"), dbus.WithMatchObjectPath("/org/freedesktop/DBus"))
 	_ = t.conn.AddMatchSignal(dbus.WithMatchInterface("org.kde.StatusNotifierItem"))
 	if watchErr != nil {
 		fyne.LogError("Failed to monitor systray name loss", watchErr)
-		return t
 	}
 
 	c := make(chan *dbus.Signal, 10)
@@ -140,15 +139,12 @@ func NewTray() tyde.Module {
 				name := v.Body[0]
 				newOwner := v.Body[2]
 				if newOwner == "" {
-					if item, ok := t.nodes[dbus.Sender(name.(string))]; ok {
-						fyne.Do(func() {
-							t.box.Remove(item.ico)
-							t.box.Refresh()
-						})
-					}
+					t.removeNode(dbus.Sender(name.(string)))
 				}
 			case "org.kde.StatusNotifierItem.NewIcon":
+				t.lock.Lock()
 				item, ok := t.nodes[dbus.Sender(v.Sender)]
+				t.lock.Unlock()
 				if ok {
 					icon := t.fetchIcon(item)
 					fyne.Do(func() {
@@ -162,15 +158,84 @@ func NewTray() tyde.Module {
 		}
 	}()
 
+	go t.monitorProcesses()
+
 	return t
 }
 
 func (t *tray) Destroy() {
 }
 
+// removeNode drops a tray icon for the given sender, both from the visible
+// tray and from our internal tracking map. Safe to call for unknown senders.
+func (t *tray) removeNode(sender dbus.Sender) {
+	t.lock.Lock()
+	item, ok := t.nodes[sender]
+	if ok {
+		delete(t.nodes, sender)
+	}
+	t.lock.Unlock()
+	if !ok {
+		return
+	}
+
+	fyne.Do(func() {
+		t.box.Remove(item.ico)
+		t.box.Refresh()
+	})
+}
+
+// monitorProcesses watches the processes backing each tray icon.
+// We periodically confirm each backing process is still
+// alive and remove the icon for any that have gone away.
+func (t *tray) monitorProcesses() {
+	for range time.Tick(time.Second * 5) {
+		var dead []dbus.Sender
+		t.lock.Lock()
+		for sender, item := range t.nodes {
+			if item.pid != 0 && !processAlive(item.pid) {
+				dead = append(dead, sender)
+			}
+		}
+		t.lock.Unlock()
+
+		for _, sender := range dead {
+			t.removeNode(sender)
+		}
+	}
+}
+
+// processID asks the bus for the process id behind a connection so we can keep
+// an eye on it. It returns 0 if the owner could not be resolved.
+func (t *tray) processID(sender dbus.Sender) uint32 {
+	var pid uint32
+	err := t.conn.BusObject().Call("org.freedesktop.DBus.GetConnectionUnixProcessID", 0,
+		string(sender)).Store(&pid)
+	if err != nil {
+		return 0
+	}
+	return pid
+}
+
+// processAlive reports whether the given process id is still running.
+// The process is considered gone if /proc has no entry for it, or if
+// that entry reports the zombie ("Z") state.
+func processAlive(pid uint32) bool {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return false // no /proc entry: the process is gone
+	}
+
+	if i := bytes.LastIndexByte(data, ')'); i >= 0 && i+2 < len(data) {
+		return data[i+2] != 'Z'
+	}
+	return true
+}
+
 func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) error {
 	ni := notifier.NewStatusNotifierItem(t.conn.Object(string(sender), dbus.ObjectPath(service)))
 
+	t.lock.Lock()
 	item, ok := t.nodes[sender]
 	if !ok {
 		var ico *multiButton
@@ -194,14 +259,16 @@ func (t *tray) RegisterStatusNotifierItem(service string, sender dbus.Sender) er
 		}
 
 		ico.Importance = widget.LowImportance
-		item = &node{ico, ni}
+		item = &node{ico: ico, ni: ni, pid: t.processID(sender)}
 		t.nodes[sender] = item
 		fyne.Do(func() {
 			t.box.Add(ico)
 		})
 	}
 
-	t.nodes[sender].ni = ni
+	item.ni = ni
+	t.lock.Unlock()
+
 	icon := t.fetchIcon(item)
 	fyne.Do(func() {
 		item.ico.SetIcon(icon)

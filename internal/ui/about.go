@@ -45,7 +45,7 @@ func (w *widgetPanel) showAbout() {
 	}
 	win := fyne.CurrentApp().NewWindow("About Tyde")
 
-	logo := canvas.NewImageFromResource(theme2.FyshOSLogo)
+	logo := canvas.NewImageFromResource(theme2.LogoFade)
 	logo.FillMode = canvas.ImageFillContain
 	logo.SetMinSize(fyne.NewSize(256, 256))
 
@@ -64,7 +64,7 @@ func (w *widgetPanel) showAbout() {
 		container.NewCenter(
 			widget.NewRichTextFromMarkdown("**Version:** "+version()),
 		),
-		logo,
+		container.NewCenter(container.NewStack(canvas.NewRectangle(color.White), logo)),
 		container.NewCenter(authors),
 		widget.NewLabelWithStyle("\nWith great thanks to our many kind contributors\n", fyne.TextAlignCenter, fyne.TextStyle{Italic: true}),
 	)
@@ -74,7 +74,7 @@ func (w *widgetPanel) showAbout() {
 	bgColor := withAlpha(themeBG, 0xe0)
 	shadowColor := withAlpha(themeBG, 0x33)
 
-	underlay := canvas.NewImageFromResource(theme2.FyshOSLogo)
+	underlay := canvas.NewImageFromResource(theme2.LogoFade)
 	bg := canvas.NewRectangle(bgColor)
 	underlayer := underLayout{}
 	slideBG := container.New(underlayer, underlay)

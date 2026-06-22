@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -35,8 +34,6 @@ import (
 	wmtheme "fyshos.com/tyde/theme"
 	"fyshos.com/tyde/wm"
 )
-
-const randrHelper = "arandr"
 
 //go:embed "themes/*"
 var bundledThemes embed.FS
@@ -715,15 +712,4 @@ func (d *settingsUI) showCustomise() {
 
 	w.SetContent(fyneAppearance)
 	w.Show()
-}
-
-func themeInstalled(name string) bool {
-	storageRoot := fyne.CurrentApp().Storage().RootURI()
-	themes, _ := storage.Child(storageRoot, "themes")
-	dir, _ := storage.Child(themes, name)
-	log.Println("Checking", dir)
-
-	exists, err := storage.Exists(dir)
-	log.Println("Exists", exists, err)
-	return err == nil && exists
 }

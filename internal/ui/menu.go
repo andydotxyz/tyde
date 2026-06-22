@@ -3,7 +3,9 @@ package ui
 import (
 	"image/color"
 	"os"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/FyshOS/appie"
@@ -39,6 +41,9 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func())
 
 	for _, cat := range catNames {
 		list := cats[cat]
+		slices.SortFunc(list, func(a, b appie.AppData) int {
+			return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+		})
 		var items []fyne.CanvasObject
 		for _, app := range list {
 			if app.Hidden() {
@@ -48,6 +53,7 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func())
 			items = append(items, btn)
 			defer w.loadIcon(app, btn)
 		}
+
 		accList = append(accList, widget.NewAccordionItem(cat,
 			container.NewVBox(items...)))
 	}
