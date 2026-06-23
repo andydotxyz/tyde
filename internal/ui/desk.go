@@ -107,6 +107,10 @@ type desktop struct {
 	// welcomeDone guards the first-run welcome splash so it is only ever triggered
 	// once per session, from the first primary-window layout with a real size.
 	welcomeDone bool
+
+	// activityLayer, in embedded mode only, watches for mouse movement to defer the
+	// screen saver.
+	activityLayer fyne.CanvasObject
 }
 
 func (l *desktop) Desktop() int {
@@ -664,6 +668,11 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 	// Order: background -> compositor -> overlay modules -> bar -> widgets -> compositor overlay -> UI overlay -> mouse
 	objects := []fyne.CanvasObject{sw.bg}
 
+	// Embedded mode's screen-saver activity monitor sits just above the background.
+	if l.activityLayer != nil {
+		objects = append(objects, l.activityLayer)
+	}
+
 	// Normal compositor for regular windows below desktop chrome
 	if sw.compositor != nil {
 		objects = append(objects, sw.compositor)
@@ -1154,8 +1163,9 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) tyde.Desktop {
 	desk.accessoryLayer = container.NewWithoutLayout()
 	AccessoryRefresher = func() { rebuildEmbeddedAccessories(desk.accessoryLayer) }
 
-	over := wm.setWindow(win)
-	win.SetContent(container.NewStack(desk.createPrimaryContent(sw), over))
+	// The saver monitor watches mouse movement to defer the screen saver.
+	desk.activityLayer = wm.setWindow(win)
+	win.SetContent(desk.createPrimaryContent(sw))
 	return desk
 }
 
