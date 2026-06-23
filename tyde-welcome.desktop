@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Tyde Welcome
+Comment=Show the Tyde welcome and quick setup screen
+Exec=tyde_ctl welcome
+Icon=com.fyshos.tyde
+Type=Application
+Categories=Settings;Utility;
+Keywords=welcome;setup;getting started;

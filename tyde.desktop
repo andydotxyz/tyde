@@ -2,4 +2,5 @@
 Name=Tyde
 Comment=Use the Fyne based desktop environment
 Exec=tyde_runner
+Icon=com.fyshos.tyde
 Type=Application

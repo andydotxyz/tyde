@@ -128,6 +128,14 @@ func newRPC() tyde.Module {
 	os.Remove(sock) // clean up stale socket
 
 	mod := &rpcModule{commands: map[string]func() error{
+		"welcome": func() error {
+			if welcomer, ok := tyde.Instance().(interface{ ShowWelcome() }); ok {
+				fyne.Do(welcomer.ShowWelcome)
+			} else {
+				return errors.New("desktop does not support welcome")
+			}
+			return nil
+		},
 		"restart": func() error {
 			if os.Getenv("FYNE_DESK_RUNNER") != "" {
 				os.Exit(5)
