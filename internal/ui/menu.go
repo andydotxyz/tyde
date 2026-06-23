@@ -3,7 +3,6 @@ package ui
 import (
 	"image/color"
 	"os"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -41,8 +40,8 @@ func (w *widgetPanel) appendAppCategories(acc *widget.Accordion, dismiss func())
 
 	for _, cat := range catNames {
 		list := cats[cat]
-		slices.SortFunc(list, func(a, b appie.AppData) int {
-			return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+		sort.Slice(list, func(i, j int) bool {
+			return strings.ToLower(list[i].Name()) < strings.ToLower(list[j].Name())
 		})
 		var items []fyne.CanvasObject
 		for _, app := range list {
