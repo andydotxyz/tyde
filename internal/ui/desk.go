@@ -103,6 +103,10 @@ type desktop struct {
 	// overlayShapes maps each shown overlay to the screen-pixel rectangle it occupies,
 	// so frame input shapes can be made transparent only under the overlay content.
 	overlayShapes map[fyne.CanvasObject]image.Rectangle
+
+	// welcomeDone guards the first-run welcome splash so it is only ever triggered
+	// once per session, from the first primary-window layout with a real size.
+	welcomeDone bool
 }
 
 func (l *desktop) Desktop() int {
@@ -423,6 +427,14 @@ func (l *desktop) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	l.widgets.Resize(fyne.NewSize(widgetsWidth, pH))
 	l.widgets.Move(fyne.NewPos(pW-widgetsWidth, 0))
 	l.widgets.Refresh()
+
+	// On the very first boot, once the primary window has a real (full-screen)
+	// size, present the welcome splash.
+	if !l.welcomeDone && shouldShowWelcome() && l.primaryWin != nil &&
+		size.Width >= welcomeWidth && size.Height >= welcomeHeight {
+		l.welcomeDone = true
+		fyne.Do(l.ShowWelcome)
+	}
 }
 
 func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
