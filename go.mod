@@ -3,8 +3,8 @@ module fyshos.com/tyde
 go 1.19
 
 require (
-	codeberg.org/sdassow/unyts v0.4.1
-	fyne.io/fyne/v2 v2.7.5-0.20260611121725-ccd9d3f45998
+	codeberg.org/sdassow/unyts v0.5.1
+	fyne.io/fyne/v2 v2.7.5-0.20260623150431-fa99114a7c3e
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
