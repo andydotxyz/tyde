@@ -49,6 +49,10 @@ type screenWindow struct {
 	// Only genuine captures are stored here, never derived images, so an entry
 	// always faithfully represents that desktop.
 	deskSnapshots map[int]image.Image
+
+	// overviewShader is a full-window overlay that plays the "reveal all" desktop
+	// overview zoom. Hidden except while the overview is opening, shown or closing.
+	overviewShader *canvas.Shader
 }
 
 // ScreenCompositors groups the compositor widgets for a single screen,
@@ -98,6 +102,7 @@ type desktop struct {
 	deskAnim        *fyne.Animation
 	deskAnimTargets map[tyde.Window]fyne.Position // where the in-flight animation is heading
 	deskCubeAnim    *fyne.Animation               // drives the 3D cube transition overlay
+	overview        *deskOverview                 // the "reveal all" overview, when on screen
 	compositorDone  chan struct{}
 
 	// overlayShapes maps each shown overlay to the screen-pixel rectangle it occupies,
@@ -110,8 +115,15 @@ func (l *desktop) Desktop() int {
 }
 
 func (l *desktop) SetDesktop(id int) {
+	l.setDesktop(id, true)
+}
+
+// setDesktop switches to desktop id, sliding the windows into place. When cube is
+// true the 3D cube transition is rolled over the top to mask the slide; the desktop
+// overview passes false because its own zoom-in already masks the slide.
+func (l *desktop) setDesktop(id int, cube bool) {
 	old := l.desk
-	if id != old {
+	if id != old && cube {
 		// Roll the 3D cube over the top while the windows below slide into place.
 		l.startDeskCube(old, id)
 	}
@@ -169,21 +181,25 @@ func (l *desktop) SetDesktop(id int) {
 
 			if f >= 1.0 {
 				item.Move(pos)
-				if i == len(wins)-1 {
-					l.deskAnim = nil
-					l.deskAnimTargets = nil
-					for _, m := range l.Modules() {
-						if desk, ok := m.(notify.DesktopNotify); ok {
-							desk.DesktopChangeNotify(id)
-						}
-					}
-					l.raiseTopWindow(id)
-				}
 			} else if vm, ok := item.(visualMover); ok {
 				vm.MoveVisual(pos)
 			} else {
 				item.Move(pos)
 			}
+		}
+
+		// Completion runs once the slide finishes, independent of the window loop:
+		// it must fire even with no windows, or when the last window is pinned and
+		// skipped above, so modules (e.g. the pager) always learn of the switch.
+		if f >= 1.0 {
+			l.deskAnim = nil
+			l.deskAnimTargets = nil
+			for _, m := range l.Modules() {
+				if desk, ok := m.(notify.DesktopNotify); ok {
+					desk.DesktopChangeNotify(id)
+				}
+			}
+			l.raiseTopWindow(id)
 		}
 	})
 	l.deskAnim = a
@@ -672,6 +688,12 @@ func (l *desktop) createPrimaryContent(sw *screenWindow) fyne.CanvasObject {
 		objects = append(objects, sw.compositorOverlay)
 	}
 
+	// Desktop overview zoom, below the UI overlay so the interactive selection
+	// layer (added to sw.overlay) sits above it, but above the bar and widgets so
+	// it hides the chrome while playing.
+	sw.overviewShader = newOverviewShader()
+	objects = append(objects, sw.overviewShader)
+
 	// UI overlay for menus, dialogs, switcher, notifications
 	sw.overlay = container.NewWithoutLayout()
 	objects = append(objects, sw.overlay, l.mouse)
@@ -749,6 +771,9 @@ func (l *desktop) createSecondaryContent(sw *screenWindow) fyne.CanvasObject {
 	if sw.compositorOverlay != nil {
 		objects = append(objects, sw.compositorOverlay)
 	}
+
+	sw.overviewShader = newOverviewShader()
+	objects = append(objects, sw.overviewShader)
 
 	sw.overlay = container.NewWithoutLayout()
 	objects = append(objects, sw.overlay)

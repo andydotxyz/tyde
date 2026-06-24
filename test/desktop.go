@@ -58,6 +58,9 @@ func (*Desktop) Desktop() int {
 func (*Desktop) SetDesktop(int) {
 }
 
+// ShowDesktopOverview reveals all desktops, a no-op in test code
+func (*Desktop) ShowDesktopOverview(int) {}
+
 // ShowSettings does nothing for the test package
 func (*Desktop) ShowSettings() {}
 

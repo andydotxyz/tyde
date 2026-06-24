@@ -5,6 +5,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/tyde"
 )
@@ -87,7 +89,13 @@ func (d *desktops) Shortcuts() map[*tyde.Shortcut]func() {
 }
 
 func (d *desktops) StatusAreaWidget() fyne.CanvasObject {
-	return container.NewStack(d.gui.buttons, d.gui.wins, d.gui.labels)
+	reveal := widget.NewButtonWithIcon("", theme.GridIcon(), func() {
+		tyde.Instance().ShowDesktopOverview(deskCount)
+	})
+	reveal.Importance = widget.LowImportance
+
+	pager := container.NewStack(d.gui.buttons, d.gui.wins, d.gui.labels)
+	return container.NewVBox(reveal, pager)
 }
 
 func (d *desktops) setDesktop(id int) {
