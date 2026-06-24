@@ -25,6 +25,8 @@ github.com/FyshOS/fancyfs v0.0.1 h1:kgvm7VvwOMLkYTqSflplp62SlMVWQ2uAoHw9CXwXHYg=
 github.com/FyshOS/fancyfs v0.0.1/go.mod h1:S5SHVz/5R72iCXOxCqdcyTPSlg3JxNd0gaHyGBSrY8A=
 github.com/FyshOS/fyles v0.1.0 h1:ezJIxIEcQtoyN8c52vadLZRr1m8ZUIusz8yBfjed/pk=
 github.com/FyshOS/fyles v0.1.0/go.mod h1:YgozzG7CgidZTeohsrb6ayuLP803tRfmPNZ7cUXwdHI=
+github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba h1:en4DPSeMviqsBmoT2nbPmPV9l5FsXFuz9JU4S0y/SE0=
+github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba/go.mod h1:hFyul2zT1VOgINBEBeRVkXeoCBWo5dWU4poPihDniVU=
 github.com/FyshOS/saver v0.1.1-0.20260407200543-762135717028 h1:gnZOxK+y64+zaAreh9PyispXXCSz9vV5WgM+qO5h7ok=
 github.com/FyshOS/saver v0.1.1-0.20260407200543-762135717028/go.mod h1:WvBivsR68hbiahFFjEf5Yzv1chBd/Slo8TRziPgzEOY=
 github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820 h1:1brj9ygNCRJUM5uMjPC2s5q/du9FnK4Y40YdLpURaGQ=
@@ -115,6 +117,8 @@ github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJ
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/rymdport/portal v0.4.2 h1:7jKRSemwlTyVHHrTGgQg7gmNPJs88xkbKcIL3NlcmSU=
 github.com/rymdport/portal v0.4.2/go.mod h1:kFF4jslnJ8pD5uCi17brj/ODlfIidOxlgUDTO5ncnC4=
+github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e h1:MRM5ITcdelLK2j1vwZ3Je0FKVCfqOLp5zO6trqMLYs0=
+github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e/go.mod h1:XV66xRDqSt+GTGFMVlhk3ULuV0y9ZmzeVGR4mloJI3M=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=
 github.com/spf13/cobra v0.0.5/go.mod h1:3K3wKZymM7VvHMDS9+Akkh4K60UwM26emMESw8tLCHU=
