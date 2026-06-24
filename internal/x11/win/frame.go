@@ -23,7 +23,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/driver/software"
-	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
 	"fyshos.com/tyde"
@@ -63,7 +62,7 @@ type frame struct {
 	transparencySet bool
 	closed          atomic.Bool
 
-	canvas test.WindowlessCanvas
+	canvas software.WindowlessCanvas
 	client *client
 }
 
