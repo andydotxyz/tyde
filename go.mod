@@ -34,6 +34,7 @@ require github.com/creack/pty v1.1.21 // indirect
 
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
+	github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba
 	github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	golang.org/x/image v0.24.0
@@ -62,6 +63,7 @@ require (
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
