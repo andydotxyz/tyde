@@ -31,6 +31,7 @@ type Desktop interface {
 
 	Desktop() int
 	SetDesktop(int)
+	ShowDesktopOverview(count int)
 	ShowSettings()
 
 	DelayScreenSaver()

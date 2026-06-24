@@ -1,0 +1,75 @@
+package ui
+
+import (
+	"image"
+	"image/color"
+	"testing"
+
+	"fyne.io/fyne/v2"
+	"github.com/stretchr/testify/assert"
+)
+
+// A failed GL readback comes back as a solid-black opaque image, which must be
+// treated as blank so the preview falls back; any real content is not blank.
+func TestCaptureIsBlank(t *testing.T) {
+	black := image.NewRGBA(image.Rect(0, 0, 64, 48))
+	for i := 3; i < len(black.Pix); i += 4 {
+		black.Pix[i] = 0xff // opaque, RGB left at zero
+	}
+	assert.True(t, captureIsBlank(black))
+	assert.True(t, captureIsBlank(image.NewRGBA(image.Rect(0, 0, 0, 0))))
+
+	withContent := image.NewRGBA(image.Rect(0, 0, 64, 48))
+	wallpaper := color.RGBA{R: 10, G: 20, B: 30, A: 255}
+	for y := 0; y < 48; y++ {
+		for x := 0; x < 64; x++ {
+			withContent.Set(x, y, wallpaper)
+		}
+	}
+	assert.False(t, captureIsBlank(withContent))
+}
+
+// Four desktops lay out as a centred 2x2 grid: equal cells, no overlaps, a visible
+// gap between rows and columns, each cell keeping the view's aspect ratio.
+func TestOverviewPanelGeometryGrid(t *testing.T) {
+	size := fyne.NewSize(800, 600)
+	const count = 4
+
+	assert.Equal(t, 2, overviewGridCols(count))
+
+	pos := make([]fyne.Position, count)
+	sz := make([]fyne.Size, count)
+	for i := 0; i < count; i++ {
+		pos[i], sz[i] = overviewPanelGeometry(count, i, size)
+	}
+
+	// All cells are the same size and keep the screen's aspect ratio.
+	for i := 1; i < count; i++ {
+		assert.InDelta(t, sz[0].Width, sz[i].Width, 0.01)
+		assert.InDelta(t, sz[0].Height, sz[i].Height, 0.01)
+	}
+	assert.InDelta(t, size.Width/size.Height, sz[0].Width/sz[0].Height, 0.001)
+
+	// Grid positions: 0,1 on the top row; 2,3 on the bottom row.
+	assert.InDelta(t, pos[0].Y, pos[1].Y, 0.01) // same row
+	assert.InDelta(t, pos[2].Y, pos[3].Y, 0.01) // same row
+	assert.InDelta(t, pos[0].X, pos[2].X, 0.01) // same column
+	assert.InDelta(t, pos[1].X, pos[3].X, 0.01) // same column
+	assert.Greater(t, pos[2].Y, pos[0].Y)       // bottom row below top
+	assert.Greater(t, pos[1].X, pos[0].X)       // right column right of left
+
+	// There is a real gap between the columns and the rows (not touching).
+	colGap := pos[1].X - (pos[0].X + sz[0].Width)
+	rowGap := pos[2].Y - (pos[0].Y + sz[0].Height)
+	assert.Greater(t, colGap, float32(1))
+	assert.Greater(t, rowGap, float32(1))
+
+	// The grid is centred and fits within the view with a margin to spare.
+	assert.Greater(t, pos[0].X, float32(0))
+	assert.Greater(t, pos[0].Y, float32(0))
+	assert.Less(t, pos[1].X+sz[1].Width, size.Width)
+	assert.Less(t, pos[2].Y+sz[2].Height, size.Height)
+	// Centred: left margin equals right margin, top equals bottom.
+	assert.InDelta(t, pos[0].X, size.Width-(pos[1].X+sz[1].Width), 0.1)
+	assert.InDelta(t, pos[0].Y, size.Height-(pos[2].Y+sz[2].Height), 0.1)
+}
