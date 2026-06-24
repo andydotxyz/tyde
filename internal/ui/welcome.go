@@ -211,13 +211,16 @@ func (w *welcome) showHome() {
 	footer := container.NewCenter(container.NewPadded(container.NewHBox(skip, getStarted)))
 
 	w.setBody(container.NewBorder(
-		container.NewVBox(header, widget.NewSeparator()), footer, nil, nil, rows))
+		container.NewVBox(header, widget.NewSeparator()), footer, nil, nil, rows,
+	))
 }
 
 // showScreen swaps the card to a single setup screen with a Back button.
 func (w *welcome) showScreen(title string, content fyne.CanvasObject) {
-	back := &widget.Button{Text: "Back", Icon: theme.NavigateBackIcon(),
-		Importance: widget.LowImportance, OnTapped: w.showHome}
+	back := &widget.Button{
+		Text: "Back", Icon: theme.NavigateBackIcon(),
+		Importance: widget.LowImportance, OnTapped: w.showHome,
+	}
 	head := container.NewBorder(nil, nil, back, nil,
 		widget.NewLabelWithStyle(title, fyne.TextAlignCenter, fyne.TextStyle{Bold: true}))
 	w.setBody(container.NewBorder(container.NewVBox(head, widget.NewSeparator()), nil, nil, nil, content))
@@ -241,7 +244,8 @@ func (w *welcome) openModules() {
 func (w *welcome) openWifi() {
 	msg := widget.NewLabelWithStyle(
 		"Wi-Fi setup is coming soon.\n\nUse the network icon in the status bar to manage your connection.",
-		fyne.TextAlignCenter, fyne.TextStyle{})
+		fyne.TextAlignCenter, fyne.TextStyle{},
+	)
 	msg.Wrapping = fyne.TextWrapWord
 	w.showScreen("Connect to Wi-Fi", container.NewCenter(msg))
 }
