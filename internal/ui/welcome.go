@@ -8,12 +8,15 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	wmtheme "fyshos.com/tyde/theme"
+	"github.com/FyshOS/networks/pkg/netman"
+	"github.com/godbus/dbus/v5"
 )
 
 const (
@@ -52,6 +55,9 @@ type welcome struct {
 
 	body *fyne.Container // swappable card contents (home <-> a setup screen)
 	hide func()          // tears down the modal overlay
+
+	conn *dbus.Conn       // system bus for Wi-Fi setup, opened lazily and reused
+	net  *netman.Networks // the Wi-Fi widget, built once on first use
 }
 
 // ShowWelcome builds and presents the first-run welcome splash over the desktop.
@@ -239,15 +245,60 @@ func (w *welcome) openModules() {
 	w.showScreen("Manage Modules", w.sui.loadModulesScreen())
 }
 
-// openWifi shows a placeholder - there is no inline Wi-Fi setup yet. Until then
-// it points the user at the network controls in the status bar.
+// openWifi shows Wi-Fi setup screen allowing user to pick a network from those found.
 func (w *welcome) openWifi() {
-	msg := widget.NewLabelWithStyle(
-		"Wi-Fi setup is coming soon.\n\nUse the network icon in the status bar to manage your connection.",
-		fyne.TextAlignCenter, fyne.TextStyle{},
-	)
-	msg.Wrapping = fyne.TextWrapWord
-	w.showScreen("Connect to Wi-Fi", container.NewCenter(msg))
+	win := w.sui.win
+
+	// Build the network browser once and reuse it (and its bus connection).
+	if w.net == nil {
+		nm, conn, err := newWifiNetworks(win)
+		if err != nil {
+			dialog.ShowError(err, win)
+			return
+		}
+		w.conn, w.net = conn, nm
+	}
+
+	w.showScreen("Connect to Wi-Fi", w.net)
+}
+
+// newWifiNetworks loads the network browser from our networks repo.
+// The caller owns the returned connection and must Close it once the widget is no longer needed.
+func newWifiNetworks(win fyne.Window) (*netman.Networks, *dbus.Conn, error) {
+	conn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// handlePass prompts for a network passphrase, blocking until the user submits
+	// or cancels. It is called from netman's iwd agent callback (off the UI thread),
+	// so the blocking read is safe; Cancel returns "" to abort the connection.
+	handlePass := func(name string) string {
+		result := make(chan string, 1)
+		entry := widget.NewPasswordEntry()
+		d := dialog.NewForm("Connect to "+name, "Connect", "Cancel",
+			[]*widget.FormItem{widget.NewFormItem("Password", entry)},
+			func(ok bool) {
+				if ok {
+					result <- entry.Text
+				} else {
+					result <- ""
+				}
+			}, win)
+		d.Resize(fyne.NewSize(320, d.MinSize().Height))
+		d.Show()
+
+		return <-result
+	}
+
+	nm, err := netman.New(conn, handlePass, func(err error) {
+		dialog.ShowError(err, win)
+	})
+	if err != nil {
+		_ = conn.Close()
+		return nil, nil, err
+	}
+	return nm, conn, nil
 }
 
 // openFullSettings closes the welcome and launches the full settings window,
@@ -274,6 +325,11 @@ func (w *welcome) dismiss(done bool) {
 	}
 	if w.cardFadeAnim != nil {
 		w.cardFadeAnim.Stop()
+	}
+
+	if w.conn != nil {
+		_ = w.conn.Close()
+		w.conn, w.net = nil, nil
 	}
 
 	if done {

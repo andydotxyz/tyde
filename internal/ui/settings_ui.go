@@ -33,6 +33,7 @@ import (
 	"fyshos.com/tyde"
 	wmtheme "fyshos.com/tyde/theme"
 	"fyshos.com/tyde/wm"
+	"github.com/godbus/dbus/v5"
 )
 
 //go:embed "themes/*"
@@ -44,6 +45,8 @@ type settingsUI struct {
 
 	fyneSettings  *settings.Settings
 	launcherIcons []string
+
+	netConn *dbus.Conn // system bus backing the Network tab, closed with the window
 }
 
 func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
@@ -346,6 +349,18 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 		widget.NewCard("App Bar", "", container.NewVBox(bar, details)))
 }
 
+// loadNetworkScreen builds the Wi-Fi management tab from our networks app package.
+func (d *settingsUI) loadNetworkScreen() fyne.CanvasObject {
+	nm, conn, err := newWifiNetworks(d.win)
+	if err != nil {
+		msg := widget.NewLabel("Wi-Fi management is unavailable.\n\n" + err.Error())
+		msg.Wrapping = fyne.TextWrapWord
+		return widget.NewCard("Network", "", container.NewCenter(msg))
+	}
+	d.netConn = conn
+	return widget.NewCard("Network", "", nm)
+}
+
 func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 	var modules, launchers []fyne.CanvasObject
 
@@ -564,7 +579,13 @@ func (w *widgetPanel) showSettings() {
 	screens := screenmanager.New(win)
 	screens.OnConfigurationChanged = w.desk.Screens().RefreshScreens
 	screenui := widget.NewCard("Screens", "", screens)
-	win.SetOnClosed(screens.Close)
+	win.SetOnClosed(func() {
+		screens.Close()
+		if ui.netConn != nil {
+			_ = ui.netConn.Close()
+			ui.netConn = nil
+		}
+	})
 
 	tabs := container.NewAppTabs(
 		&container.TabItem{
@@ -579,6 +600,10 @@ func (w *widgetPanel) showSettings() {
 		&container.TabItem{
 			Text: "Display", Icon: wmtheme.ScreensIcon,
 			Content: container.NewBorder(scale, nil, nil, nil, screenui),
+		},
+		&container.TabItem{
+			Text: "Network", Icon: wmtheme.WifiIcon,
+			Content: ui.loadNetworkScreen(),
 		},
 		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
