@@ -27,6 +27,7 @@ type XWin interface {
 	SettingsChanged()
 
 	NotifyBorderChange()
+	NotifyIconChange()
 	NotifyGeometry(int, int, uint, uint)
 	NotifyMoveResizeEnded()
 

@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 
 	"fyshos.com/tyde"
+	"fyshos.com/tyde/internal/icon"
 	"fyshos.com/tyde/internal/x11"
 )
 
@@ -47,12 +48,30 @@ func (c *clientProperties) Icon() fyne.Resource {
 	}
 
 	xIcon := windowIcon(c.c.wm.X(), c.c.win, 64, 64)
-	if xIcon == nil {
+	if xIcon != nil {
+		c.iconCache = fyne.NewStaticResource(c.Title(), xIcon.Bytes())
+		return c.iconCache
+	}
+
+	// The window provides no icon of its own so fall back to the app icon.
+	c.iconCache = c.appIcon()
+	return c.iconCache
+}
+
+// appIcon resolves the application icon for this window from the desktop's icon
+// provider, returning nil when no matching application can be found.
+func (c *clientProperties) appIcon() fyne.Resource {
+	provider := tyde.Instance().IconProvider()
+	if provider == nil {
 		return nil
 	}
 
-	c.iconCache = fyne.NewStaticResource(c.Title(), xIcon.Bytes())
-	return c.iconCache
+	app := icon.FindAppFromWinInfo(c.c, provider)
+	if app == nil {
+		return nil
+	}
+
+	return app.Icon(tyde.Instance().Settings().IconTheme(), 64)
 }
 
 func (c *clientProperties) IconName() string {
@@ -79,4 +98,10 @@ func (c *clientProperties) Title() string {
 func (c *clientProperties) refreshCache() {
 	c.iconCache = nil
 	c.decorated = c.lookupDecorated()
+}
+
+// refreshIconCache clears only the cached window icon so the next lookup
+// re-reads the client's icon property (e.g. _NET_WM_ICON).
+func (c *clientProperties) refreshIconCache() {
+	c.iconCache = nil
 }

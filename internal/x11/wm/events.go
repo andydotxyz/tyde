@@ -359,6 +359,8 @@ func (x *x11WM) handlePropertyChange(ev xproto.PropertyNotifyEvent) {
 		c.NotifyGeometry(x, y, w, h)
 	case "_MOTIF_WM_HINTS":
 		c.NotifyBorderChange()
+	case "_NET_WM_ICON", "WM_HINTS":
+		c.NotifyIconChange()
 	}
 }
 
