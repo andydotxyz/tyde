@@ -44,6 +44,11 @@ func (w *Window) NotifyFullscreen() {
 	// no-op
 }
 
+// NotifyIconChange is called when the window icon has been updated
+func (w *Window) NotifyIconChange() {
+	// no-op
+}
+
 // NotifyIconify is called when the window is instructed to become iconified
 func (w *Window) NotifyIconify() {
 	// no-op
