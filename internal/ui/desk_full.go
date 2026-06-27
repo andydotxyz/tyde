@@ -72,6 +72,14 @@ func (l *desktop) showMenuFull(menu *fyne.Menu, pos fyne.Position) {
 		contentOffset = fyne.NewPos(childWidth, 0)
 	}
 
+	// Flip the menu to the left of the anchor when it would overflow the right edge.
+	if pos.X+size.Width > canvasWidth {
+		pos.X -= size.Width
+	}
+	if pos.X < 0 {
+		pos.X = 0
+	}
+
 	var combined fyne.CanvasObject
 
 	// Wrap each menu item action (and child menu item actions) to dismiss the overlay
