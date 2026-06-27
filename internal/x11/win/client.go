@@ -269,6 +269,16 @@ func (c *client) NotifyBorderChange() {
 	}
 }
 
+// NotifyIconChange invalidates the cached window icon and redraws the border so
+// that an icon set or updated by the client (e.g. after load) is reflected.
+func (c *client) NotifyIconChange() {
+	if c.props == nil {
+		return
+	}
+	c.props.refreshIconCache()
+	c.Refresh()
+}
+
 func (c *client) NotifyGeometry(x int, y int, width uint, height uint) {
 	c.frame.updateGeometry(int16(x), int16(y), uint16(width), uint16(height), true)
 }
