@@ -17,7 +17,7 @@ require (
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
 	github.com/fyne-io/oksvg v0.2.0 // indirect
-	github.com/godbus/dbus/v5 v5.2.2
+	github.com/godbus/dbus/v5 v5.1.0
 	github.com/hack-pad/go-indexeddb v0.3.2 // indirect
 	github.com/hack-pad/safejs v0.1.0 // indirect
 	github.com/jackmordaunt/icns v1.0.1-0.20200413110149-9e181b441ab2 // indirect
@@ -35,7 +35,7 @@ require github.com/creack/pty v1.1.21 // indirect
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
 	github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba
-	github.com/FyshOS/networks v0.0.0-20260626180915-31c6f68dcf53
+	github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc
 	github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	golang.org/x/image v0.24.0
