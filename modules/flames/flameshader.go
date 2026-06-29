@@ -9,8 +9,8 @@ package flames
 // that differs between targets, so it is prepended below rather than duplicated.
 const flameBody = `
 /* the standard uniform contract shared with the built in vector shaders */
-uniform vec2 frame_size;   // size of the output frame, in pixels
-uniform vec4 rect_coords;  // this object's bounds: x1 [0], x2 [1], y1 [2], y2 [3]
+uniform vec2 frame;        // size of the output frame, in pixels
+uniform vec4 bounds;       // this object's bounds: x1 [0], y1 [1], x2 [2], y2 [3]
 uniform float time;        // elapsed animation time, in seconds
 
 // hash -> value noise -> fbm: cheap procedural turbulence so the flames need no
@@ -45,19 +45,19 @@ float fbm(vec2 p) {
 
 void main() {
     // Discard anything outside this object's bounds, like the built in shapes.
-    if (gl_FragCoord.x < rect_coords[0] || gl_FragCoord.x > rect_coords[1] ||
-        gl_FragCoord.y < frame_size.y - rect_coords[3] ||
-        gl_FragCoord.y > frame_size.y - rect_coords[2]) {
+    if (gl_FragCoord.x < bounds[0] || gl_FragCoord.x > bounds[2] ||
+        gl_FragCoord.y < frame.y - bounds[3] ||
+        gl_FragCoord.y > frame.y - bounds[1]) {
         discard;
     }
 
     // Local coordinates within the rect: uv.x 0..1 left->right, uv.y 0..1
     // bottom->top (gl_FragCoord.y grows upward, the rect's bottom edge sits at
-    // frame_size.y - rect_coords[3]).
-    float w = rect_coords[1] - rect_coords[0];
-    float h = rect_coords[3] - rect_coords[2];
-    vec2 uv = vec2(gl_FragCoord.x - rect_coords[0],
-                   gl_FragCoord.y - (frame_size.y - rect_coords[3])) / vec2(w, h);
+    // frame.y - bounds[3]).
+    float w = bounds[2] - bounds[0];
+    float h = bounds[3] - bounds[1];
+    vec2 uv = vec2(gl_FragCoord.x - bounds[0],
+                   gl_FragCoord.y - (frame.y - bounds[3])) / vec2(w, h);
 
     // Confine the flames to the bottom 10% of the object. fy is 0 at the very
     // bottom and 1 at the top of that band; above it the shader stays transparent.

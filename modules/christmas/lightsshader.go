@@ -12,8 +12,8 @@ package christmas
 // that differs between targets, so it is prepended below rather than duplicated.
 const lightsBody = `
 /* the standard uniform contract shared with the built in vector shaders */
-uniform vec2 frame_size;   // size of the output frame, in pixels
-uniform vec4 rect_coords;  // this object's bounds: x1 [0], x2 [1], y1 [2], y2 [3]
+uniform vec2 frame;        // size of the output frame, in pixels
+uniform vec4 bounds;       // this object's bounds: x1 [0], y1 [1], x2 [2], y2 [3]
 uniform float time;        // elapsed animation time, in seconds
 
 const int LIGHTS = 40; // bulbs spaced evenly around the string
@@ -101,17 +101,17 @@ float snowLayer(vec2 uv, float density, float speed, float seed, float t) {
 
 void main() {
     // Discard anything outside this object's bounds, like the built in shapes.
-    if (gl_FragCoord.x < rect_coords[0] || gl_FragCoord.x > rect_coords[1] ||
-        gl_FragCoord.y < frame_size.y - rect_coords[3] ||
-        gl_FragCoord.y > frame_size.y - rect_coords[2]) {
+    if (gl_FragCoord.x < bounds[0] || gl_FragCoord.x > bounds[2] ||
+        gl_FragCoord.y < frame.y - bounds[3] ||
+        gl_FragCoord.y > frame.y - bounds[1]) {
         discard;
     }
 
     // Work in local pixel coordinates: p.x 0..w left->right, p.y 0..h bottom->top.
-    float w = rect_coords[1] - rect_coords[0];
-    float h = rect_coords[3] - rect_coords[2];
-    vec2 p = vec2(gl_FragCoord.x - rect_coords[0],
-                  gl_FragCoord.y - (frame_size.y - rect_coords[3]));
+    float w = bounds[2] - bounds[0];
+    float h = bounds[3] - bounds[1];
+    vec2 p = vec2(gl_FragCoord.x - bounds[0],
+                  gl_FragCoord.y - (frame.y - bounds[3]));
 
     // The wire runs around a rectangle inset slightly from each edge, so the
     // string sits just in from the bounds; the bulbs then hang inward off it.
