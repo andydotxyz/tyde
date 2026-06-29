@@ -82,18 +82,11 @@ type widgetPanel struct {
 }
 
 func (w *widgetPanel) clockTick() {
-	// more complex than time.Timer so that when the OS sleeps it does not stack ticks...
-	wait := make(chan struct{})
-	time.AfterFunc(time.Second, func() {
-		wait <- struct{}{}
-	})
+	// A ticker drops missed ticks during sleeps.
 	go func() {
-		for range wait {
+		t := time.NewTicker(time.Second)
+		for range t.C {
 			fyne.Do(w.clockRefresh)
-
-			time.AfterFunc(time.Second, func() {
-				wait <- struct{}{}
-			})
 		}
 	}()
 }
