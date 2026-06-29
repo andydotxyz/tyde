@@ -12,8 +12,8 @@ package ui
 // OpenGL ES / mobile / web. They are identical apart from the version preamble.
 var cubeShaderGL = []byte(`#version 110
 
-uniform vec2 frame_size;
-uniform vec4 rect_coords; // x1, x2, y1, y2 in pixels (canvas-top origin)
+uniform vec2 frame;
+uniform vec4 bounds; // x1, y1, x2, y2 in pixels (canvas-top origin)
 uniform float progress;
 uniform sampler2D desk0;
 uniform sampler2D desk1;
@@ -63,11 +63,11 @@ vec3 faceColor(vec3 lp) {
 }
 
 void main() {
-    float w = rect_coords[1] - rect_coords[0];
-    float h = rect_coords[3] - rect_coords[2];
+    float w = bounds[2] - bounds[0];
+    float h = bounds[3] - bounds[1];
     float aspect = w / h;
-    float canvasY = frame_size.y - gl_FragCoord.y;
-    vec2 local = vec2(gl_FragCoord.x - rect_coords[0], canvasY - rect_coords[2]);
+    float canvasY = frame.y - gl_FragCoord.y;
+    vec2 local = vec2(gl_FragCoord.x - bounds[0], canvasY - bounds[1]);
     vec2 uv = (local / vec2(w, h)) * 2.0 - 1.0;
     uv.y = -uv.y;
     uv.x *= aspect;
@@ -119,8 +119,8 @@ precision mediump float;
 #endif
 #endif
 
-uniform vec2 frame_size;
-uniform vec4 rect_coords;
+uniform vec2 frame;
+uniform vec4 bounds;
 uniform float progress;
 uniform sampler2D desk0;
 uniform sampler2D desk1;
@@ -167,11 +167,11 @@ vec3 faceColor(vec3 lp) {
 }
 
 void main() {
-    float w = rect_coords[1] - rect_coords[0];
-    float h = rect_coords[3] - rect_coords[2];
+    float w = bounds[2] - bounds[0];
+    float h = bounds[3] - bounds[1];
     float aspect = w / h;
-    float canvasY = frame_size.y - gl_FragCoord.y;
-    vec2 local = vec2(gl_FragCoord.x - rect_coords[0], canvasY - rect_coords[2]);
+    float canvasY = frame.y - gl_FragCoord.y;
+    vec2 local = vec2(gl_FragCoord.x - bounds[0], canvasY - bounds[1]);
     vec2 uv = (local / vec2(w, h)) * 2.0 - 1.0;
     uv.y = -uv.y;
     uv.x *= aspect;

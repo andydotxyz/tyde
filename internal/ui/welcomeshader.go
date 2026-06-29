@@ -10,15 +10,15 @@ package ui
 // "time" keeps them undulating afterwards.
 //
 // It follows the uniform contract used by the built-in vector shaders and the
-// flames/cube shaders in this project, so it is driven the same way: rect_coords
+// flames/cube shaders in this project, so it is driven the same way: bounds
 // gives the object's bounds (canvas-top origin), letting the shader confine
 // itself to the panel like the built-in shapes do.
 //
 // The version header (and, for ES, the precision preamble) is the only thing
 // that differs between targets, so it is prepended below rather than duplicated.
 const welcomeWaveBody = `
-uniform vec2 frame_size;   // size of the output frame, in pixels
-uniform vec4 rect_coords;  // this object's bounds: x1 [0], x2 [1], y1 [2], y2 [3]
+uniform vec2 frame;        // size of the output frame, in pixels
+uniform vec4 bounds;       // this object's bounds: x1 [0], y1 [1], x2 [2], y2 [3]
 uniform float time;        // elapsed animation time, in seconds
 uniform float reveal;      // 0..1 wash-in: bands fade in from the surface (no slide)
 
@@ -38,19 +38,19 @@ vec3 bandColor(float s) {
 
 void main() {
     // Discard anything outside this object's bounds, like the built in shapes.
-    if (gl_FragCoord.x < rect_coords[0] || gl_FragCoord.x > rect_coords[1] ||
-        gl_FragCoord.y < frame_size.y - rect_coords[3] ||
-        gl_FragCoord.y > frame_size.y - rect_coords[2]) {
+    if (gl_FragCoord.x < bounds[0] || gl_FragCoord.x > bounds[2] ||
+        gl_FragCoord.y < frame.y - bounds[3] ||
+        gl_FragCoord.y > frame.y - bounds[1]) {
         discard;
     }
 
-    float w = rect_coords[1] - rect_coords[0];
-    float h = rect_coords[3] - rect_coords[2];
+    float w = bounds[2] - bounds[0];
+    float h = bounds[3] - bounds[1];
 
     // Local coordinates within the rect: uv.x 0..1 left->right, uv.y 0..1
-    // top->bottom (rect_coords is canvas-top origin, gl_FragCoord.y grows upward).
-    float lx = gl_FragCoord.x - rect_coords[0];
-    float ly = (frame_size.y - gl_FragCoord.y) - rect_coords[2];
+    // top->bottom (bounds is canvas-top origin, gl_FragCoord.y grows upward).
+    float lx = gl_FragCoord.x - bounds[0];
+    float ly = (frame.y - gl_FragCoord.y) - bounds[1];
     vec2 uv = vec2(lx / w, ly / h);
 
     // Rounded corners: fade to transparent outside a rounded-rectangle so the
