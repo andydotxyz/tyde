@@ -29,14 +29,13 @@ func (x *x11WM) initScreensaver() {
 }
 
 func (x *x11WM) watchScreensaver() {
-	// more complex than time.Timer so that when the OS sleeps it does not stack ticks...
-	wait := make(chan struct{})
-	time.AfterFunc(time.Second, func() {
-		wait <- struct{}{}
-	})
+	// A ticker drops missed ticks during computer sleeps. We still measure the
+	// wall-clock gap between ticks to notice a sleep happened and lock at once.
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
 	previous := time.Now()
 
-	for range wait {
+	for range t.C {
 		info, err := screensaver.QueryInfo(x.x.Conn(), xproto.Drawable(x.x.Screen().Root)).Reply()
 		if err != nil {
 			fyne.LogError("Failed to query screensaver info", err)
@@ -51,10 +50,6 @@ func (x *x11WM) watchScreensaver() {
 		} else if info.MsSinceUserInput <= 1500 {
 			tyde.Instance().DelayScreenSaver()
 		}
-
-		time.AfterFunc(time.Second, func() {
-			wait <- struct{}{}
-		})
 	}
 }
 

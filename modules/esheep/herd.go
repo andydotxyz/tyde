@@ -2,6 +2,7 @@ package esheep
 
 import (
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -35,6 +36,8 @@ type herd struct {
 	sheep []*sheep
 
 	redropTimer float32
+
+	stepPending atomic.Bool // a step is queued on the render thread but not yet run
 
 	done    chan struct{}
 	started bool
@@ -96,7 +99,14 @@ func (h *herd) loop() {
 		case <-h.done:
 			return
 		case <-t.C:
-			fyne.Do(h.step)
+			// Don't accumulate draws whilst we are asleep.
+			if !h.stepPending.CompareAndSwap(false, true) {
+				continue
+			}
+			fyne.Do(func() {
+				h.stepPending.Store(false)
+				h.step()
+			})
 		}
 	}
 }
