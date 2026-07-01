@@ -46,6 +46,7 @@ type client struct {
 	fullscreened bool // unredirected for fullscreen bypass
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
 	pending      bool // true = a refresh was requested, awaiting render
+	priority     bool // newly mapped: capture and paint ahead of the bulk re-capture
 
 	geom       xproto.GetGeometryReply
 	attributes xproto.GetWindowAttributesReply
@@ -790,117 +791,156 @@ func removeWindowFromAllScreens(ws *widgets, winID uint32) {
 // in the back buffer when it runs, so the last frame is never lost.
 func refreshWindows(conn *xgb.Conn, ws *widgets) {
 	refreshed := make(map[*ui.CompositorWidget]bool)
+
+	// Pass 1: newly-mapped ("priority") windows first, painted immediately, so a
+	// window opened right after wake appears without waiting for the bulk
+	// re-capture of every previously-open window — which can take seconds when
+	// everything is damaged at once, as happens on resume from sleep.
+	hadPriority := false
 	for _, c := range clients {
-		if !c.damaged || c.skipped || c.fullscreened || c.visualMoving {
+		if !c.priority {
 			continue
 		}
-		if c.attributes.MapState != xproto.MapStateViewable {
-			continue
-		}
-		if c.geom.X+int16(c.geom.Width) < 1 || c.geom.Y+int16(c.geom.Height) < 1 ||
-			c.geom.X >= int16(rootWidth) || c.geom.Y >= int16(rootHeight) {
-			continue
-		}
-
-		// Ensure we have a named pixmap
-		if c.pixmap == 0 {
-			pixmap, err := xproto.NewPixmapId(conn)
-			if err != nil {
-				continue
-			}
-			if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
-				continue
-			}
-			c.pixmap = pixmap
-		}
-
-		winID, isFullScreen, pending := checkPending(c, ws)
-
-		totalW := c.geom.Width + c.geom.BorderWidth*2
-		totalH := c.geom.Height + c.geom.BorderWidth*2
-		isARGB := c.opaqueType == argb
-
-		// When a refresh is pending the renderer may read the previous
-		// write buffer via Back, so use a fresh allocation to avoid a race.
-		buf := c.bufs[c.writeIdx]
-		if pending {
-			buf = nil
-		}
-		img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB, buf)
-		if img == nil {
-			continue
-		}
-		c.damaged = false
-
-		if !pending {
-			c.bufs[c.writeIdx] = img
-			c.writeIdx = 1 - c.writeIdx
-		}
-
-		w := wmWindow(c)
-		if w == nil || (!w.Fullscreened() && !w.Maximized()) {
-			scale := float32(1)
-			if len(ws.screens) > 0 {
-				scale = ws.screens[0].screen.CanvasScale()
-			}
-			roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
-		}
-
-		translucency := computeTranslucency(conn, c)
-
-		// Push to back buffer on all screen widgets for this window.
-		// The renderer will swap Back→Img.Image on its next Refresh.
-		for _, sw := range ws.screensForClient(c) {
-			var target *ui.CompositorWidget
-			if isFullScreen {
-				target = sw.overlay
-			} else {
-				target = sw.normal
-			}
-			wi := target.GetWindow(winID)
-			if wi == nil {
-				continue
-			}
-
-			wi.Back.Store(img)
-			wi.Img.Translucency = translucency
-
-			localX := c.geom.X - int16(sw.screen.X)
-			localY := c.geom.Y - int16(sw.screen.Y)
-			scale := sw.screen.CanvasScale()
-
-			if wi.W == 0 {
-				wi.X = localX
-				wi.Y = localY
-				wi.W = totalW
-				wi.H = totalH
-				fyne.Do(func() {
-					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-					wi.Img.Resize(fyne.NewSize(float32(totalW)/scale, float32(totalH)/scale))
-				})
-			}
-
-			// Only request a refresh when none is pending — the pending
-			// refresh reads Back at render time so it always gets the
-			// latest frame.
-			if !pending {
-				wi.Pending.Store(true)
-				refreshed[target] = true
-			}
-		}
-		if !pending {
-			c.pending = true
+		c.priority = false
+		if captureClient(conn, ws, c, refreshed) {
+			hadPriority = true
 		}
 	}
-
-	// Request a single widget-level refresh for each affected compositor.
-	if len(refreshed) > 0 {
-		fyne.Do(func() {
-			for target := range refreshed {
-				target.Refresh()
-			}
-		})
+	if hadPriority {
+		flushRefresh(refreshed)
 	}
+
+	// Pass 2: everything else, batched into a single refresh at the end. Windows
+	// captured in pass 1 are no longer damaged, so they are skipped here.
+	for _, c := range clients {
+		captureClient(conn, ws, c, refreshed)
+	}
+	flushRefresh(refreshed)
+}
+
+// captureClient grabs window c's current pixmap into its back buffer and marks
+// the affected compositor widgets for refresh (via flushRefresh). It returns
+// whether a capture happened.
+func captureClient(conn *xgb.Conn, ws *widgets, c *client, refreshed map[*ui.CompositorWidget]bool) bool {
+	if !c.damaged || c.skipped || c.fullscreened || c.visualMoving {
+		return false
+	}
+	if c.attributes.MapState != xproto.MapStateViewable {
+		return false
+	}
+	if c.geom.X+int16(c.geom.Width) < 1 || c.geom.Y+int16(c.geom.Height) < 1 ||
+		c.geom.X >= int16(rootWidth) || c.geom.Y >= int16(rootHeight) {
+		return false
+	}
+
+	// Ensure we have a named pixmap
+	if c.pixmap == 0 {
+		pixmap, err := xproto.NewPixmapId(conn)
+		if err != nil {
+			return false
+		}
+		if err = composite.NameWindowPixmapChecked(conn, c.win, pixmap).Check(); err != nil {
+			return false
+		}
+		c.pixmap = pixmap
+	}
+
+	winID, isFullScreen, pending := checkPending(c, ws)
+
+	totalW := c.geom.Width + c.geom.BorderWidth*2
+	totalH := c.geom.Height + c.geom.BorderWidth*2
+	isARGB := c.opaqueType == argb
+
+	// When a refresh is pending the renderer may read the previous
+	// write buffer via Back, so use a fresh allocation to avoid a race.
+	buf := c.bufs[c.writeIdx]
+	if pending {
+		buf = nil
+	}
+	img := capturePixmap(conn, xproto.Drawable(c.pixmap), totalW, totalH, isARGB, buf)
+	if img == nil {
+		return false
+	}
+	c.damaged = false
+
+	if !pending {
+		c.bufs[c.writeIdx] = img
+		c.writeIdx = 1 - c.writeIdx
+	}
+
+	w := wmWindow(c)
+	if w == nil || (!w.Fullscreened() && !w.Maximized()) {
+		scale := float32(1)
+		if len(ws.screens) > 0 {
+			scale = ws.screens[0].screen.CanvasScale()
+		}
+		roundCorners(img, int(theme.Size(theme.SizeNameInnerWindowRadius)*scale))
+	}
+
+	translucency := computeTranslucency(conn, c)
+
+	// Push to back buffer on all screen widgets for this window.
+	// The renderer will swap Back→Img.Image on its next Refresh.
+	for _, sw := range ws.screensForClient(c) {
+		var target *ui.CompositorWidget
+		if isFullScreen {
+			target = sw.overlay
+		} else {
+			target = sw.normal
+		}
+		wi := target.GetWindow(winID)
+		if wi == nil {
+			continue
+		}
+
+		wi.Back.Store(img)
+		wi.Img.Translucency = translucency
+
+		localX := c.geom.X - int16(sw.screen.X)
+		localY := c.geom.Y - int16(sw.screen.Y)
+		scale := sw.screen.CanvasScale()
+
+		if wi.W == 0 {
+			wi.X = localX
+			wi.Y = localY
+			wi.W = totalW
+			wi.H = totalH
+			fyne.Do(func() {
+				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				wi.Img.Resize(fyne.NewSize(float32(totalW)/scale, float32(totalH)/scale))
+			})
+		}
+
+		// Only request a refresh when none is pending — the pending
+		// refresh reads Back at render time so it always gets the
+		// latest frame.
+		if !pending {
+			wi.Pending.Store(true)
+			refreshed[target] = true
+		}
+	}
+	if !pending {
+		c.pending = true
+	}
+	return true
+}
+
+// flushRefresh issues a single widget-level refresh for each compositor marked
+// in refreshed, then clears the map so it can be reused for a later pass.
+func flushRefresh(refreshed map[*ui.CompositorWidget]bool) {
+	if len(refreshed) == 0 {
+		return
+	}
+	targets := make([]*ui.CompositorWidget, 0, len(refreshed))
+	for target := range refreshed {
+		targets = append(targets, target)
+		delete(refreshed, target)
+	}
+	fyne.Do(func() {
+		for _, target := range targets {
+			target.Refresh()
+		}
+	})
 }
 
 // snapshotWindows composes the windows of the desktop offsetY pixels from the
@@ -1162,6 +1202,7 @@ func mapWin(conn *xgb.Conn, ws *widgets, window xproto.Window) error {
 
 	c.attributes.MapState = xproto.MapStateViewable
 	c.damaged = true
+	c.priority = true // a just-mapped window is what the user is waiting to see
 	updateOpacity(conn, 1, c)
 
 	if !c.skipped {
