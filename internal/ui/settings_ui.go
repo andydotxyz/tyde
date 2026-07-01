@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"github.com/FyshOS/appie"
@@ -672,7 +673,24 @@ func modifierToString(mods fyne.KeyModifier, userMod fyne.KeyModifier) string {
 	return strings.Join(s, "+")
 }
 
+var (
+	picturesDirOnce sync.Once
+	picturesDirURI  fyne.ListableURI
+	picturesDirErr  error
+)
+
+// getPicturesDir resolves the user's Pictures directory. It shells out to
+// xdg-user-dir, so the result is cached (it does not change during a session)
+// to avoid re-running that on the render thread each time Settings or the
+// screenshot dialog is opened.
 func getPicturesDir() (fyne.ListableURI, error) {
+	picturesDirOnce.Do(func() {
+		picturesDirURI, picturesDirErr = resolvePicturesDir()
+	})
+	return picturesDirURI, picturesDirErr
+}
+
+func resolvePicturesDir() (fyne.ListableURI, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err

@@ -87,8 +87,10 @@ type widgetPanel struct {
 	notifications   fyne.CanvasObject
 }
 
-func (w *widgetPanel) clockTick() {
-	// A ticker drops missed ticks during sleeps.
+// startClock drives the once-a-second clock refresh. It is a package var so
+// tests can disable the background ticker, which would otherwise race the test
+// goroutine.
+var startClock = func(w *widgetPanel) {
 	go func() {
 		t := time.NewTicker(time.Second)
 		for range t.C {
@@ -157,7 +159,7 @@ func (w *widgetPanel) createClock() {
 		TextStyle: style,
 	}
 
-	go w.clockTick()
+	startClock(w)
 }
 
 func (w *widgetPanel) rotate(time *canvas.Text) {
