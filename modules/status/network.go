@@ -163,30 +163,34 @@ func (n *network) tick() {
 	tick := time.NewTicker(time.Second * 10)
 	go func() {
 		for {
-			fyne.Do(n.refreshContent)
+			n.refreshContent()
 			<-tick.C
 		}
 	}()
 }
 
+// refreshContent queries the network state and updates the status widget.
+// Run on a background goroutine, and it will then refresh on fyne.Do.
 func (n *network) refreshContent() {
 	val := n.networkName()
 	blocked, _ := n.isBlocked()
 
-	if val != n.name.Text || blocked != n.wasBlocked {
-		n.wasBlocked = blocked
-		n.name.SetText(val)
+	fyne.Do(func() {
+		if val != n.name.Text || blocked != n.wasBlocked {
+			n.wasBlocked = blocked
+			n.name.SetText(val)
 
-		if blocked {
-			n.icon.SetIcon(wmtheme.AirplaneIcon)
-		} else if val == "" {
-			n.icon.SetIcon(wmtheme.WifiOffIcon)
-		} else if val == networkNameEthernet {
-			n.icon.SetIcon(wmtheme.EthernetIcon)
-		} else {
-			n.icon.SetIcon(wmtheme.WifiIcon)
+			if blocked {
+				n.icon.SetIcon(wmtheme.AirplaneIcon)
+			} else if val == "" {
+				n.icon.SetIcon(wmtheme.WifiOffIcon)
+			} else if val == networkNameEthernet {
+				n.icon.SetIcon(wmtheme.EthernetIcon)
+			} else {
+				n.icon.SetIcon(wmtheme.WifiIcon)
+			}
 		}
-	}
+	})
 }
 
 func (n *network) StatusAreaWidget() fyne.CanvasObject {
@@ -240,7 +244,7 @@ func (n *network) setFlightMode(block bool) error {
 
 			go func() {
 				cmd.Wait()
-				fyne.Do(n.refreshContent)
+				n.refreshContent()
 			}()
 		}
 
@@ -267,28 +271,33 @@ func (n *network) setFlightMode(block bool) error {
 // showMenu pops up the network menu beneath the status icon: the Wi-Fi networks
 // iwd currently knows about (from netman), followed by an Airplane Mode toggle.
 func (n *network) showMenu() {
-	blocked, _ := n.isBlocked()
+	// Avoid hanging with network calls.
+	go func() {
+		blocked, _ := n.isBlocked()
 
-	var items []*fyne.MenuItem
-	// The radio is off in airplane mode, so there are no networks to list.
-	if !blocked {
-		if nm := n.networks(); nm != nil {
-			// Menu(nil) returns iwd's currently-known networks without blocking;
-			// kick a background scan so the next open reflects any changes.
-			items = append(items, nm.Menu(nil).Items...)
-			go nm.Scan()
+		var items []*fyne.MenuItem
+		// The radio is off in airplane mode, so there are no networks to list.
+		if !blocked {
+			if nm := n.networks(); nm != nil {
+				// Menu(nil) returns iwd's currently-known networks without blocking;
+				// kick a background scan so the next open reflects any changes.
+				items = append(items, nm.Menu(nil).Items...)
+				go nm.Scan()
+			}
 		}
-	}
-	if len(items) > 0 {
-		items = append(items, fyne.NewMenuItemSeparator())
-	}
+		if len(items) > 0 {
+			items = append(items, fyne.NewMenuItemSeparator())
+		}
 
-	air := fyne.NewMenuItem("Airplane Mode", n.toggleFlightMode)
-	air.Checked = blocked
-	items = append(items, air)
+		air := fyne.NewMenuItem("Airplane Mode", n.toggleFlightMode)
+		air.Checked = blocked
+		items = append(items, air)
 
-	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(n.icon)
-	tyde.Instance().ShowMenuAt(fyne.NewMenu("", items...), pos)
+		fyne.Do(func() {
+			pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(n.icon)
+			tyde.Instance().ShowMenuAt(fyne.NewMenu("", items...), pos)
+		})
+	}()
 }
 
 // networks lazily gets a network manager from our networks repo package that will generate our menu.
@@ -337,15 +346,18 @@ func (n *network) networks() *netman.Networks {
 }
 
 func (n *network) toggleFlightMode() {
-	blocked, err := n.isBlocked()
-	if err != nil {
-		fyne.LogError("blocking not supported", err)
-		return
-	}
-	err = n.setFlightMode(!blocked)
-	if err != nil {
-		fyne.LogError("setting flight mode", err)
-	}
+	// Avoid slow netowrk calls on graphical thread.
+	go func() {
+		blocked, err := n.isBlocked()
+		if err != nil {
+			fyne.LogError("blocking not supported", err)
+			return
+		}
+		err = n.setFlightMode(!blocked)
+		if err != nil {
+			fyne.LogError("setting flight mode", err)
+		}
+	}()
 }
 
 // NewNetwork creates a new module that will show network information in the status area
