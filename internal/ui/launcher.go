@@ -23,6 +23,9 @@ const (
 
 var appExec *picker
 
+// runAsync runs f on a new goroutine in production. Tests override it to run inline.
+var runAsync = func(f func()) { go f() }
+
 type appEntry struct {
 	widget.Entry
 
@@ -160,7 +163,7 @@ func (l *picker) appButtonListMatching(input string) []fyne.CanvasObject {
 			iconList = append(iconList, data)
 		}
 	}
-	go l.loadIcons(iconList, appList)
+	runAsync(func() { l.loadIcons(iconList, appList) })
 
 	appList = append(appList, l.loadSuggestionsMatching(input)...)
 	if len(appList) > 0 {
