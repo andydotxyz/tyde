@@ -19,7 +19,7 @@ func TestSearch_LaunchSuggestions(t *testing.T) {
 	if assert.Len(t, res, 1) {
 		item := res[0].(*searchItem)
 		assert.Equal(t, "fyne toolkit", item.text)
-		assert.Equal(t, "Search in Duck Duck Go", item.Title())
+		assert.Equal(t, "Search Web: fyne toolkit", item.Title())
 		assert.NotNil(t, item.Icon())
 	}
 }

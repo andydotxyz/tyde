@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
 	"github.com/FyshOS/appie"
@@ -31,8 +32,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/tyde"
+	"fyshos.com/tyde/modules/ai"
 	wmtheme "fyshos.com/tyde/theme"
 	"fyshos.com/tyde/wm"
+	"github.com/godbus/dbus/v5"
 )
 
 //go:embed "themes/*"
@@ -44,6 +47,8 @@ type settingsUI struct {
 
 	fyneSettings  *settings.Settings
 	launcherIcons []string
+
+	netConn *dbus.Conn // system bus backing the Network tab, closed with the window
 }
 
 func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
@@ -346,6 +351,18 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 		widget.NewCard("App Bar", "", container.NewVBox(bar, details)))
 }
 
+// loadNetworkScreen builds the Wi-Fi management tab from our networks app package.
+func (d *settingsUI) loadNetworkScreen() fyne.CanvasObject {
+	nm, conn, err := newWifiNetworks(d.win)
+	if err != nil {
+		msg := widget.NewLabel("Wi-Fi management is unavailable.\n\n" + err.Error())
+		msg.Wrapping = fyne.TextWrapWord
+		return widget.NewCard("Network", "", container.NewCenter(msg))
+	}
+	d.netConn = conn
+	return widget.NewCard("Network", "", nm)
+}
+
 func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 	var modules, launchers []fyne.CanvasObject
 
@@ -391,6 +408,28 @@ func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 			container.NewVScroll(container.NewVBox(launchers...))))
 
 	return content
+}
+
+// loadAIScreen builds the AI assistant setup: an enable toggle (wired into the
+// module enable/disable machinery) above the module's own provider/token panel.
+func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
+	enable := widget.NewCheck("Enable AI Assistant", func(on bool) {
+		names := d.settings.ModuleNames()
+		var out []string
+		for _, n := range names {
+			if n != ai.ModuleName {
+				out = append(out, n)
+			}
+		}
+		if on {
+			out = append(out, ai.ModuleName)
+		}
+		d.settings.setModuleNames(out)
+	})
+	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+
+	head := container.NewVBox(enable, widget.NewSeparator())
+	return container.NewBorder(head, nil, nil, nil, ai.SettingsContent())
 }
 
 func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
@@ -564,7 +603,13 @@ func (w *widgetPanel) showSettings() {
 	screens := screenmanager.New(win)
 	screens.OnConfigurationChanged = w.desk.Screens().RefreshScreens
 	screenui := widget.NewCard("Screens", "", screens)
-	win.SetOnClosed(screens.Close)
+	win.SetOnClosed(func() {
+		screens.Close()
+		if ui.netConn != nil {
+			_ = ui.netConn.Close()
+			ui.netConn = nil
+		}
+	})
 
 	tabs := container.NewAppTabs(
 		&container.TabItem{
@@ -580,9 +625,17 @@ func (w *widgetPanel) showSettings() {
 			Text: "Display", Icon: wmtheme.ScreensIcon,
 			Content: container.NewBorder(scale, nil, nil, nil, screenui),
 		},
+		&container.TabItem{
+			Text: "Network", Icon: wmtheme.WifiIcon,
+			Content: ui.loadNetworkScreen(),
+		},
 		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
 		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},
+		&container.TabItem{
+			Text: "AI", Icon: ai.Icon,
+			Content: ui.loadAIScreen(),
+		},
 		&container.TabItem{
 			Text: "Modules", Icon: theme.SettingsIcon(),
 			Content: ui.loadModulesScreen(),
@@ -647,7 +700,24 @@ func modifierToString(mods fyne.KeyModifier, userMod fyne.KeyModifier) string {
 	return strings.Join(s, "+")
 }
 
+var (
+	picturesDirOnce sync.Once
+	picturesDirURI  fyne.ListableURI
+	picturesDirErr  error
+)
+
+// getPicturesDir resolves the user's Pictures directory. It shells out to
+// xdg-user-dir, so the result is cached (it does not change during a session)
+// to avoid re-running that on the render thread each time Settings or the
+// screenshot dialog is opened.
 func getPicturesDir() (fyne.ListableURI, error) {
+	picturesDirOnce.Do(func() {
+		picturesDirURI, picturesDirErr = resolvePicturesDir()
+	})
+	return picturesDirURI, picturesDirErr
+}
+
+func resolvePicturesDir() (fyne.ListableURI, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err

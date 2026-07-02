@@ -27,10 +27,10 @@ var (
 func (x *x11WM) applyAppSwitcher() {
 	if switcherInstance == nil {
 		ignoreSwitcher = true
-		fyne.Do(func() {
+		go func() {
 			time.Sleep(time.Second / 4)
 			ignoreSwitcher = false
-		})
+		}()
 	} else {
 		fyne.Do(switcherInstance.HideApply)
 	}

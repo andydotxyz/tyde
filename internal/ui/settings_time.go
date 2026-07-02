@@ -329,7 +329,9 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 	// Automatic (network) time is the default. We track the inverse ("manual")
 	// internally so its zero value means automatic, but present it as a positive
 	// "set automatically" toggle that is checked whenever manual is off.
-	manual := !currentNTP()
+	// Assume automatic (network) time until timedatectl is queried below (off the
+	// render thread); the real value is applied to these widgets asynchronously.
+	manual := false
 	auto := widget.NewCheck("Set time automatically (network time)", nil)
 	auto.SetChecked(!manual)
 	updateManual := func() {
@@ -362,7 +364,7 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 	search := widget.NewSelectEntry(names)
 	search.SetPlaceHolder("Search for a city or region")
 
-	current := currentTimezone()
+	current := ""
 	updating := false
 	selectZone := func(name string) {
 		if updating {
@@ -390,9 +392,19 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 	}
 	mapWidget.OnSelected = func(z zoneInfo) { selectZone(z.name) }
 	search.OnChanged = func(s string) { selectZone(s) }
-	if current != "" {
-		selectZone(current)
-	}
+
+	// network calls run in the background.
+	go func() {
+		ntp := currentNTP()
+		tz := currentTimezone()
+		fyne.Do(func() {
+			auto.SetChecked(ntp)
+			updateManual()
+			if tz != "" {
+				selectZone(tz)
+			}
+		})
+	}()
 
 	tzCard := widget.NewCard("Time Zone", "",
 		container.NewBorder(search, selectedLabel, nil, nil, mapWidget))

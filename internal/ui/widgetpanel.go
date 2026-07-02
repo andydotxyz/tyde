@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"os/user"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -24,6 +25,11 @@ import (
 // Go date package does not follow changing timezones, so we will.
 // startedOffset is the minutes from UTC in our starting timezone.
 var startedOffset int
+
+// currentOffset is the latest minutes-from-UTC offset, refreshed off the render
+// thread by the clock ticker (getOffset shells out to `date`, so it must not run
+// on the render thread). adjustedNow reads this cached value.
+var currentOffset atomic.Int64
 
 type widgetRenderer struct {
 	panel *widgetPanel
@@ -81,11 +87,14 @@ type widgetPanel struct {
 	notifications   fyne.CanvasObject
 }
 
-func (w *widgetPanel) clockTick() {
-	// A ticker drops missed ticks during sleeps.
+// startClock drives the once-a-second clock refresh. It is a package var so
+// tests can disable the background ticker, which would otherwise race the test
+// goroutine.
+var startClock = func(w *widgetPanel) {
 	go func() {
 		t := time.NewTicker(time.Second)
 		for range t.C {
+			refreshOffset() // re-read the timezone offset off the render thread
 			fyne.Do(w.clockRefresh)
 		}
 	}()
@@ -127,6 +136,7 @@ func (w *widgetPanel) createClock() {
 	var style fyne.TextStyle
 	style.Monospace = true
 	startedOffset = getOffset()
+	currentOffset.Store(int64(startedOffset))
 
 	fg := theme.Color(theme.ColorNameForeground)
 	w.clock = &canvas.Text{
@@ -149,7 +159,7 @@ func (w *widgetPanel) createClock() {
 		TextStyle: style,
 	}
 
-	go w.clockTick()
+	startClock(w)
 }
 
 func (w *widgetPanel) rotate(time *canvas.Text) {
@@ -271,8 +281,14 @@ func (u *vClockPad) MinSize(objects []fyne.CanvasObject) fyne.Size {
 }
 
 func adjustedNow() time.Time {
-	newOffset := getOffset()
+	newOffset := int(currentOffset.Load())
 	return time.Now().Add(time.Minute * time.Duration(newOffset-startedOffset))
+}
+
+// refreshOffset re-reads the timezone offset (getOffset shells out to `date`, so
+// this must run off the Fyne render thread) and caches it for adjustedNow.
+func refreshOffset() {
+	currentOffset.Store(int64(getOffset()))
 }
 
 func getOffset() int {
