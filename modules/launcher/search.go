@@ -2,13 +2,17 @@ package launcher
 
 import (
 	"net/url"
-	"runtime/debug"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	wmTheme "fyshos.com/tyde/theme"
 
 	"fyshos.com/tyde"
 )
+
+// promptPreviewLen is the number of runes of launcher input shown in a
+// suggestion title before it is elided.
+const promptPreviewLen = 28
 
 var searchMeta = tyde.ModuleMetadata{
 	Name:        "Launcher: Web Search",
@@ -45,7 +49,7 @@ func (s *searchItem) Icon() fyne.Resource {
 }
 
 func (s *searchItem) Title() string {
-	return "Search in Duck Duck Go"
+	return "Search Web: " + TruncatePrompt(s.text)
 }
 
 func (s *searchItem) Launch() {
@@ -56,6 +60,15 @@ func (s *searchItem) Launch() {
 		return
 	}
 
-	debug.PrintStack()
 	_ = fyne.CurrentApp().OpenURL(u)
+}
+
+// TruncatePrompt shortens launcher input for display in a suggestion title.
+func TruncatePrompt(s string) string {
+	s = strings.TrimSpace(s)
+	r := []rune(s)
+	if len(r) <= promptPreviewLen {
+		return s
+	}
+	return strings.TrimRight(string(r[:promptPreviewLen]), " ") + "…"
 }

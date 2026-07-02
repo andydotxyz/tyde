@@ -32,6 +32,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/tyde"
+	"fyshos.com/tyde/modules/ai"
 	wmtheme "fyshos.com/tyde/theme"
 	"fyshos.com/tyde/wm"
 	"github.com/godbus/dbus/v5"
@@ -409,6 +410,28 @@ func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 	return content
 }
 
+// loadAIScreen builds the AI assistant setup: an enable toggle (wired into the
+// module enable/disable machinery) above the module's own provider/token panel.
+func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
+	enable := widget.NewCheck("Enable AI Assistant", func(on bool) {
+		names := d.settings.ModuleNames()
+		var out []string
+		for _, n := range names {
+			if n != ai.ModuleName {
+				out = append(out, n)
+			}
+		}
+		if on {
+			out = append(out, ai.ModuleName)
+		}
+		d.settings.setModuleNames(out)
+	})
+	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+
+	head := container.NewVBox(enable, widget.NewSeparator())
+	return container.NewBorder(head, nil, nil, nil, ai.SettingsContent())
+}
+
 func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 	var names, mods, keys []fyne.CanvasObject
 	shortcuts := tyde.Instance().(wm.ShortcutManager).Shortcuts()
@@ -609,6 +632,10 @@ func (w *widgetPanel) showSettings() {
 		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
 		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},
+		&container.TabItem{
+			Text: "AI", Icon: ai.Icon,
+			Content: ui.loadAIScreen(),
+		},
 		&container.TabItem{
 			Text: "Modules", Icon: theme.SettingsIcon(),
 			Content: ui.loadModulesScreen(),

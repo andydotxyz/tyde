@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "fyshos.com/tyde/modules/ai"
 	_ "fyshos.com/tyde/modules/christmas"
 	_ "fyshos.com/tyde/modules/desktops"
 	_ "fyshos.com/tyde/modules/esheep"

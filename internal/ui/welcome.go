@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"fyshos.com/tyde/modules/ai"
 	wmtheme "fyshos.com/tyde/theme"
 	"github.com/FyshOS/networks/pkg/netman"
 	"github.com/godbus/dbus/v5"
@@ -202,8 +203,8 @@ func (w *welcome) showHome() {
 			"Choose your theme and colors", w.openAppearance),
 		newWelcomeRow(wmtheme.WifiIcon, "Connect to Wi-Fi",
 			"Setup a Wi-Fi network", w.openWifi),
-		newWelcomeRow(theme.ListIcon(), "Manage Modules",
-			"Enable or disable features", w.openModules),
+		newWelcomeRow(ai.Icon, "Set up AI",
+			"Turn on the AI assistant", w.openAI),
 		newWelcomeRow(theme.SettingsIcon(), "Additional Settings",
 			"Change system preferences", w.openFullSettings),
 	)
@@ -241,8 +242,10 @@ func (w *welcome) openAppearance() {
 	w.showScreen("Customize Appearance", w.sui.loadAppearanceScreen())
 }
 
-func (w *welcome) openModules() {
-	w.showScreen("Manage Modules", w.sui.loadModulesScreen())
+// openAI shows the AI assistant setup screen, letting the user enable the
+// assistant and enter a provider token (or leave it turned off).
+func (w *welcome) openAI() {
+	w.showScreen("Set up AI", w.sui.loadAIScreen())
 }
 
 // openWifi shows Wi-Fi setup screen allowing user to pick a network from those found.

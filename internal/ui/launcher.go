@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"fyshos.com/tyde"
+	"fyshos.com/tyde/modules/ai"
 	wmTheme "fyshos.com/tyde/theme"
 )
 
@@ -186,7 +187,7 @@ func (l *picker) loadIcons(dataRange []appie.AppData, appList []fyne.CanvasObjec
 }
 
 func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
-	var suggestList, searchList []fyne.CanvasObject
+	var suggestList, searchList, aiList []fyne.CanvasObject
 
 	for _, m := range l.desk.Modules() {
 		suggest, ok := m.(tyde.LaunchSuggestionModule)
@@ -194,6 +195,7 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 			continue
 		}
 
+		name := m.Metadata().Name
 		for _, item := range suggest.LaunchSuggestions(input) {
 			launchData := item // capture for goroutine below
 			button := widget.NewButtonWithIcon(item.Title(), item.Icon(), func() {
@@ -201,18 +203,21 @@ func (l *picker) loadSuggestionsMatching(input string) []fyne.CanvasObject {
 				launchData.Launch()
 			})
 
-			if strings.Contains(strings.ToLower(m.Metadata().Name), "search") {
+			switch {
+			case name == ai.ModuleName:
+				aiList = append(aiList, button) // AI assistant sits after web search
+			case strings.Contains(strings.ToLower(name), "search"):
 				searchList = append(searchList, button)
-			} else {
+			default:
 				suggestList = append(suggestList, button)
 			}
 		}
 	}
 
-	if len(searchList) == 0 {
-		return searchList
+	if len(suggestList) == 0 && len(searchList) == 0 && len(aiList) == 0 {
+		return nil
 	}
-	return append(suggestList, searchList...)
+	return append(append(suggestList, searchList...), aiList...)
 }
 
 func newAppPicker(callback func(appie.AppData, int)) *picker {
