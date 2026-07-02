@@ -1128,6 +1128,17 @@ func (f *frame) updateInputShape() {
 
 	_ = shape.RectanglesChecked(f.client.wm.Conn(), shape.SoSet, shape.SkInput,
 		0, f.client.id, 0, 0, rects).Check()
+
+	// Re-assert any overlays which take priority.
+	if os, ok := f.client.wm.(overlayShaper); ok {
+		os.RefreshOverlayShape(f.client.id, int(f.x), int(f.y), int(f.width), int(f.height))
+	}
+}
+
+// overlayShaper is implemented by the window manager to re-apply the active overlay's
+// input-transparent regions to a single frame after it resets its own input shape.
+type overlayShaper interface {
+	RefreshOverlayShape(frameID xproto.Window, fx, fy, fw, fh int)
 }
 
 func max32(a, b int32) int32 {

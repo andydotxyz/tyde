@@ -92,7 +92,8 @@ func (t *term) show() {
 	var end float32
 	size := fyne.NewSize(w, height)
 
-	tyde.Instance().ShowOverlay(t.content, size, fyne.NewPos(0, y))
+	// Register the overlay at its resting position (0,0).
+	tyde.Instance().ShowOverlay(t.content, size, fyne.NewPos(0, 0))
 
 	if !t.running {
 		t.running = true

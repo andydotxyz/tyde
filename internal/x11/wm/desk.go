@@ -60,13 +60,14 @@ type x11WM struct {
 
 	currentBindings []*tyde.Shortcut
 
-	died          bool
-	rootIDs       map[string]xproto.Window
-	overlayActive bool
-	menuSize      fyne.Size
-	menuPos       fyne.Position
-	transientMap  map[xproto.Window][]xproto.Window
-	oldRoot       *xgraphics.Image
+	died           bool
+	rootIDs        map[string]xproto.Window
+	overlayActive  bool
+	overlayRegions []image.Rectangle
+	menuSize       fyne.Size
+	menuPos        fyne.Position
+	transientMap   map[xproto.Window][]xproto.Window
+	oldRoot        *xgraphics.Image
 }
 
 type moveResizeType uint32
@@ -253,6 +254,8 @@ func (x *x11WM) Run() {
 // handleButtonPress). Re-grabbing focus on every call would steal it back from a window
 // the user selected while an overlay such as the terminal stays open.
 func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
+	// Remember the regions so a frame that re-shapes does not wipe out overlays.
+	x.overlayRegions = regions
 	x.updateRootInputShape(active)
 	x.updateFrameInputShapes(active, regions)
 
@@ -353,26 +356,39 @@ func (x *x11WM) updateFrameInputShapes(overlayActive bool, regions []image.Recta
 			continue
 		}
 
-		// Subtract the area covered by overlay content so clicks there fall through to
-		// the Fyne overlay; everything outside the overlay stays interactive.
-		for _, r := range regions {
-			sx1 := max(fx, r.Min.X)
-			sy1 := max(fy, r.Min.Y)
-			sx2 := min(fx+int(fw), r.Max.X)
-			sy2 := min(fy+int(fh), r.Max.Y)
-			if sx1 >= sx2 || sy1 >= sy2 {
-				continue
-			}
-
-			shape.Rectangles(x.x.Conn(), shape.SoSubtract, shape.SkInput,
-				0, frameID, 0, 0, []xproto.Rectangle{{
-					X:      int16(sx1 - fx),
-					Y:      int16(sy1 - fy),
-					Width:  uint16(sx2 - sx1),
-					Height: uint16(sy2 - sy1),
-				}})
-		}
+		x.subtractOverlayRegions(frameID, fx, fy, int(fw), int(fh), regions)
 	}
+}
+
+// subtractOverlayRegions makes the parts of a frame that lie under overlay content
+// input-transparent. fx/fy/fw/fh are the frame's screen geometry.
+func (x *x11WM) subtractOverlayRegions(frameID xproto.Window, fx, fy, fw, fh int, regions []image.Rectangle) {
+	for _, r := range regions {
+		sx1 := max(fx, r.Min.X)
+		sy1 := max(fy, r.Min.Y)
+		sx2 := min(fx+fw, r.Max.X)
+		sy2 := min(fy+fh, r.Max.Y)
+		if sx1 >= sx2 || sy1 >= sy2 {
+			continue
+		}
+
+		shape.Rectangles(x.x.Conn(), shape.SoSubtract, shape.SkInput,
+			0, frameID, 0, 0, []xproto.Rectangle{{
+				X:      int16(sx1 - fx),
+				Y:      int16(sy1 - fy),
+				Width:  uint16(sx2 - sx1),
+				Height: uint16(sy2 - sy1),
+			}})
+	}
+}
+
+// RefreshOverlayShape re-applies the active overlay's input-transparent regions to a
+// single frame. This ensures that our overlays keep input over real windows.
+func (x *x11WM) RefreshOverlayShape(frameID xproto.Window, fx, fy, fw, fh int) {
+	if !x.overlayActive {
+		return
+	}
+	x.subtractOverlayRegions(frameID, fx, fy, fw, fh, x.overlayRegions)
 }
 
 // updateRootInputShape sets the input shape on all root windows.
