@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
@@ -183,7 +184,7 @@ func (w *widgetPanel) CreateRenderer() fyne.WidgetRenderer {
 	narrow := w.desk.Settings().NarrowWidgetPanel()
 	accountLabel := w.accountLabel()
 	var account *widget.Button
-	w.account = widget.NewButtonWithIcon(accountLabel, wmtheme.UserIcon, func() {
+	w.account = widget.NewButtonWithIcon(accountLabel, accountIcon(), func() {
 		w.showAccountMenu(account)
 	})
 
@@ -235,6 +236,29 @@ func (w *widgetPanel) accountLabel() string {
 	}
 	displayName := currentUser.Username
 	return displayName
+}
+
+// accountIcon returns the user's avatar for the account button: their ~/.face
+// image if they have set one (see the Account settings tab), otherwise the
+// generic user icon. The file is read once here, not on every panel refresh.
+func accountIcon() fyne.Resource {
+	p := facePath()
+	if p == "" {
+		return wmtheme.UserIcon
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return wmtheme.UserIcon
+	}
+	return fyne.NewStaticResource("face", data)
+}
+
+// refreshAccountIcon updates the account button to the current ~/.face image,
+// used when the user changes their picture in settings.
+func (w *widgetPanel) refreshAccountIcon() {
+	if w.account != nil {
+		w.account.SetIcon(accountIcon())
+	}
 }
 
 func (w *widgetPanel) reloadModules(mods []tyde.Module) {

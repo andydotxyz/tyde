@@ -44,6 +44,7 @@ var bundledThemes embed.FS
 type settingsUI struct {
 	settings *deskSettings
 	win      fyne.Window
+	panel    *widgetPanel // owning panel, so the Account tab can refresh its avatar
 
 	fyneSettings  *settings.Settings
 	launcherIcons []string
@@ -594,6 +595,7 @@ func (w *widgetPanel) showSettings() {
 	ui := &settingsUI{
 		settings:      deskSettings,
 		launcherIcons: deskSettings.LauncherIcons(),
+		panel:         w,
 	}
 
 	win := fyne.CurrentApp().NewWindow("Tyde Settings")
@@ -629,6 +631,7 @@ func (w *widgetPanel) showSettings() {
 			Text: "Network", Icon: wmtheme.WifiIcon,
 			Content: ui.loadNetworkScreen(),
 		},
+		&container.TabItem{Text: "Account", Icon: wmtheme.UserIcon, Content: ui.loadAccountScreen()},
 		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
 		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
 		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},

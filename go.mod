@@ -30,7 +30,7 @@ require (
 	howett.net/plist v1.0.1 // indirect
 )
 
-require github.com/creack/pty v1.1.21 // indirect
+require github.com/creack/pty v1.1.21
 
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
