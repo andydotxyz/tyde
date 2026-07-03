@@ -5,6 +5,7 @@ cmd/tyde_runner/tyde_runner
 /tyde
 /tyde_ctl
 /tyde_runner
+wasm
 
 .idea
 .DS_Store

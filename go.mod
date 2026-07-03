@@ -12,7 +12,7 @@ require (
 	github.com/FyshOS/backgrounds v0.1.0
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/FyshOS/fyles v0.1.0
-	github.com/FyshOS/saver v0.1.1-0.20260629193407-ba1276c9bde7
+	github.com/FyshOS/saver v0.1.1-0.20260703202144-926c4d6da239
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
