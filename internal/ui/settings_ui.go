@@ -49,7 +49,8 @@ type settingsUI struct {
 	fyneSettings  *settings.Settings
 	launcherIcons []string
 
-	netConn *dbus.Conn // system bus backing the Network tab, closed with the window
+	netConn *dbus.Conn    // system bus backing the Network tab, closed with the window
+	fprint  *fprintClient // fprintd connection backing the Account tab, closed with the window
 }
 
 func (d *settingsUI) populateThemeIcons(box *fyne.Container, theme string) {
@@ -610,6 +611,10 @@ func (w *widgetPanel) showSettings() {
 		if ui.netConn != nil {
 			_ = ui.netConn.Close()
 			ui.netConn = nil
+		}
+		if ui.fprint != nil {
+			ui.fprint.close()
+			ui.fprint = nil
 		}
 	})
 

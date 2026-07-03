@@ -55,7 +55,146 @@ func (d *settingsUI) loadAccountScreen() fyne.CanvasObject {
 	return container.NewVScroll(container.NewVBox(
 		d.loadUserImageCard(),
 		d.loadPasswordCard(name),
+		d.loadFingerprintCard(),
 	))
+}
+
+// loadFingerprintCard builds the fingerprint enrolment and management UI.
+func (d *settingsUI) loadFingerprintCard() fyne.CanvasObject {
+	client, err := newFprintClient()
+	if err != nil {
+		return widget.NewCard("Fingerprint", "",
+			widget.NewLabel("No fingerprint sensor detected."))
+	}
+	d.fprint = client // closed when the settings window closes
+
+	enrolledBox := container.NewVBox()
+	d.refreshEnrolled(enrolledBox)
+
+	fingerSelect := widget.NewSelect(nil, nil)
+	for _, f := range fingerNames {
+		fingerSelect.Options = append(fingerSelect.Options, fingerLabel(f))
+	}
+	fingerSelect.SetSelectedIndex(0)
+
+	enroll := widget.NewButtonWithIcon("Enrol", theme.ContentAddIcon(), func() {
+		d.startEnroll(fingerNames[fingerSelect.SelectedIndex()], enrolledBox)
+	})
+	enroll.Importance = widget.HighImportance
+	enrollRow := container.NewBorder(nil, nil, widget.NewLabel("Add a finger:"), enroll, fingerSelect)
+
+	content := container.NewVBox(
+		enrolledBox,
+		widget.NewSeparator(),
+		enrollRow,
+		widget.NewSeparator(),
+		d.fingerprintLoginToggle(),
+	)
+	return widget.NewCard("Fingerprint", "Unlock the screen and log in with a fingerprint", content)
+}
+
+// refreshEnrolled repopulates the list of enrolled fingers, each with a delete button.
+func (d *settingsUI) refreshEnrolled(box *fyne.Container) {
+	box.Objects = nil
+	fingers, err := d.fprint.listEnrolled()
+	if err != nil || len(fingers) == 0 {
+		box.Add(widget.NewLabel("No fingerprints enrolled."))
+		box.Refresh()
+		return
+	}
+	for _, f := range fingers {
+		row := container.NewBorder(nil, nil,
+			widget.NewIcon(theme.ConfirmIcon()),
+			widget.NewButtonWithIcon("", theme.DeleteIcon(), func() {
+				d.deleteEnrolled(box)
+			}),
+			widget.NewLabel(fingerLabel(f)))
+		box.Add(row)
+	}
+	box.Refresh()
+}
+
+// deleteEnrolled removes all enrolled fingerprints after confirmation.
+func (d *settingsUI) deleteEnrolled(box *fyne.Container) {
+	dialog.ShowConfirm("Remove fingerprints",
+		"Remove all enrolled fingerprints for your account?", func(ok bool) {
+			if !ok {
+				return
+			}
+			go func() {
+				err := d.fprint.deleteEnrolled()
+				fyne.Do(func() {
+					if err != nil {
+						dialog.ShowError(err, d.win)
+					}
+					d.refreshEnrolled(box)
+				})
+			}()
+		}, d.win)
+}
+
+// startEnroll runs an interactive enrollment for the chosen finger, showing live
+// scan progress in a dialog.
+func (d *settingsUI) startEnroll(finger string, enrolledBox *fyne.Container) {
+	status := widget.NewLabel("Touch the sensor with your " + fingerLabel(finger) + "...")
+	status.Wrapping = fyne.TextWrapWord
+	bar := widget.NewProgressBar()
+	prog := dialog.NewCustom("Enrolling "+fingerLabel(finger), "Cancel",
+		container.NewVBox(status, bar), d.win)
+	prog.Show()
+
+	done := make(chan struct{})
+	prog.SetOnClosed(func() {
+		select {
+		case <-done:
+		default:
+			// Cancelled mid-enrolment: stop the sensor and refresh the list.
+			d.fprint.device.Call(fprintDeviceIf+".EnrollStop", 0)
+			d.fprint.device.Call(fprintDeviceIf+".Release", 0)
+		}
+	})
+
+	go func() {
+		err := d.fprint.enroll(finger, func(msg string, frac float64) {
+			fyne.Do(func() {
+				status.SetText(msg)
+				bar.SetValue(frac)
+			})
+		})
+		close(done)
+		fyne.Do(func() {
+			prog.Hide()
+			if err != nil {
+				dialog.ShowError(err, d.win)
+			}
+			d.refreshEnrolled(enrolledBox)
+		})
+	}()
+}
+
+func (d *settingsUI) fingerprintLoginToggle() fyne.CanvasObject {
+	check := widget.NewCheck("Use fingerprint to log in and unlock the screen", nil)
+	check.SetChecked(fingerprintLoginEnabled())
+	check.OnChanged = func(on bool) {
+		check.Disable()
+		go func() {
+			err := setFingerprintLogin(on)
+			fyne.Do(func() {
+				check.Enable()
+				if err != nil {
+					dialog.ShowError(err, d.win)
+					check.SetChecked(fingerprintLoginEnabled()) // revert to reality
+				}
+			})
+		}()
+	}
+
+	if !pamFprintdAvailable() {
+		warn := widget.NewLabel("Install the pam_fprintd module to enable this.")
+		warn.Importance = widget.WarningImportance
+		return container.NewVBox(check, warn)
+	}
+	return check
 }
 
 // loadUserImageCard shows the current avatar and lets the user pick a new one,
