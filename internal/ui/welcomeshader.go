@@ -21,6 +21,7 @@ uniform vec2 frame;        // size of the output frame, in pixels
 uniform vec4 bounds;       // this object's bounds: x1 [0], y1 [1], x2 [2], y2 [3]
 uniform float time;        // elapsed animation time, in seconds
 uniform float reveal;      // 0..1 wash-in: bands fade in from the surface (no slide)
+uniform float fade;        // >0: underlay mode - square edges, top fades to transparent
 
 // bandColor maps a 0..1 depth (0 surface -> 1 floor) to the FyshOS water palette
 // sampled from logo_fade.png: pale at the top, through sky and teal, to deep blue.
@@ -56,12 +57,16 @@ void main() {
     // Rounded corners: fade to transparent outside a rounded-rectangle so the
     // panel reads as a soft card floating over the dimmed desktop rather than a
     // hard-edged box. edge feeds the final alpha for a 1px anti-aliased border.
-    float radius = 22.0;
-    vec2 corner = clamp(vec2(lx, ly), vec2(radius), vec2(w - radius, h - radius));
-    float cornerDist = distance(vec2(lx, ly), corner);
-    float edge = 1.0 - smoothstep(radius - 1.0, radius + 1.0, cornerDist);
-    if (edge <= 0.0) {
-        discard;
+    // In underlay mode (fade>0) the band meets the window edges square instead.
+    float edge = 1.0;
+    if (fade <= 0.5) {
+        float radius = 22.0;
+        vec2 corner = clamp(vec2(lx, ly), vec2(radius), vec2(w - radius, h - radius));
+        float cornerDist = distance(vec2(lx, ly), corner);
+        edge = 1.0 - smoothstep(radius - 1.0, radius + 1.0, cornerDist);
+        if (edge <= 0.0) {
+            discard;
+        }
     }
 
     // Build the water by painting a stack of bands over the palest surface tone.
@@ -91,7 +96,15 @@ void main() {
     // from the pale surface tone as reveal grows, so the water develops in place.
     col = mix(bandColor(0.0), col, smoothstep(0.0, 1.0, reveal));
 
-    gl_FragColor = vec4(col, edge);
+    // Underlay mode: dissolve the top of the band into the background so the sea
+    // reads as deep water rising from the bottom edge and never competes with the
+    // icons drawn over it. Fully opaque at the bottom, transparent by ~2/3 up.
+    float vis = 1.0;
+    if (fade > 0.5) {
+        vis = smoothstep(0.0, 0.66, uv.y);
+    }
+
+    gl_FragColor = vec4(col, edge * vis);
 }
 `
 

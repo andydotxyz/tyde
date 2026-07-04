@@ -54,7 +54,9 @@ func (d *settingsUI) loadAccountScreen() fyne.CanvasObject {
 
 	return container.NewVScroll(container.NewVBox(
 		d.loadUserImageCard(),
+		widget.NewSeparator(),
 		d.loadPasswordCard(name),
+		widget.NewSeparator(),
 		d.loadFingerprintCard(),
 	))
 }
@@ -63,7 +65,7 @@ func (d *settingsUI) loadAccountScreen() fyne.CanvasObject {
 func (d *settingsUI) loadFingerprintCard() fyne.CanvasObject {
 	client, err := newFprintClient()
 	if err != nil {
-		return widget.NewCard("Fingerprint", "",
+		return container.NewVBox(sectionHeading("Fingerprint", ""),
 			widget.NewLabel("No fingerprint sensor detected."))
 	}
 	d.fprint = client // closed when the settings window closes
@@ -90,7 +92,9 @@ func (d *settingsUI) loadFingerprintCard() fyne.CanvasObject {
 		widget.NewSeparator(),
 		d.fingerprintLoginToggle(),
 	)
-	return widget.NewCard("Fingerprint", "Unlock the screen and log in with a fingerprint", content)
+	return container.NewVBox(
+		sectionHeading("Fingerprint", "Unlock the screen and log in with a fingerprint"),
+		content)
 }
 
 // refreshEnrolled repopulates the list of enrolled fingers, each with a delete button.
@@ -239,12 +243,11 @@ func (d *settingsUI) loadUserImageCard() fyne.CanvasObject {
 		pickDialog.Show()
 	})
 
-	return widget.NewCard("Account", "",
-		container.NewBorder(nil, nil, container.NewCenter(avatar), nil,
-			container.NewVBox(
-				widget.NewLabel("Your picture is shown on the login screen."),
-				container.NewHBox(change, layout.NewSpacer()),
-			)))
+	return container.NewBorder(nil, nil, container.NewCenter(avatar), nil,
+		container.NewVBox(
+			widget.NewLabel("Your picture is shown on the login screen."),
+			container.NewHBox(change, layout.NewSpacer()),
+		))
 }
 
 // loadPasswordCard builds the change-password form.
@@ -294,7 +297,9 @@ func (d *settingsUI) loadPasswordCard(name string) fyne.CanvasObject {
 		}()
 	}
 
-	return widget.NewCard("Change Password", "Signed in as "+name, form)
+	return container.NewVBox(
+		sectionHeading("Change Password", "Signed in as "+name),
+		form)
 }
 
 // writeUserFace decodes the chosen image and re-encodes it as a PNG at ~/.face.

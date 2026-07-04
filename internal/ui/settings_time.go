@@ -349,7 +349,7 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 
 	manualRow := container.NewBorder(nil, nil, widget.NewLabel("Date / Time"), nil,
 		container.NewGridWithColumns(2, dateEntry, timeEntry))
-	timeCard := widget.NewCard("Time", "", container.NewVBox(auto, manualRow))
+	timeSection := container.NewVBox(auto, manualRow, widget.NewSeparator())
 
 	// --- timezone picker ---
 	names := make([]string, len(zones))
@@ -406,7 +406,7 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 		})
 	}()
 
-	tzCard := widget.NewCard("Time Zone", "",
+	tzSection := container.NewBorder(sectionHeading("Time Zone", ""), nil, nil, nil,
 		container.NewBorder(search, selectedLabel, nil, nil, mapWidget))
 
 	// --- apply ---
@@ -428,7 +428,7 @@ func (d *settingsUI) loadTimeScreen() fyne.CanvasObject {
 	}}
 	apply := container.NewHBox(layout.NewSpacer(), applyButton)
 
-	return container.NewBorder(timeCard, apply, nil, nil, tzCard)
+	return container.NewBorder(timeSection, apply, nil, nil, tzSection)
 }
 
 // applyTimeSettings pushes the requested timezone, NTP and (when manual) clock

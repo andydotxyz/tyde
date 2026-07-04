@@ -75,7 +75,7 @@ func (l *desktop) ShowWelcome() {
 
 	// Animated brand water filling the whole panel.
 	w.shader = canvas.NewShader("tydeWelcomeWaves", welcomeWaveGL, welcomeWaveES)
-	w.shader.Uniforms = map[string]float32{"reveal": 0}
+	w.shader.Uniforms = map[string]float32{"reveal": 0, "fade": 0} // fade off: full-panel rounded card
 	w.waveAnim = canvas.NewShaderAnimation(w.shader)
 
 	// The mascot. It faces right, so it rests in the bottom-right corner and

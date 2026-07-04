@@ -231,14 +231,13 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 		}})
 
 	return container.NewBorder(nil, applyButton, nil, nil,
-		widget.NewCard("Background", "",
-			container.NewBorder(
-				container.NewVBox(
-					container.NewBorder(nil, nil, nil, bgButtons, bgPath),
-					fillRow,
-				),
-				nil, nil, nil, preview,
-			)))
+		container.NewBorder(
+			container.NewVBox(
+				container.NewBorder(nil, nil, nil, bgButtons, bgPath),
+				fillRow,
+			),
+			nil, nil, nil, preview,
+		))
 }
 
 // monitorSurround wraps the given screen image in a simple monitor-shaped frame:
@@ -340,7 +339,7 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 	disableTaskbar := widget.NewCheck("Disable Taskbar", nil)
 	disableTaskbar.SetChecked(d.settings.LauncherDisableTaskbar())
 
-	details := container.NewVBox(widget.NewRichTextFromMarkdown("# Configuration"),
+	details := container.NewVBox(widget.NewSeparator(), sectionHeading("Configuration", ""),
 		disableTaskbar)
 
 	applyButton := container.NewHBox(layout.NewSpacer(),
@@ -350,7 +349,7 @@ func (d *settingsUI) loadBarScreen() fyne.CanvasObject {
 		}})
 
 	return container.NewBorder(nil, applyButton, nil, nil,
-		widget.NewCard("App Bar", "", container.NewVBox(bar, details)))
+		container.NewVBox(bar, details))
 }
 
 // loadNetworkScreen builds the Wi-Fi management tab from our networks app package.
@@ -359,10 +358,10 @@ func (d *settingsUI) loadNetworkScreen() fyne.CanvasObject {
 	if err != nil {
 		msg := widget.NewLabel("Wi-Fi management is unavailable.\n\n" + err.Error())
 		msg.Wrapping = fyne.TextWrapWord
-		return widget.NewCard("Network", "", container.NewCenter(msg))
+		return container.NewCenter(msg)
 	}
 	d.netConn = conn
-	return widget.NewCard("Network", "", nm)
+	return nm
 }
 
 func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
@@ -403,13 +402,11 @@ func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 			modules = append(modules, check)
 		}
 	}
-	content := container.NewGridWithColumns(2,
-		widget.NewCard("Modules", "",
+	return container.NewGridWithColumns(2,
+		container.NewBorder(sectionHeading("Modules", ""), nil, nil, nil,
 			container.NewVScroll(container.NewVBox(modules...))),
-		widget.NewCard("Launchers", "",
+		container.NewBorder(sectionHeading("Launchers", ""), nil, nil, nil,
 			container.NewVScroll(container.NewVBox(launchers...))))
-
-	return content
 }
 
 // loadAIScreen builds the AI assistant setup: an enable toggle (wired into the
@@ -447,9 +444,10 @@ func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 		keys = append(keys, widget.NewLabel(string(shortcut.KeyName)))
 	}
 	modVBox := container.NewVBox(mods...)
-	rows := container.NewHBox(widget.NewCard("Action", "", container.NewVBox(names...)),
-		widget.NewCard("Modifier", "", modVBox),
-		widget.NewCard("Key Name", "", container.NewVBox(keys...)))
+	rows := container.NewHBox(
+		container.NewBorder(sectionHeading("Action", ""), nil, nil, nil, container.NewVBox(names...)),
+		container.NewBorder(sectionHeading("Modifier", ""), nil, nil, nil, modVBox),
+		container.NewBorder(sectionHeading("Key Name", ""), nil, nil, nil, container.NewVBox(keys...)))
 	grid := container.NewScroll(rows)
 
 	userMod := d.settings.modifier
@@ -476,10 +474,10 @@ func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 		modType.Selected = "Super"
 	}
 
-	return container.NewBorder(
-		widget.NewCard("Keyboard", "", container.NewHBox(widget.NewLabel("Preferred modifier key: "), modType)),
-		nil, nil, nil, grid,
-	)
+	top := container.NewVBox(
+		container.NewHBox(widget.NewLabel("Preferred modifier key: "), modType),
+		widget.NewSeparator())
+	return container.NewBorder(top, nil, nil, nil, grid)
 }
 
 func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
@@ -581,7 +579,7 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 
 	custom := container.NewHBox(layout.NewSpacer(), widget.NewButton("Customise...", d.showCustomise))
 	return container.NewBorder(nil, custom, nil, nil,
-		widget.NewCard("Themes", "", container.NewBorder(nil, addNew, nil, nil, themesWidget)))
+		container.NewBorder(nil, addNew, nil, nil, themesWidget))
 }
 
 func (w *widgetPanel) showSettings() {
@@ -605,8 +603,35 @@ func (w *widgetPanel) showSettings() {
 	scale := ui.makeScaleGroup(win)
 	screens := screenmanager.New(win)
 	screens.OnConfigurationChanged = w.desk.Screens().RefreshScreens
-	screenui := widget.NewCard("Screens", "", screens)
+	screenui := container.NewBorder(sectionHeading("Screens", ""), nil, nil, nil, screens)
+
+	groups := []settingsGroup{
+		{title: "Appearance", panels: []*settingsPanel{
+			{title: "Appearance", icon: ui.fyneSettings.AppearanceIcon(), build: ui.loadAppearanceScreen},
+			{title: "Background", icon: wmtheme.WallpaperIcon, build: ui.loadBackgroundScreen},
+			{title: "Theme", icon: theme.ColorPaletteIcon(), build: ui.loadThemeScreen},
+		}},
+		{title: "Desktop", panels: []*settingsPanel{
+			{title: "App Bar", icon: wmtheme.IconifyIcon, build: ui.loadBarScreen},
+			{title: "Keyboard", icon: wmtheme.KeyboardIcon, build: ui.loadKeyboardScreen},
+			{title: "Modules", icon: theme.SettingsIcon(), build: ui.loadModulesScreen},
+			{title: "AI", icon: ai.Icon, build: ui.loadAIScreen},
+		}},
+		{title: "System", panels: []*settingsPanel{
+			{title: "Display", icon: wmtheme.ScreensIcon, build: func() fyne.CanvasObject {
+				return container.NewBorder(scale, nil, nil, nil, screenui)
+			}},
+			{title: "Network", icon: wmtheme.WifiIcon, build: ui.loadNetworkScreen},
+			{title: "Time/Date", icon: wmtheme.ClockIcon, build: ui.loadTimeScreen},
+			{title: "Account", icon: wmtheme.UserIcon, build: ui.loadAccountScreen},
+		}},
+	}
+
+	settingsIcon := theme.SettingsIcon()
+	win.SetIcon(settingsIcon)
+	nav := newSettingsNav(groups, settingsIcon)
 	win.SetOnClosed(func() {
+		nav.waveAnim.Stop()
 		screens.Close()
 		if ui.netConn != nil {
 			_ = ui.netConn.Close()
@@ -618,69 +643,16 @@ func (w *widgetPanel) showSettings() {
 		}
 	})
 
-	tabs := container.NewAppTabs(
-		&container.TabItem{
-			Text: "Appearance", Icon: ui.fyneSettings.AppearanceIcon(),
-			Content: ui.loadAppearanceScreen(),
-		},
-		&container.TabItem{
-			Text: "Background", Icon: wmtheme.WallpaperIcon,
-			Content: ui.loadBackgroundScreen(),
-		},
-		&container.TabItem{Text: "App Bar", Icon: wmtheme.IconifyIcon, Content: ui.loadBarScreen()},
-		&container.TabItem{
-			Text: "Display", Icon: wmtheme.ScreensIcon,
-			Content: container.NewBorder(scale, nil, nil, nil, screenui),
-		},
-		&container.TabItem{
-			Text: "Network", Icon: wmtheme.WifiIcon,
-			Content: ui.loadNetworkScreen(),
-		},
-		&container.TabItem{Text: "Account", Icon: wmtheme.UserIcon, Content: ui.loadAccountScreen()},
-		&container.TabItem{Text: "Time/Date", Icon: wmtheme.ClockIcon, Content: ui.loadTimeScreen()},
-		&container.TabItem{Text: "Theme", Icon: theme.ColorPaletteIcon(), Content: ui.loadThemeScreen()},
-		&container.TabItem{Text: "Keyboard", Icon: wmtheme.KeyboardIcon, Content: ui.loadKeyboardScreen()},
-		&container.TabItem{
-			Text: "AI", Icon: ai.Icon,
-			Content: ui.loadAIScreen(),
-		},
-		&container.TabItem{
-			Text: "Modules", Icon: theme.SettingsIcon(),
-			Content: ui.loadModulesScreen(),
-		},
-	)
-	tabs.SetTabLocation(container.TabLocationLeading)
-
-	// FyshOS logo watermark in the bottom-left, behind the tab icons and no
-	// wider than the tab bar (see tabLogoLayout).
-	logo := canvas.NewImageFromResource(wmtheme.LogoFade)
-	logo.Translucency = 0.4
-	logo.SetMinSize(fyne.NewSquareSize(barWidth(tabs.Items)))
-	win.SetContent(container.NewStack(
-		container.NewVBox(layout.NewSpacer(), container.NewHBox(logo)),
-		tabs,
-	))
-	win.Resize(fyne.NewSize(480, 320))
+	win.SetPadded(false)
+	win.SetContent(nav.root)
+	win.Resize(fyne.NewSize(440, 500))
+	nav.waveAnim.Start()
 
 	win.SetCloseIntercept(func() {
 		win.Hide()
 	})
 	w.settings = win
 	win.Show()
-}
-
-// barWidth mirrors Fyne's leading tab-bar sizing, returning the tab width from AppTabs.
-func barWidth(tabs []*container.TabItem) float32 {
-	iconSize := 1.5 * theme.Size(theme.SizeNameInlineIcon)
-	textSize := theme.Size(theme.SizeNameText)
-	innerPad := theme.Size(theme.SizeNameInnerPadding)
-
-	maxW := float32(0)
-	for _, it := range tabs {
-		w := fyne.Max(fyne.MeasureText(it.Text, textSize, fyne.TextStyle{}).Width, iconSize) + innerPad
-		maxW = fyne.Max(maxW, w)
-	}
-	return maxW
 }
 
 func modifierToString(mods fyne.KeyModifier, userMod fyne.KeyModifier) string {
