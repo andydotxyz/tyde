@@ -447,7 +447,8 @@ func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 	rows := container.NewHBox(
 		container.NewBorder(sectionHeading("Action", ""), nil, nil, nil, container.NewVBox(names...)),
 		container.NewBorder(sectionHeading("Modifier", ""), nil, nil, nil, modVBox),
-		container.NewBorder(sectionHeading("Key Name", ""), nil, nil, nil, container.NewVBox(keys...)))
+		container.NewBorder(sectionHeading("Key Name", ""), nil, nil, nil, container.NewVBox(keys...)),
+	)
 	grid := container.NewScroll(rows)
 
 	userMod := d.settings.modifier
@@ -476,7 +477,8 @@ func (d *settingsUI) loadKeyboardScreen() fyne.CanvasObject {
 
 	top := container.NewVBox(
 		container.NewHBox(widget.NewLabel("Preferred modifier key: "), modType),
-		widget.NewSeparator())
+		widget.NewSeparator(),
+	)
 	return container.NewBorder(top, nil, nil, nil, grid)
 }
 

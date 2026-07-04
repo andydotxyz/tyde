@@ -94,7 +94,8 @@ func (d *settingsUI) loadFingerprintCard() fyne.CanvasObject {
 	)
 	return container.NewVBox(
 		sectionHeading("Fingerprint", "Unlock the screen and log in with a fingerprint"),
-		content)
+		content,
+	)
 }
 
 // refreshEnrolled repopulates the list of enrolled fingers, each with a delete button.
@@ -299,7 +300,8 @@ func (d *settingsUI) loadPasswordCard(name string) fyne.CanvasObject {
 
 	return container.NewVBox(
 		sectionHeading("Change Password", "Signed in as "+name),
-		form)
+		form,
+	)
 }
 
 // writeUserFace decodes the chosen image and re-encodes it as a PNG at ~/.face.

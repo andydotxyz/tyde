@@ -50,8 +50,10 @@ func (c *chatUI) build() fyne.CanvasObject {
 	c.entry.Wrapping = fyne.TextWrapWord
 	c.entry.OnSubmitted = func(string) { c.submit() }
 
-	c.send = &widget.Button{Icon: theme.MailSendIcon(), Importance: widget.HighImportance,
-		OnTapped: c.submit}
+	c.send = &widget.Button{
+		Icon: theme.MailSendIcon(), Importance: widget.HighImportance,
+		OnTapped: c.submit,
+	}
 
 	// A large, faint assistant glyph sits behind the transcript for style and to
 	// make the window's purpose clear at a glance.
@@ -97,7 +99,8 @@ func (c *chatUI) submit() {
 	// marshal only the UI updates back with fyne.Do.
 	go func() {
 		var sb strings.Builder
-		resp, genErr := llm.GenerateContent(context.Background(), c.history,
+		resp, genErr := llm.GenerateContent(
+			context.Background(), c.history,
 			// Without an explicit limit langchaingo defaults max_tokens to 2048,
 			// which truncates longer replies mid-sentence (stop_reason max_tokens).
 			llms.WithMaxTokens(8192),

@@ -143,7 +143,8 @@ func newSettingsNav(groups []settingsGroup, headerIcon fyne.Resource) *settingsN
 		container.NewHBox(iconSlot, n.detailTitle), container.NewCenter(n.backButton))
 	n.detail = container.NewPadded(container.NewBorder(
 		container.NewVBox(header, widget.NewSeparator()), nil, nil, nil,
-		n.detailContent))
+		n.detailContent,
+	))
 	n.detail.Hide()
 
 	n.flyer = canvas.NewImageFromResource(nil)
@@ -186,7 +187,8 @@ func (n *settingsNav) buildHome() fyne.CanvasObject {
 	title.SizeName = theme.SizeNameHeadingText
 	head := container.NewVBox(
 		container.NewBorder(nil, nil, container.NewHBox(iconSlot, title), nil),
-		widget.NewSeparator())
+		widget.NewSeparator(),
+	)
 	body := container.NewPadded(container.NewBorder(head, nil, nil, nil, scroll))
 
 	sea := container.NewBorder(nil, n.buildSea(), nil, nil)
