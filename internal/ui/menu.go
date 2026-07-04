@@ -174,12 +174,10 @@ func (w *widgetPanel) showAccountMenu(_ fyne.CanvasObject) {
 	inner := container.NewBorder(items, nil, nil, nil, container.NewScroll(acc))
 	menuContent := container.NewStack(bg, container.NewPadded(inner))
 
-	primary := w.desk.Screens().Primary()
-	scale := primary.CanvasScale()
-	pRight := float32(primary.Width) / scale
-	pBottom := float32(primary.Height) / scale
-	pos := fyne.NewPos(pRight-300, pBottom-360)
+	// Anchor to the window canvas, bottom right.
+	winSize := w.desk.(*desktop).primaryWin.win.Canvas().Size()
 	menuSize := fyne.NewSize(300, 360)
+	pos := fyne.NewPos(winSize.Width-menuSize.Width, winSize.Height-menuSize.Height)
 	combined = w.desk.(*desktop).ShowOverlayWithBackdrop(menuContent, menuSize, menuSize, pos, fyne.Position{})
 }
 
