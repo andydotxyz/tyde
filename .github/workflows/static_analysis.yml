@@ -18,7 +18,7 @@ jobs:
       - name: Get dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends clang lld libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libx11-dev xorg-dev bc libpam-dev xvfb language-pack-en
+          sudo apt-get install --no-install-recommends clang lld libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libx11-dev xorg-dev libwayland-dev libxkbcommon-dev bc libpam-dev xvfb language-pack-en
 
       - name: Set environment variable LANG
         run: export LANG=en_EN.UTF-8
