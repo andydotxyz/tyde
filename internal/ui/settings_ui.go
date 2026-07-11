@@ -71,22 +71,41 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 	clockLabel := widget.NewLabelWithStyle("Clock Format", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	clockFormat := &widget.RadioGroup{Options: []string{"12h", "24h"}, Required: true, Horizontal: true}
 	clockFormat.SetSelected(d.settings.ClockFormatting())
+	clockFormat.OnChanged = func(s string) {
+		d.settings.setClockFormatting(s)
+	}
 
 	layoutLabel := widget.NewLabelWithStyle("Layout", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	narrowWidget := widget.NewCheck("Narrow Widget Bar", nil)
 	narrowWidget.Checked = d.settings.NarrowWidgetPanel()
+	narrowWidget.OnChanged = func(b bool) {
+		d.settings.setNarrowWidgetPanel(b)
+	}
 
 	borderButtonLabel := widget.NewLabelWithStyle("Border Button Position", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	borderButton := &widget.Select{Options: []string{"Left", "Right"}}
 	borderButton.SetSelected(d.settings.BorderButtonPosition())
+	borderButton.OnChanged = func(s string) {
+		d.settings.setBorderButtonPosition(s)
+	}
 
 	saverLabel := widget.NewLabelWithStyle("Screensaver", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	saverType := &widget.RadioGroup{Options: []string{"FyshOS", "XScreensaver"}, Required: true, Horizontal: true}
 	saverType.SetSelected(d.settings.ScreenSaverType())
+	saverType.OnChanged = func(s string) {
+		// TODO if s == "XScreensaver" disable the saverClock and saverText
+		d.settings.setScreenSaver(s)
+	}
 	saverText := widget.NewEntry()
 	saverText.SetText(d.settings.ScreenSaverLabel())
+	saverText.OnChanged = func(s string) {
+		d.settings.setScreenSaverLabel(s)
+	}
 	saverClock := widget.NewCheck("Clock", nil)
 	saverClock.Checked = d.settings.ScreenSaverClock()
+	saverClock.OnChanged = func(b bool) {
+		d.settings.setScreenSaverClock(b)
+	}
 
 	themeLabel := widget.NewLabel(d.settings.IconTheme())
 	themeIcons := container.NewHBox()
@@ -106,26 +125,10 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 	time := container.NewBorder(nil, nil, clockLabel, clockFormat)
 	lay := container.NewBorder(nil, nil, layoutLabel, narrowWidget)
 	border := container.NewBorder(nil, nil, borderButtonLabel, borderButton)
-	saver := container.NewBorder(nil, nil, container.NewVBox(saverLabel, widget.NewLabel("")),
-		container.NewVBox(saverType, container.NewBorder(nil, nil, saverClock, nil, saverText)))
-	top := container.NewVBox(time, lay, border, saver)
-
-	themeFormLabel := widget.NewLabelWithStyle("Icon Theme", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	themeCurrent := container.NewHBox(layout.NewSpacer(), themeLabel, themeIcons)
-	bottom := container.NewBorder(nil, themeCurrent, themeFormLabel, nil, container.NewScroll(themeList))
-
-	applyButton := container.NewHBox(layout.NewSpacer(),
-		&widget.Button{Text: "Apply", Importance: widget.HighImportance, OnTapped: func() {
-			d.settings.setIconTheme(themeLabel.Text)
-			d.settings.setClockFormatting(clockFormat.Selected)
-			d.settings.setBorderButtonPosition(borderButton.Selected)
-			d.settings.setNarrowWidgetPanel(narrowWidget.Checked)
-			d.settings.setScreenSaver(saverType.Selected)
-			d.settings.setScreenSaverClock(saverClock.Checked)
-			d.settings.setScreenSaverLabel(saverText.Text)
-		}})
-
-	return container.NewBorder(top, applyButton, nil, nil, bottom)
+	saver := container.NewBorder(nil, nil, saverLabel, saverType)
+	saverPref := container.NewGridWithColumns(2, layout.NewSpacer(),
+		container.NewBorder(nil, nil, widget.NewLabel("Label:"), saverClock, saverText))
+	return container.NewVBox(time, lay, border, saver, saverPref)
 }
 
 func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
