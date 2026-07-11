@@ -53,6 +53,12 @@ func (x *x11WM) watchScreensaver() {
 	}
 }
 
+// isScreensaverName reports whether a window carrying the given _NET_WM_NAME is
+// one of the screensaver's windows.
+func isScreensaverName(name string) bool {
+	return name == saver.WindowTitle
+}
+
 var screenSaverActive bool
 
 func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {

@@ -1034,6 +1034,16 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 		return
 	}
 
+	// A screensaver must cover the whole screen, panels included. Detect it here
+	// — by the name the saver sets before mapping.
+	if isScreensaverName(name) {
+		xproto.MapWindow(x.x.Conn(), win)
+		xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowStackMode,
+			[]uint32{uint32(xproto.StackModeAbove)})
+		xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, win, xproto.TimeCurrentTime)
+		return
+	}
+
 	hints, err := icccm.WmHintsGet(x.x, win)
 	if err == nil {
 		if hints.Flags&icccm.HintState > 0 && hints.InitialState == icccm.StateWithdrawn { // We don't want to manage windows that are not mapped

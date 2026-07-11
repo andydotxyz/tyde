@@ -7,7 +7,6 @@ import (
 	"context"
 	"image"
 	"math"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/BurntSushi/xgbutil/ewmh"
 	"github.com/BurntSushi/xgbutil/icccm"
 	"github.com/BurntSushi/xgbutil/xwindow"
-	"github.com/FyshOS/saver"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -154,14 +152,7 @@ func newFrame(c *client) *frame {
 		framed.childHeight = h - borderWidth - titleHeight
 	}
 
-	title := "Tyde Border"
-	childTitle := c.props.Title()
-	if strings.Contains(strings.ToLower(childTitle), "screensaver") ||
-		strings.Contains(strings.ToLower(childTitle), "screen saver") ||
-		strings.Contains(strings.ToLower(childTitle), saver.WindowTitle) {
-		title = "Tyde Screensaver"
-	}
-	_ = ewmh.WmNameSet(c.wm.X(), f.Id, title)
+	_ = ewmh.WmNameSet(c.wm.X(), f.Id, "Tyde Border")
 	var offsetX, offsetY int16 = 0, 0
 	if !full && decorated {
 		offsetX = int16(borderWidth)

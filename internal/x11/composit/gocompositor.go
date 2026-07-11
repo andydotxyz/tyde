@@ -1114,13 +1114,12 @@ func computeTranslucency(conn *xgb.Conn, c *client) float64 {
 
 // isScreensaver detects screensaver windows.
 func isScreensaver(title string, attr *xproto.GetWindowAttributesReply, geom *xproto.GetGeometryReply) bool {
-	lower := strings.ToLower(title)
-	if strings.Contains(lower, "screensaver") || strings.Contains(lower, "screen saver") ||
-		strings.Contains(lower, saver.WindowTitle) || title == "Tyde Screensaver" {
+	if title == saver.WindowTitle {
 		return true
 	}
 
 	// Override-redirect windows covering a full screen are likely screensavers
+	// (e.g. xscreensaver), so keep detecting those by their shape.
 	if attr.OverrideRedirect {
 		if inst := tyde.Instance(); inst != nil {
 			for _, screen := range inst.Screens().Screens() {
