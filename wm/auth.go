@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"strconv"
 	"sync"
 
 	"fyshos.com/tyde"
@@ -48,16 +49,55 @@ func (a *auth) register() {
 		fyne.LogError("Could not start auth agent server", err)
 	}
 
+	session, err := sessionID(conn2)
+	if err != nil {
+		fyne.LogError("Could not determine our login session, auth agent not registered", err)
+		return
+	}
+
 	obj := conn2.Object("org.freedesktop.PolicyKit1", "/org/freedesktop/PolicyKit1/Authority")
 	call := obj.Call("org.freedesktop.PolicyKit1.Authority.RegisterAuthenticationAgent", 0,
 
 		&subj{"unix-session", map[string]dbus.Variant{
-			"session-id": dbus.MakeVariant("c1"),
+			"session-id": dbus.MakeVariant(session),
 		}}, "en_US",
 		"/AuthenticationAgent")
 	if call.Err != nil {
 		fyne.LogError("Failed to register auth agent", call.Err)
 	}
+}
+
+// sessionID reports the logind session this process belongs to.
+//
+// polkit requires an authentication agent to register for the session it is
+// actually running in: registering for any other is rejected outright with
+// "Passed session and the session the caller is in differs. They must be equal
+// for now." That leaves the desktop with no agent at all, so password prompts
+// fall back to a terminal (or fail entirely) and responses are refused with
+// "No session for cookie".
+func sessionID(conn *dbus.Conn) (string, error) {
+	if id := os.Getenv("XDG_SESSION_ID"); id != "" {
+		return id, nil
+	}
+
+	// No environment hint, so ask logind which session owns this process.
+	var path dbus.ObjectPath
+	obj := conn.Object("org.freedesktop.login1", "/org/freedesktop/login1")
+	err := obj.Call("org.freedesktop.login1.Manager.GetSessionByPID", 0, uint32(os.Getpid())).Store(&path)
+	if err != nil {
+		return "", err
+	}
+
+	prop, err := conn.Object("org.freedesktop.login1", path).
+		GetProperty("org.freedesktop.login1.Session.Id")
+	if err != nil {
+		return "", err
+	}
+	id, ok := prop.Value().(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected session id type %T", prop.Value())
+	}
+	return id, nil
 }
 
 type ident struct {
@@ -167,23 +207,56 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	return nil
 }
 
+// resolveUser picks which identity to authenticate as from those polkit offers.
+// It prefers the current user when they are eligible - so people type their own
+// password rather than an unexpected admin's - and otherwise falls back to the
+// first offered user.
 func (a *auth) resolveUser(ids []ident) (string, error) {
-	uid := ""
-	_, err := fmt.Sscanf(ids[0].Details["uid"].String(), "@u %s", &uid)
-	if err != nil {
-		currentUser, err2 := user.Current()
-		if err2 != nil {
-			return "", err2
+	current, _ := user.Current()
+
+	if current != nil {
+		for _, id := range ids {
+			if id.ID == "unix-user" && identUID(id) == current.Uid {
+				return current.Username, nil
+			}
 		}
-
-		return currentUser.Username, nil
 	}
 
-	usr, err2 := user.LookupId(uid)
-	if err2 != nil {
-		return "", err2
+	for _, id := range ids {
+		if id.ID != "unix-user" {
+			continue
+		}
+		if uid := identUID(id); uid != "" {
+			if usr, err := user.LookupId(uid); err == nil {
+				return usr.Username, nil
+			}
+		}
 	}
-	return usr.Username, nil
+
+	if current != nil {
+		return current.Username, nil
+	}
+	return "", fmt.Errorf("no user identity offered to authenticate")
+}
+
+// identUID reads the numeric uid from a polkit unix-user identity, whose "uid"
+// detail is a uint32 variant. Returns "" when absent or the wrong type.
+func identUID(id ident) string {
+	v, ok := id.Details["uid"]
+	if !ok {
+		return ""
+	}
+	switch n := v.Value().(type) {
+	case uint32:
+		return strconv.FormatUint(uint64(n), 10)
+	case int32:
+		return strconv.FormatInt(int64(n), 10)
+	case uint64:
+		return strconv.FormatUint(n, 10)
+	case int64:
+		return strconv.FormatInt(n, 10)
+	}
+	return ""
 }
 
 func (a *auth) reply(username string, cookie string, pass string) error {

@@ -29,8 +29,8 @@ github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba h1:en4DPSeMviqsBmoT2nb
 github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba/go.mod h1:hFyul2zT1VOgINBEBeRVkXeoCBWo5dWU4poPihDniVU=
 github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc h1:OgOMcomEU6G5SwcBrly89yZZ+wJxbI4qQebHLsq5fks=
 github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc/go.mod h1:K6fsSW1kbDypOuRygid6PfDWZJ2XB8EGO9HkzUO3VQM=
-github.com/FyshOS/saver v0.1.1-0.20260704141749-ed5b42bbb437 h1:JN9iFgOxvKWmpch3MndYjqlMac2StPpOWKxlE+XSzj4=
-github.com/FyshOS/saver v0.1.1-0.20260704141749-ed5b42bbb437/go.mod h1:BxoKgdt5K09iyd+w7NNoHdw3kSXFXBdECcFbUIzOTF0=
+github.com/FyshOS/saver v0.1.1-0.20260713082954-4020c0f5311f h1:Vf/v7UU0Fx7lFBpExMI+3P1ADBlZpKBGf9/ZJYTKCGU=
+github.com/FyshOS/saver v0.1.1-0.20260713082954-4020c0f5311f/go.mod h1:4CbbI6m+TZOZvsZ0EYP0VP54uZjHaNdRZwxgnz2iU70=
 github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820 h1:1brj9ygNCRJUM5uMjPC2s5q/du9FnK4Y40YdLpURaGQ=
 github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820/go.mod h1:WUjD+Oi5pGOusfSqrFrk/woIrqr+bMOZUGK0lc5mbRQ=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
