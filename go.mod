@@ -1,6 +1,6 @@
 module fyshos.com/tyde
 
-go 1.22.0
+go 1.24.4
 
 require (
 	codeberg.org/sdassow/unyts v0.5.1
@@ -38,16 +38,16 @@ require (
 	github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc
 	github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
-	github.com/tmc/langchaingo v0.1.9
+	github.com/tmc/langchaingo v0.1.14
 	golang.org/x/image v0.24.0
-	golang.org/x/sys v0.30.0
-	golang.org/x/text v0.22.0
+	golang.org/x/sys v0.35.0
+	golang.org/x/text v0.28.0
 )
 
 require (
 	fyne.io/systray v1.12.2 // indirect
 	github.com/ActiveState/termtest/conpty v0.5.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
 	github.com/BurntSushi/graphics-go v0.0.0-20160129215708-b43f31a4a966 // indirect
 	github.com/amenzhinsky/go-polkit v0.0.0-20210519083301-ee6a51849123 // indirect
@@ -69,12 +69,12 @@ require (
 	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/yuin/goldmark v1.8.2 // indirect
-	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
