@@ -12,6 +12,7 @@ import (
 	_ "fyshos.com/tyde/modules/rpc"
 	_ "fyshos.com/tyde/modules/status"
 	_ "fyshos.com/tyde/modules/systray"
+	_ "fyshos.com/tyde/modules/updates"
 	wmtheme "fyshos.com/tyde/theme"
 
 	"fyne.io/fyne/v2/app"

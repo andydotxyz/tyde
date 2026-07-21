@@ -33,6 +33,7 @@ import (
 
 	"fyshos.com/tyde"
 	"fyshos.com/tyde/modules/ai"
+	"fyshos.com/tyde/modules/updates"
 	wmtheme "fyshos.com/tyde/theme"
 	"fyshos.com/tyde/wm"
 	"github.com/godbus/dbus/v5"
@@ -587,8 +588,12 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 		container.NewBorder(nil, addNew, nil, nil, themesWidget))
 }
 
-func (w *widgetPanel) showSettings() {
+// showSettings opens the settings window. A non-empty panel title opens that panel directly.
+func (w *widgetPanel) showSettings(panel string) {
 	if w.settings != nil {
+		if panel != "" && w.settingsNav != nil {
+			w.settingsNav.showPanel(panel)
+		}
 		w.settings.CenterOnScreen()
 		w.settings.Show()
 		w.settings.(deskDriver.Window).RequestAlwaysOnTop()
@@ -628,6 +633,7 @@ func (w *widgetPanel) showSettings() {
 			}},
 			{title: "Network", icon: wmtheme.WifiIcon, build: ui.loadNetworkScreen},
 			{title: "Time/Date", icon: wmtheme.ClockIcon, build: ui.loadTimeScreen},
+			{title: "Updates", icon: wmtheme.UpdateIcon, build: updates.SettingsContent},
 			{title: "Account", icon: wmtheme.UserIcon, build: ui.loadAccountScreen},
 		}},
 	}
@@ -635,6 +641,10 @@ func (w *widgetPanel) showSettings() {
 	settingsIcon := theme.SettingsIcon()
 	win.SetIcon(settingsIcon)
 	nav := newSettingsNav(groups, settingsIcon)
+	w.settingsNav = nav
+	if panel != "" {
+		nav.showPanel(panel)
+	}
 	win.SetOnClosed(func() {
 		nav.waveAnim.Stop()
 		screens.Close()
@@ -650,7 +660,7 @@ func (w *widgetPanel) showSettings() {
 
 	win.SetPadded(false)
 	win.SetContent(nav.root)
-	win.Resize(fyne.NewSize(440, 500))
+	win.Resize(fyne.NewSize(530, 500))
 	nav.waveAnim.Start()
 
 	win.SetCloseIntercept(func() {
