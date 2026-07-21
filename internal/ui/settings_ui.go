@@ -415,7 +415,9 @@ func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 // loadAIScreen builds the AI assistant setup: an enable toggle (wired into the
 // module enable/disable machinery) above the module's own provider/token panel.
 func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
-	enable := widget.NewCheck("Enable AI Assistant", func(on bool) {
+	enable := widget.NewCheck("Enable AI Assistant", nil)
+	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+	enable.OnChanged = func(on bool) {
 		names := d.settings.ModuleNames()
 		var out []string
 		for _, n := range names {
@@ -427,8 +429,7 @@ func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
 			out = append(out, ai.ModuleName)
 		}
 		d.settings.setModuleNames(out)
-	})
-	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+	}
 
 	head := container.NewVBox(enable, widget.NewSeparator())
 	return container.NewBorder(head, nil, nil, nil, ai.SettingsContent())

@@ -169,7 +169,7 @@ func (a *auth) BeginAuthentication(actionID, message, iconName string, details m
 	}
 
 	header := widget.NewRichTextFromMarkdown(fmt.Sprintf("### Authorise\n\n_%s_", message))
-	header.Truncation = fyne.TextTruncateEllipsis
+	header.Wrapping = fyne.TextWrapBreak
 	header.Refresh()
 	bottomPad := canvas.NewRectangle(color.Transparent)
 	bottomPad.SetMinSize(fyne.NewSquareSize(10))
