@@ -375,6 +375,7 @@ func (x *x11WM) handleScreenChange(timestamp xproto.Timestamp) {
 	}
 	desk.Screens().RefreshScreens()
 	x.configureRoots()
+	x.configureSavers()
 }
 
 func (x *x11WM) handleStateActionRequest(ev xproto.ClientMessageEvent, removeState func(), addState func(), toggleCheck bool) {

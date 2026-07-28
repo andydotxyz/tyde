@@ -67,6 +67,7 @@ type x11WM struct {
 	menuSize       fyne.Size
 	menuPos        fyne.Position
 	transientMap   map[xproto.Window][]xproto.Window
+	saverScreens   map[xproto.Window]string
 	oldRoot        *xgraphics.Image
 }
 
@@ -754,6 +755,10 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 		x.configureRoots() // we added a root window, so reconfigure
 		return
 	}
+	if isScreensaverName(name) {
+		x.configureSaver(win, &ev) // the saver covers a screen, it does not get to size itself
+		return
+	}
 	xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowX|xproto.ConfigWindowY|
 		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
 		[]uint32{uint32(xcoord), uint32(ycoord), uint32(width), uint32(height)})
@@ -1037,6 +1042,7 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 	// A screensaver must cover the whole screen, panels included. Detect it here
 	// — by the name the saver sets before mapping.
 	if isScreensaverName(name) {
+		x.configureSaver(win, nil) // full size before it is mapped, so it never appears small
 		xproto.MapWindow(x.x.Conn(), win)
 		xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowStackMode,
 			[]uint32{uint32(xproto.StackModeAbove)})
