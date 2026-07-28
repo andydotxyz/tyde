@@ -898,6 +898,7 @@ func (l *desktop) RecentApps() []appie.AppData {
 func (l *desktop) Run() {
 	go l.wm.Run()
 	go l.watchScreenActivity()
+	go l.watchSleep()
 	l.run() // use the configured run method
 }
 

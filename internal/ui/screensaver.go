@@ -5,6 +5,7 @@ package ui
 
 import (
 	"math/rand"
+	"os"
 	"os/exec"
 	"time"
 
@@ -68,6 +69,70 @@ func (l *desktop) watchScreenActivity() {
 			}
 		} else {
 			idle = false
+		}
+	}
+}
+
+// watchSleep listens for systemd-logind's PrepareForSleep signal and shows the
+// screensaver lock just before the machine suspends.
+func (l *desktop) watchSleep() {
+	conn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		fyne.LogError("failed to connect to system bus for sleep events", err)
+		return
+	}
+
+	if err := conn.AddMatchSignal(
+		dbus.WithMatchInterface("org.freedesktop.login1.Manager"),
+		dbus.WithMatchMember("PrepareForSleep"),
+		dbus.WithMatchObjectPath("/org/freedesktop/login1"),
+	); err != nil {
+		fyne.LogError("failed to watch for sleep events", err)
+		return
+	}
+
+	login1 := conn.Object("org.freedesktop.login1", "/org/freedesktop/login1")
+	inhibit := func() *os.File {
+		var fd dbus.UnixFD
+		call := login1.Call("org.freedesktop.login1.Manager.Inhibit", 0,
+			"sleep", "Tyde", "Lock screen before sleep", "delay")
+		if call.Err != nil {
+			fyne.LogError("failed to take sleep inhibitor lock", call.Err)
+			return nil
+		}
+		if err := call.Store(&fd); err != nil {
+			fyne.LogError("failed to read sleep inhibitor lock", err)
+			return nil
+		}
+		return os.NewFile(uintptr(fd), "logind-inhibit")
+	}
+
+	lock := inhibit()
+	ch := make(chan *dbus.Signal, 4)
+	conn.Signal(ch)
+	for sig := range ch {
+		if len(sig.Body) == 0 {
+			continue
+		}
+		sleeping, ok := sig.Body[0].(bool)
+		if !ok {
+			continue
+		}
+
+		if sleeping {
+			// About to suspend: show the locker now, give it a moment to map,
+			// then release our inhibitor so the suspend can proceed.
+			fyne.Do(func() {
+				l.TriggerScreenSaver(false)
+			})
+			time.Sleep(time.Millisecond * 400)
+			if lock != nil {
+				_ = lock.Close()
+				lock = nil
+			}
+		} else {
+			// Resumed: re-arm the inhibitor for the next sleep.
+			lock = inhibit()
 		}
 	}
 }
