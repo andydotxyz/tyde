@@ -19,7 +19,10 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"fyshos.com/tyde/modules/launcher"
 
 	"fyshos.com/tyde"
@@ -101,11 +104,12 @@ var meta = tyde.ModuleMetadata{
 	NewInstance: newAI,
 }
 
-// assistant is the module instance. It owns a single chat window that is reused
-// (hidden rather than destroyed) across launches so the conversation persists.
+// assistant is the module instance. It owns a single chat window (reused across
+// launches, hidden rather than destroyed) holding a tab per conversation.
 type assistant struct {
-	win  fyne.Window
-	chat *chatUI
+	win   fyne.Window
+	tabs  *container.DocTabs
+	chats map[*container.TabItem]*chatUI
 }
 
 func newAI() tyde.Module {
@@ -163,28 +167,87 @@ func (a *assistant) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	return []tyde.LaunchSuggestion{&launchItem{a: a, text: input}}
 }
 
-// open shows the chat window (creating it on first use) and, if given, asks an
-// initial question. Must be called on the UI thread - it is, via the launcher
-// button tap.
+// open shows the chat window (creating it on first use) and, if given, opens the
+// question in a new tab. Must be called on the UI thread - it is, via the
+// launcher button tap.
 func (a *assistant) open(prompt string) {
 	if a.win == nil {
-		a.chat = newChatUI()
+		a.chats = map[*container.TabItem]*chatUI{}
+		a.tabs = container.NewDocTabs()
+		a.tabs.CreateTab = func() *container.TabItem { return a.newTab("") }
+		a.tabs.OnClosed = func(item *container.TabItem) {
+			if chat, ok := a.chats[item]; ok {
+				chat.stop()
+				delete(a.chats, item)
+			}
+		}
+
+		watermark := canvas.NewImageFromResource(Icon)
+		watermark.FillMode = canvas.ImageFillContain
+		watermark.Translucency = 0.9
+		watermark.SetMinSize(fyne.NewSquareSize(240))
+
+		entry := widget.NewMultiLineEntry()
+		startNew := func() {
+			a.open(entry.Text)
+			entry.SetText("")
+		}
+		entry.SetPlaceHolder("Ask the assistant...")
+		entry.Wrapping = fyne.TextWrapWord
+		entry.OnSubmitted = func(_ string) { startNew() }
+
+		send := &widget.Button{
+			Icon: theme.MailSendIcon(), Importance: widget.HighImportance,
+			OnTapped: startNew,
+		}
+		input := container.NewBorder(nil, nil, nil, send, entry)
+
 		win := fyne.CurrentApp().NewWindow("AI Assistant")
 		win.SetIcon(Icon)
-		win.SetContent(a.chat.build())
-		win.Resize(fyne.NewSize(440, 540))
+		win.SetContent(container.NewStack(container.NewBorder(nil, input, nil, nil, container.NewCenter(watermark)), a.tabs))
+		win.Resize(fyne.NewSize(460, 560))
 		win.SetCloseIntercept(win.Hide) // reuse the window (hide, don't destroy)
-		a.chat.win = win
 		a.win = win
 	}
 
-	a.chat.syncControls() // reflect current provider and reasoning setting
+	switch {
+	case strings.TrimSpace(prompt) != "":
+		a.addTab(a.newTab(prompt)) // a new search term opens its own conversation
+	case len(a.tabs.Items) == 0:
+		a.addTab(a.newTab("")) // opened bare with nothing yet - give an empty chat
+	}
+
 	a.win.Show()
 	a.win.RequestFocus()
-	if strings.TrimSpace(prompt) != "" {
-		a.chat.reset() // a new search term starts a fresh conversation
-		a.chat.ask(prompt)
+}
+
+// addTab appends a tab and makes it the visible one.
+func (a *assistant) addTab(item *container.TabItem) {
+	a.tabs.Append(item)
+	a.tabs.Select(item)
+}
+
+// newTab builds a fresh conversation as a tab. With a prompt it titles the tab
+// from it and asks straight away; empty it is a blank "New chat" ready for
+// input.
+func (a *assistant) newTab(prompt string) *container.TabItem {
+	chat := newChatUI()
+	chat.win = a.win
+
+	title := "New chat"
+	if p := strings.TrimSpace(prompt); p != "" {
+		title = launcher.TruncatePrompt(p)
 	}
+	item := container.NewTabItem(title, chat.build())
+
+	chat.isActive = func() bool { return a.tabs != nil && a.tabs.Selected() == item }
+	a.chats[item] = chat
+
+	chat.syncControls() // reflect current provider and reasoning setting
+	if strings.TrimSpace(prompt) != "" {
+		chat.ask(prompt)
+	}
+	return item
 }
 
 // launchItem is the "Ask AI" launcher suggestion.

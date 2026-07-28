@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
@@ -29,14 +28,13 @@ type chatUI struct {
 	scroll    *container.Scroll
 	entry     *widget.Entry
 	send      *widget.Button
-	reasoning *widget.Check // Local AI: quick per-window speed/accuracy toggle
+	reasoning *widget.Check // Local AI: quick per-tab speed/accuracy toggle
 	busy      bool
 
-	// gen identifies the current conversation; reset bumps it so a reply still
-	// in flight from a previous one can't write into the new one. cancel stops
-	// that in-flight request. Both are only touched on the UI thread.
-	gen    int
-	cancel context.CancelFunc
+	// isActive reports whether this chat's tab is the visible one, so a reply
+	// completing in a background tab does not steal keyboard focus.
+	isActive func() bool
+	cancel   context.CancelFunc
 }
 
 func newChatUI() *chatUI {
@@ -62,27 +60,14 @@ func (c *chatUI) build() fyne.CanvasObject {
 		OnTapped: c.submit,
 	}
 
-	// A large, faint assistant glyph sits behind the transcript for style and to
-	// make the window's purpose clear at a glance.
-	watermark := canvas.NewImageFromResource(Icon)
-	watermark.FillMode = canvas.ImageFillContain
-	watermark.Translucency = 0.9
-	watermark.SetMinSize(fyne.NewSquareSize(240))
-
 	// A compact reasoning toggle above the input makes it easy to trade speed for
-	// accuracy per question. It shares the Local AI setting, and only applies to
-	// that provider - syncControls shows/hides it and keeps it in step.
+	// accuracy per question.
 	c.reasoning = widget.NewCheck("Reasoning", nil)
-	c.reasoning.SetChecked(fyne.CurrentApp().Preferences().Bool(prefLocalThinking))
-	c.reasoning.OnChanged = func(on bool) {
-		fyne.CurrentApp().Preferences().SetBool(prefLocalThinking, on)
-	}
 
 	input := container.NewBorder(nil, nil, nil, c.send, c.entry)
 	controls := container.NewHBox(layout.NewSpacer(), c.reasoning)
-	bottom := container.NewVBox(controls, container.NewPadded(input))
-	body := container.NewStack(container.NewCenter(watermark), c.scroll)
-	return container.NewBorder(nil, bottom, nil, nil, body)
+	bottom := container.NewVBox(controls, input)
+	return container.NewBorder(nil, bottom, nil, nil, c.scroll)
 }
 
 // ask seeds the input with text and sends it, used for the launcher's initial
@@ -92,31 +77,17 @@ func (c *chatUI) ask(text string) {
 	c.submit()
 }
 
-// reset clears the transcript and conversation history back to a fresh start, so
-// a question launched from a new search term is not appended onto a previous
-// conversation. Any reply still streaming from the old conversation is cancelled
-// and its late writes are ignored (see the gen check in submit). Runs on the UI
-// thread (called from open, via the launcher tap).
-func (c *chatUI) reset() {
-	c.gen++
+// stop cancels any reply still streaming for this chat. Called when its tab is
+// closed so the model is not left generating into a discarded conversation.
+func (c *chatUI) stop() {
 	if c.cancel != nil {
 		c.cancel()
 		c.cancel = nil
 	}
-	c.setBusy(false) // a superseded reply must not leave the input disabled
-
-	c.history = []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeSystem, systemPrompt),
-	}
-	if c.log != nil {
-		c.log.RemoveAll()
-		c.log.Refresh()
-	}
 }
 
-// syncControls refreshes the reasoning toggle from preferences and shows it only
-// for Local AI (the only provider enable_thinking applies to). Called each time
-// the window opens so it tracks changes made in settings or to the provider.
+// syncControls seeds this tab's reasoning toggle from the saved default and
+// shows it only for Local AI.
 func (c *chatUI) syncControls() {
 	if c.reasoning == nil {
 		return
@@ -142,6 +113,9 @@ func (c *chatUI) submit() {
 	c.history = append(c.history, llms.TextParts(llms.ChatMessageTypeHuman, text))
 
 	cfg := loadConfig()
+	if cfg.provider == ProviderLocal && c.reasoning != nil {
+		cfg.thinking = c.reasoning.Checked
+	}
 	llm, err := cfg.newLLM()
 	if err != nil {
 		c.addMessage(theme.WarningIcon(), err.Error())
@@ -151,12 +125,9 @@ func (c *chatUI) submit() {
 	reply, stopSpinner := c.addPendingReply()
 	c.setBusy(true)
 
-	// Snapshot the conversation and its generation, and make the request
-	// cancellable, so a reset (new search term) can abandon this reply cleanly:
-	// the generation check drops any late UI/history writes, and cancel stops the
-	// model mid-flight instead of leaving it to run on into the next question.
+	// Make the request cancellable so closing the tab (stop) abandons the reply
+	// and stops the model mid-flight rather than leaving it to run on.
 	hist := c.history
-	gen := c.gen
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancel = cancel
 
@@ -184,9 +155,6 @@ func (c *chatUI) submit() {
 					return nil
 				}
 				fyne.Do(func() {
-					if c.gen != gen { // a reset superseded this reply
-						return
-					}
 					defer recoverAI("chat stream render")
 					stopSpinner() // first real reply text has arrived
 					// Plain markdown while streaming: don't swap in copyable code
@@ -212,9 +180,6 @@ func (c *chatUI) submit() {
 			resp.Choices[0].StopReason == "max_tokens"
 
 		fyne.Do(func() {
-			if c.gen != gen { // a reset superseded this reply - leave the new one be
-				return
-			}
 			defer recoverAI("chat final render")
 			stopSpinner() // ensure it stops even if nothing streamed
 			switch {
@@ -229,10 +194,12 @@ func (c *chatUI) submit() {
 			}
 			c.scroll.ScrollToBottom()
 			c.setBusy(false)
-			c.win.Canvas().Focus(c.entry)
+			if c.isActive == nil || c.isActive() { // don't grab focus from another tab
+				c.win.Canvas().Focus(c.entry)
+			}
 
-			// Record the exchange on the UI thread (same goroutine as reset and
-			// the human-turn append) so history has a single writer.
+			// Record the exchange on the UI thread (the same goroutine as the
+			// human-turn append) so history has a single writer.
 			if genErr == nil {
 				c.history = append(c.history, llms.TextParts(llms.ChatMessageTypeAI, final))
 			}

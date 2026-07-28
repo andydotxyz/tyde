@@ -94,10 +94,7 @@ func localSettings(p fyne.Preferences) fyne.CanvasObject {
 	status := widget.NewLabel("")
 	status.Wrapping = fyne.TextWrapWord
 
-	// Reasoning toggle: off (default) makes a reasoning model answer directly and
-	// fast; on lets it think first - slower but more accurate. Applies to the
-	// next message, no restart needed.
-	reasoning := widget.NewCheck("Reasoning: slower, but more accurate", nil)
+	reasoning := widget.NewCheck("Reasoning by default: slower, but more accurate", nil)
 	reasoning.SetChecked(p.Bool(prefLocalThinking))
 	reasoning.OnChanged = func(on bool) { p.SetBool(prefLocalThinking, on) }
 
