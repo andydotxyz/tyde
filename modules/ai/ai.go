@@ -48,14 +48,33 @@ const (
 
 // Preference keys. Cloud keys are stored per-provider so switching provider
 // does not discard the other provider's token; Local AI stores its server URL.
+// Model overrides are per-provider for the same reason - and because a model
+// name only means anything to the provider it was chosen for.
 const (
 	prefProvider      = "ai.provider"
 	prefClaudeKey     = "ai.key.claude"
 	prefOpenAIKey     = "ai.key.openai"
 	prefLocalEndpoint = "ai.endpoint.local"
 	prefLocalThinking = "ai.local.thinking" // let a reasoning model think (slower)
-	prefModel         = "ai.model"
+	prefLocalManaged  = "ai.local.managed"  // let tyde run the server via kronk (default on)
+	prefClaudeModel   = "ai.model.claude"
+	prefOpenAIModel   = "ai.model.openai"
+	prefLocalModel    = "ai.model.local"
+	prefLegacyModel   = "ai.model" // one model for all providers, migrated away below
 )
+
+// modelPref maps a provider to the preference holding its optional model
+// override.
+func modelPref(provider string) string {
+	switch provider {
+	case ProviderOpenAI:
+		return prefOpenAIModel
+	case ProviderLocal:
+		return prefLocalModel
+	default:
+		return prefClaudeModel
+	}
+}
 
 // Default models for the cloud providers. Claude defaults to Sonnet 4.6 rather
 // than a newer Opus/Sonnet 5 model because langchaingo (v0.1.14) always sends a
@@ -83,7 +102,7 @@ const (
 // defaultLocalModel picks the kronk or ollama model so a beginner with either
 // installed works with no configuration.
 func defaultLocalModel() string {
-	if kronkAvailable() {
+	if kronkManaged() {
 		return kronkModel
 	}
 	return ollamaModel
@@ -276,14 +295,14 @@ func loadConfig() config {
 	p := fyne.CurrentApp().Preferences()
 	prov := p.StringWithFallback(prefProvider, ProviderClaude)
 
-	c := config{provider: prov, model: strings.TrimSpace(p.String(prefModel))}
+	c := config{provider: prov, model: strings.TrimSpace(p.String(modelPref(prov)))}
 	switch prov {
 	case ProviderOpenAI:
 		c.key = p.String(prefOpenAIKey)
 	case ProviderLocal:
 		// A managed kronk server lives at a fixed address we own; only a
 		// user-run server needs a configurable URL.
-		if kronkAvailable() {
+		if kronkManaged() {
 			c.endpoint = kronkEndpoint
 		} else {
 			c.endpoint = strings.TrimSpace(p.StringWithFallback(prefLocalEndpoint, ollamaEndpoint))
@@ -310,7 +329,12 @@ func (c config) modelName() string {
 	if c.model != "" {
 		return c.model
 	}
-	switch c.provider {
+	return defaultModel(c.provider)
+}
+
+// defaultModel is the model a provider uses when the user has not named one.
+func defaultModel(provider string) string {
+	switch provider {
 	case ProviderOpenAI:
 		return defaultOpenAIModel
 	case ProviderLocal:

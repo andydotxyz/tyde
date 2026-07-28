@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -32,14 +33,15 @@ func SettingsContent() fyne.CanvasObject {
 
 	body := container.NewStack()
 
-	rebuild := func() {
+	var rebuild func()
+	rebuild = func() {
 		switch provider.Selected {
 		case ProviderOpenAI:
-			body.Objects = []fyne.CanvasObject{cloudSettings(p, prefOpenAIKey, defaultOpenAIModel)}
+			body.Objects = []fyne.CanvasObject{cloudSettings(p, ProviderOpenAI, prefOpenAIKey)}
 		case ProviderLocal:
-			body.Objects = []fyne.CanvasObject{localSettings(p)}
+			body.Objects = []fyne.CanvasObject{localSettings(p, rebuild)}
 		default:
-			body.Objects = []fyne.CanvasObject{cloudSettings(p, prefClaudeKey, defaultClaudeModel)}
+			body.Objects = []fyne.CanvasObject{cloudSettings(p, ProviderClaude, prefClaudeKey)}
 		}
 		body.Refresh()
 	}
@@ -59,17 +61,20 @@ func SettingsContent() fyne.CanvasObject {
 	return container.NewVBox(head, body)
 }
 
-// cloudSettings builds the API-key + model form for a cloud provider.
-func cloudSettings(p fyne.Preferences, keyPref, defaultModel string) fyne.CanvasObject {
+// cloudSettings builds the API-key + model form for a cloud provider. Both the
+// key and the model are stored under that provider's own preference, so
+// switching provider leaves the other one's setup untouched.
+func cloudSettings(p fyne.Preferences, provider, keyPref string) fyne.CanvasObject {
 	key := widget.NewPasswordEntry()
 	key.SetPlaceHolder("API key / token")
 	key.SetText(p.String(keyPref))
 	key.OnChanged = func(s string) { p.SetString(keyPref, s) }
 
+	modelKey := modelPref(provider)
 	model := widget.NewEntry()
-	model.SetText(p.String(prefModel))
-	model.SetPlaceHolder(defaultModel)
-	model.OnChanged = func(s string) { p.SetString(prefModel, s) }
+	model.SetText(p.String(modelKey))
+	model.SetPlaceHolder(defaultModel(provider))
+	model.OnChanged = func(s string) { p.SetString(modelKey, s) }
 
 	help := widget.NewLabel(cloudHelp)
 	help.Wrapping = fyne.TextWrapWord
@@ -80,37 +85,45 @@ func cloudSettings(p fyne.Preferences, keyPref, defaultModel string) fyne.Canvas
 	), help)
 }
 
-// localSettings builds the Local AI panel. When kronk is installed tyde owns
-// the server, so the panel is as simple as the old embedded setup: just a Model
-// field (leave blank for the default) plus a Test button - no URL to configure.
-// Without kronk the user runs their own server, so a Base URL is needed and the
-// guidance points them at ollama.
-func localSettings(p fyne.Preferences) fyne.CanvasObject {
+// localSettings builds the Local AI panel. rebuild swaps the panel between managed
+// vs configuration when the managed option is toggled.
+func localSettings(p fyne.Preferences, rebuild func()) fyne.CanvasObject {
 	model := widget.NewEntry()
-	model.SetText(p.String(prefModel))
+	model.SetText(p.String(prefLocalModel))
 	model.SetPlaceHolder(defaultLocalModel())
-	model.OnChanged = func(s string) { p.SetString(prefModel, s) }
+	model.OnChanged = func(s string) { p.SetString(prefLocalModel, s) }
 
 	status := widget.NewLabel("")
 	status.Wrapping = fyne.TextWrapWord
+
+	managed := widget.NewCheck(managedLabel, nil)
+	managed.SetChecked(kronkManaged())
+	managed.OnChanged = func(on bool) {
+		p.SetBool(prefLocalManaged, on)
+		if on {
+			serverMgr.ensure()
+		} else {
+			// Hand the server back to the user: stop the one we started, as from
+			// here on tyde issues no kronk commands.
+			serverMgr.stop()
+		}
+		rebuild()
+	}
+	if !kronkAvailable() {
+		managed.Disable() // nothing to manage with
+	}
 
 	reasoning := widget.NewCheck("Reasoning by default: slower, but more accurate", nil)
 	reasoning.SetChecked(p.Bool(prefLocalThinking))
 	reasoning.OnChanged = func(on bool) { p.SetBool(prefLocalThinking, on) }
 
-	if kronkAvailable() {
+	if kronkManaged() {
 		// Managed server: tyde knows the address, so the user only picks a model.
-		note := widget.NewLabel("Kronk is installed - tyde runs a local server for you and stops it when the " +
-			"assistant is turned off. Just choose a Model (or leave blank for the default); it downloads on " +
-			"first use, which can take a while.")
-		note.Wrapping = fyne.TextWrapWord
-
 		test := probeButton(func() string { return kronkEndpoint }, model, status)
 		return container.NewVBox(
+			managed,
 			widget.NewForm(widget.NewFormItem("Model", model)),
-			reasoning,
-			container.NewHBox(test), status,
-			widget.NewSeparator(), note,
+			reasoning, test, status,
 		)
 	}
 
@@ -128,65 +141,78 @@ func localSettings(p fyne.Preferences) fyne.CanvasObject {
 	}, model, status)
 
 	return container.NewVBox(
+		managed,
 		widget.NewForm(
-			widget.NewFormItem("Base URL", endpoint),
+			widget.NewFormItem("Ollama URL", endpoint),
 			widget.NewFormItem("Model", model),
 		),
-		reasoning,
-		container.NewHBox(test), status,
-		widget.NewSeparator(), ollamaGuide(),
+		reasoning, test, status,
 	)
 }
 
+// managedLabel offers tyde running the local server itself, when kronk is there
+// to run it with.
+const managedLabel = "Automatically manage with Kronk"
+
+// Test-connection outcome marks. A pass needs no words, so it is just the tick
+// beside the button; a failure adds the reason below.
+const (
+	passMark = "✅"
+	failMark = "❌"
+)
+
 // probeButton makes a "Test connection" button that checks the server at
-// endpointFn() and reports whether it (and the chosen model) is ready.
-func probeButton(endpointFn func() string, model *widget.Entry, status *widget.Label) *widget.Button {
-	return widget.NewButton("Test connection", func() {
+// endpointFn() and marks the result beside itself, filling in status only when
+// something is wrong.
+func probeButton(endpointFn func() string, model *widget.Entry, status *widget.Label) fyne.CanvasObject {
+	mark := widget.NewLabel("")
+
+	btn := widget.NewButton("Test connection", func() {
 		ep := endpointFn()
 		want := strings.TrimSpace(model.Text)
 		if want == "" {
 			want = defaultLocalModel()
 		}
-		status.SetText("Testing " + ep + " …")
+		mark.SetText("")
+		status.SetText("Testing …")
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 			defer cancel()
 			res := probeEndpoint(ctx, ep)
-			msg := describeProbe(res, want)
-			fyne.Do(func() { status.SetText(msg) })
+			problem := describeProbe(res, want)
+			fyne.Do(func() {
+				if problem == "" {
+					mark.SetText(passMark)
+				} else {
+					mark.SetText(failMark)
+				}
+				status.SetText(problem)
+			})
 		}()
 	})
+
+	return container.NewHBox(btn, mark)
 }
 
-// ollamaGuide explains how to stand up a server when tyde can't manage one, and
-// offers a shortcut to the ollama download page.
-func ollamaGuide() fyne.CanvasObject {
-	lbl := widget.NewLabel("Local AI needs an OpenAI-compatible server on this machine. The easiest is ollama: " +
-		"install it, then run  ollama pull " + defaultLocalModel() + "  and press Test. Any such server works - " +
-		"set the Base URL to match (e.g. the Kronk model server, LM Studio, llama.cpp).")
-	lbl.Wrapping = fyne.TextWrapWord
-
-	getOllama := widget.NewButton("Get ollama", func() {
-		if u, err := url.Parse("https://ollama.com/download"); err == nil {
-			_ = fyne.CurrentApp().OpenURL(u)
-		}
-	})
-
-	return container.NewVBox(lbl, container.NewHBox(getOllama))
-}
-
-// describeProbe turns a connection test into a one-line status a beginner can act on.
+// describeProbe reduces a connection test to what went wrong, in one line a
+// beginner can act on - or "" when the server and model are both ready, since
+// the tick says that on its own.
 func describeProbe(res probeResult, model string) string {
 	if res.err != nil {
-		return "No server responded (" + res.err.Error() + ").\nStart a local server, then Test again."
+		// Unwrap the http.Client's "Get \"url\": …" wrapper: the reason is the
+		// useful half and the URL is on screen already.
+		err := res.err
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
+		return err.Error()
 	}
-	if res.has(model) {
-		return "Connected. Model '" + model + "' is ready."
+	if _, ok := res.has(model); ok {
+		return ""
 	}
 	if len(res.models) == 0 {
-		return "Connected, but no models are loaded yet. Pull '" + model + "' on the server, " +
-			"or wait for its first-use download."
+		return "No models loaded yet - pull '" + model + "' on the server, or wait for its first-use download."
 	}
-	return "Connected, but '" + model + "' isn't available. The server offers: " +
-		strings.Join(res.models, ", ") + ".\nSet Model to one of those."
+	return "'" + model + "' isn't available. The server offers: " + strings.Join(res.models, ", ")
 }

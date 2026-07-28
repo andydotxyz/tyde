@@ -39,6 +39,15 @@ func kronkAvailable() bool {
 	return err == nil
 }
 
+// kronkManaged reports whether tyde should run the local server itself: kronk
+// is installed and the user has left "Automatically manage with Kronk" on.
+func kronkManaged() bool {
+	if !kronkAvailable() {
+		return false
+	}
+	return fyne.CurrentApp().Preferences().BoolWithFallback(prefLocalManaged, true)
+}
+
 // endpointHost extracts host:port from an endpoint URL
 // ("http://localhost:11435/v1" -> "localhost:11435"), or "" if it can't parse.
 func endpointHost(endpoint string) string {
@@ -90,7 +99,7 @@ func (m *serverManager) ensureSync() {
 	if m.cmd != nil {
 		return // we already run one
 	}
-	if !kronkAvailable() {
+	if !kronkManaged() {
 		return // nothing to launch; the user manages their own server
 	}
 	if endpointReachable(kronkEndpoint) {
@@ -262,7 +271,7 @@ func localError(err error) error {
 		return err
 	}
 
-	if kronkAvailable() {
+	if kronkManaged() {
 		// The most common cause we've seen: kronk segfaults loading a
 		// multimodal (vision) model's projection, taking the server down.
 		return fmt.Errorf("the local AI server isn't responding - it may still be starting, or it crashed "+
@@ -278,14 +287,30 @@ type probeResult struct {
 	err    error    // non-nil if the server could not be reached or read
 }
 
-// has reports whether the server offers a model with the given id.
-func (r probeResult) has(model string) bool {
+// has reports whether the server offers the given model, returning the id the
+// server itself uses for it.
+func (r probeResult) has(model string) (string, bool) {
+	want := normalModel(model)
+	if want == "" {
+		return "", false
+	}
 	for _, m := range r.models {
-		if m == model {
-			return true
+		if m == model || normalModel(m) == want {
+			return m, true
 		}
 	}
-	return false
+	return "", false
+}
+
+// normalModel reduces a model id to the part different servers agree on: lower
+// case, no "org/" prefix, no ".gguf" suffix, no implicit ":latest" tag.
+func normalModel(model string) string {
+	m := strings.ToLower(strings.TrimSpace(model))
+	if i := strings.LastIndex(m, "/"); i >= 0 {
+		m = m[i+1:]
+	}
+	m = strings.TrimSuffix(m, ".gguf")
+	return strings.TrimSuffix(m, ":latest")
 }
 
 // probeEndpoint asks a local OpenAI-compatible server for its model list (GET
