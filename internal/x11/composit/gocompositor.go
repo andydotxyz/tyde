@@ -92,7 +92,7 @@ const (
 
 	// backgroundDim is the translucency applied to background windows that have no explicit opacity.
 	// (see win.defaultBackgroundTransparency).
-	backgroundDim = 0.2
+	backgroundDim = 0.1
 )
 
 type cookieReply[R any] interface {
