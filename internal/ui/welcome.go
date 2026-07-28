@@ -28,6 +28,7 @@ const (
 	welcomeMargin     = 60
 	welcomeCardRadius = 14
 	welcomeFish       = 116
+	welcomeCardAlpha  = .7
 )
 
 // shouldShowWelcome reports whether the first-run welcome splash is yet to be shown.
@@ -54,8 +55,10 @@ type welcome struct {
 	cardColor    color.NRGBA       // its resting (opaque) colour
 	cardFadeAnim *fyne.Animation
 
-	body *fyne.Container // swappable card contents (home <-> a setup screen)
-	hide func()          // tears down the modal overlay
+	body    *fyne.Container // swappable card contents (home <-> a setup screen)
+	rebuild func()          // re-runs whichever screen the card is showing
+	hide    func()          // tears down the modal overlay
+	gone    bool            // set once dismissed, so late callbacks stand down
 
 	conn *dbus.Conn       // system bus for Wi-Fi setup, opened lazily and reused
 	net  *netman.Networks // the Wi-Fi widget, built once on first use
@@ -100,6 +103,17 @@ func (l *desktop) ShowWelcome() {
 	w.body.Hide()
 	card := container.NewStack(w.cardBg, container.NewPadded(w.body))
 	framed := container.New(layout.NewCustomPaddedLayout(welcomeMargin, welcomeMargin, welcomeMargin, welcomeMargin), card)
+
+	fyne.CurrentApp().Settings().AddListener(func(_ fyne.Settings) {
+		if w.gone {
+			return
+		}
+
+		w.refreshCardColor()
+		if w.rebuild != nil {
+			w.rebuild()
+		}
+	})
 
 	panel := container.NewStack(w.shader, framed, fishLayer)
 	w.hide = l.ShowModal(panel, fyne.NewSize(welcomeWidth, welcomeHeight))
@@ -170,7 +184,7 @@ func (w *welcome) startCardFade() {
 	shown := false
 	a := fyne.NewAnimation(time.Millisecond*800, func(f float32) {
 		c := w.cardColor
-		c.A = uint8(float32(w.cardColor.A) * f * .7)
+		c.A = uint8(float32(w.cardColor.A) * f * welcomeCardAlpha)
 		w.cardBg.FillColor = c
 		w.cardBg.Refresh()
 		if f >= 0.7 && !shown {
@@ -183,9 +197,21 @@ func (w *welcome) startCardFade() {
 	a.Start()
 }
 
+// refreshCardColor re-samples the card surface from the current theme, for when
+// the desktop switches between light and dark while the welcome is up.
+func (w *welcome) refreshCardColor() {
+	w.cardColor = color.NRGBAModel.Convert(theme.Color(theme.ColorNameBackground)).(color.NRGBA)
+
+	c := w.cardColor
+	c.A = uint8(float32(c.A) * welcomeCardAlpha)
+	w.cardBg.FillColor = c
+	w.cardBg.Refresh()
+}
+
 // showHome populates the card with the welcome message and the list of setup
 // options, matching the first-run mock-up.
 func (w *welcome) showHome() {
+	w.rebuild = w.showHome
 	fg := theme.Color(theme.ColorNameForeground)
 	hello := canvas.NewText("Welcome to ", fg)
 	hello.TextSize = 22
@@ -224,6 +250,7 @@ func (w *welcome) showHome() {
 
 // showScreen swaps the card to a single setup screen with a Back button.
 func (w *welcome) showScreen(title string, content fyne.CanvasObject) {
+	w.rebuild = func() { w.showScreen(title, content) }
 	back := &widget.Button{
 		Text: "Back", Icon: theme.NavigateBackIcon(),
 		Importance: widget.LowImportance, OnTapped: w.showHome,
@@ -314,6 +341,7 @@ func (w *welcome) openFullSettings() {
 // dismiss stops the animations, records that the welcome has been seen and tears
 // down the overlay. Safe to call more than once.
 func (w *welcome) dismiss(done bool) {
+	w.gone = true
 	if w.waveAnim != nil {
 		w.waveAnim.Stop()
 	}
