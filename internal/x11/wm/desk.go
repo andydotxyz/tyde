@@ -765,6 +765,13 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 }
 
 func (x *x11WM) destroyWindow(win xproto.Window) {
+	for name, rootID := range x.rootIDs {
+		if rootID == win {
+			delete(x.rootIDs, name)
+			return
+		}
+	}
+
 	c := x.clientForWin(win)
 	if c == nil {
 		// check if it was recently closed
