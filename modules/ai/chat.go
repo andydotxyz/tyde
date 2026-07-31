@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
+	"fyshos.com/tyde/modules/launcher"
 	wmtheme "fyshos.com/tyde/theme"
 
 	"github.com/tmc/langchaingo/llms"
@@ -35,6 +35,8 @@ type chatUI struct {
 	// completing in a background tab does not steal keyboard focus.
 	isActive func() bool
 	cancel   context.CancelFunc
+
+	titleSetter func(string)
 }
 
 func newChatUI() *chatUI {
@@ -111,6 +113,11 @@ func (c *chatUI) submit() {
 	c.entry.SetText("")
 	c.addMessage(wmtheme.UserIcon, text)
 	c.history = append(c.history, llms.TextParts(llms.ChatMessageTypeHuman, text))
+
+	if c.titleSetter != nil {
+		c.titleSetter(launcher.TruncatePrompt(text))
+		c.titleSetter = nil
+	}
 
 	cfg := loadConfig()
 	if cfg.provider == ProviderLocal && c.reasoning != nil {

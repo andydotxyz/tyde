@@ -193,7 +193,14 @@ func (a *assistant) open(prompt string) {
 	if a.win == nil {
 		a.chats = map[*container.TabItem]*chatUI{}
 		a.tabs = container.NewDocTabs()
-		a.tabs.CreateTab = func() *container.TabItem { return a.newTab("") }
+		a.tabs.CreateTab = func() *container.TabItem {
+			var item *container.TabItem
+			item = a.newTab("", func(s string) {
+				item.Text = s
+				a.tabs.Refresh()
+			})
+			return item
+		}
 		a.tabs.OnClosed = func(item *container.TabItem) {
 			if chat, ok := a.chats[item]; ok {
 				chat.stop()
@@ -231,9 +238,15 @@ func (a *assistant) open(prompt string) {
 
 	switch {
 	case strings.TrimSpace(prompt) != "":
-		a.addTab(a.newTab(prompt)) // a new search term opens its own conversation
+		a.addTab(a.newTab(prompt, nil)) // a new search term opens its own conversation
 	case len(a.tabs.Items) == 0:
-		a.addTab(a.newTab("")) // opened bare with nothing yet - give an empty chat
+		var item *container.TabItem
+		item = a.newTab("", func(s string) {
+			item.Text = s
+			a.tabs.Refresh()
+		})
+
+		a.addTab(item) // opened bare with nothing yet - give an empty chat
 	}
 
 	a.win.Show()
@@ -249,9 +262,10 @@ func (a *assistant) addTab(item *container.TabItem) {
 // newTab builds a fresh conversation as a tab. With a prompt it titles the tab
 // from it and asks straight away; empty it is a blank "New chat" ready for
 // input.
-func (a *assistant) newTab(prompt string) *container.TabItem {
+func (a *assistant) newTab(prompt string, titleSetter func(string)) *container.TabItem {
 	chat := newChatUI()
 	chat.win = a.win
+	chat.titleSetter = titleSetter
 
 	title := "New chat"
 	if p := strings.TrimSpace(prompt); p != "" {
