@@ -12,7 +12,7 @@ require (
 	github.com/FyshOS/backgrounds v0.1.0
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/FyshOS/fyles v0.1.0
-	github.com/FyshOS/saver v0.1.1-0.20260713082954-4020c0f5311f
+	github.com/FyshOS/saver v0.1.2-0.20260728173722-3cc3371a21a1
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
@@ -36,7 +36,7 @@ require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
 	github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba
 	github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc
-	github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820
+	github.com/FyshOS/screens v0.0.0-20260731162110-c150f5b008bd
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	github.com/tmc/langchaingo v0.1.14
 	golang.org/x/image v0.24.0

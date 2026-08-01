@@ -29,10 +29,10 @@ github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba h1:en4DPSeMviqsBmoT2nb
 github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba/go.mod h1:hFyul2zT1VOgINBEBeRVkXeoCBWo5dWU4poPihDniVU=
 github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc h1:OgOMcomEU6G5SwcBrly89yZZ+wJxbI4qQebHLsq5fks=
 github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc/go.mod h1:K6fsSW1kbDypOuRygid6PfDWZJ2XB8EGO9HkzUO3VQM=
-github.com/FyshOS/saver v0.1.1-0.20260713082954-4020c0f5311f h1:Vf/v7UU0Fx7lFBpExMI+3P1ADBlZpKBGf9/ZJYTKCGU=
-github.com/FyshOS/saver v0.1.1-0.20260713082954-4020c0f5311f/go.mod h1:4CbbI6m+TZOZvsZ0EYP0VP54uZjHaNdRZwxgnz2iU70=
-github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820 h1:1brj9ygNCRJUM5uMjPC2s5q/du9FnK4Y40YdLpURaGQ=
-github.com/FyshOS/screens v0.0.0-20260616082735-2b927ac5e820/go.mod h1:WUjD+Oi5pGOusfSqrFrk/woIrqr+bMOZUGK0lc5mbRQ=
+github.com/FyshOS/saver v0.1.2-0.20260728173722-3cc3371a21a1 h1:i/USt9aWr0xmNPXHP9907InIm5IvPirmZQxiNwkrX2c=
+github.com/FyshOS/saver v0.1.2-0.20260728173722-3cc3371a21a1/go.mod h1:KQYjQdsB9DJx04mXu2WLxKNFmzo/eQ2SywlF5shEp5E=
+github.com/FyshOS/screens v0.0.0-20260731162110-c150f5b008bd h1:Ds29TB0UB4rR95EWvgtX451iwYJwZDNR+PNrtt7gov4=
+github.com/FyshOS/screens v0.0.0-20260731162110-c150f5b008bd/go.mod h1:WUjD+Oi5pGOusfSqrFrk/woIrqr+bMOZUGK0lc5mbRQ=
 github.com/Knetic/govaluate v3.0.0+incompatible h1:7o6+MAPhYTCF0+fdvoz1xDedhRb4f6s9Tn1Tt7/WTEg=
 github.com/Knetic/govaluate v3.0.0+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/amenzhinsky/go-polkit v0.0.0-20210519083301-ee6a51849123 h1:VdNhe94PF9yn6KudYnpcBb6bH7l+wsEy9yn6Ulm1/j8=
