@@ -17,6 +17,7 @@ install:
 	install -Dm00644 theme/assets/icon.png $(DESTDIR)$(PREFIX)/share/pixmaps/com.fyshos.tyde.png
 	install -Dm00644 tyde.desktop $(DESTDIR)$(PREFIX)/share/xsessions/tyde.desktop
 	install -Dm00644 tyde-welcome.desktop $(DESTDIR)$(PREFIX)/share/applications/tyde-welcome.desktop
+	install -Dm00644 tyde-fathom.desktop $(DESTDIR)$(PREFIX)/share/applications/tyde-fathom.desktop
 
 uninstall:
 	-rm $(DESTDIR)$(PREFIX)/bin/tyde_runner
@@ -24,6 +25,7 @@ uninstall:
 	-rm $(DESTDIR)$(PREFIX)/bin/tyde
 	-rm $(DESTDIR)$(PREFIX)/share/xsessions/tyde.desktop
 	-rm $(DESTDIR)$(PREFIX)/share/applications/tyde-welcome.desktop
+	-rm $(DESTDIR)$(PREFIX)/share/applications/tyde-fathom.desktop
 
 embed:
 	Xephyr :5 -screen 1280x720 &

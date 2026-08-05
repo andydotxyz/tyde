@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 
 	"fyshos.com/tyde"
 	wmTest "fyshos.com/tyde/test"
@@ -118,6 +119,43 @@ func TestLaunchInput_SkipsSearchModule(t *testing.T) {
 
 	_, err := LaunchInput("anything")
 	assert.Error(t, err) // no non-search match
+}
+
+// fakeChatModule stands in for the AI assistant, which is the only module
+// offering ShowChat.
+type fakeChatModule struct {
+	shown bool
+}
+
+func (f *fakeChatModule) Destroy() {}
+func (f *fakeChatModule) Metadata() tyde.ModuleMetadata {
+	return tyde.ModuleMetadata{Name: "AI Assistant"}
+}
+func (f *fakeChatModule) ShowChat() { f.shown = true }
+
+func TestShowChat_NoDesktop(t *testing.T) {
+	tyde.SetInstance(nil)
+	assert.EqualError(t, showAI(), "desktop not running")
+}
+
+func TestShowChat_NoAIModule(t *testing.T) {
+	tyde.SetInstance(newDeskWithModules([]tyde.Module{&fakeSuggestModule{name: "Launcher: Calculate"}}))
+	t.Cleanup(func() { tyde.SetInstance(nil) })
+
+	assert.EqualError(t, showAI(), "the AI assistant module is not enabled")
+}
+
+func TestShowChat(t *testing.T) {
+	test.NewApp()
+	chat := &fakeChatModule{}
+	tyde.SetInstance(newDeskWithModules([]tyde.Module{
+		&fakeSuggestModule{name: "Launcher: Calculate"},
+		chat,
+	}))
+	t.Cleanup(func() { tyde.SetInstance(nil) })
+
+	assert.NoError(t, showAI())
+	assert.True(t, chat.shown)
 }
 
 type fakeSuggestion struct {

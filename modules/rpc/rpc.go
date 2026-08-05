@@ -123,6 +123,24 @@ func (s *Service) ListModules(_ string, reply *[]string) error {
 	return nil
 }
 
+// showAI opens the AI assistant's chat window with no prompt set - what the
+// "Fathom" launcher does. The assistant is an optional module, so we ask the
+// loaded modules rather than the desktop itself.
+func showAI() error {
+	desk := tyde.Instance()
+	if desk == nil {
+		return errors.New("desktop not running")
+	}
+
+	for _, m := range desk.Modules() {
+		if chat, ok := m.(interface{ ShowChat() }); ok {
+			fyne.Do(chat.ShowChat)
+			return nil
+		}
+	}
+	return errors.New("the AI assistant module is not enabled")
+}
+
 func newRPC() tyde.Module {
 	sock := SocketPath()
 	os.Remove(sock) // clean up stale socket
@@ -136,6 +154,7 @@ func newRPC() tyde.Module {
 			}
 			return nil
 		},
+		"fathom": showAI,
 		"restart": func() error {
 			if os.Getenv("FYNE_DESK_RUNNER") != "" {
 				os.Exit(5)

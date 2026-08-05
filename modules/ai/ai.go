@@ -186,6 +186,13 @@ func (a *assistant) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	return []tyde.LaunchSuggestion{&launchItem{a: a, text: input}}
 }
 
+// ShowChat opens the assistant with no question set, as the "Fathom" launcher
+// (tyde_ctl fathom) does - the chat window with an empty conversation ready for
+// input. Must be called on the UI thread.
+func (a *assistant) ShowChat() {
+	a.open("")
+}
+
 // open shows the chat window (creating it on first use) and, if given, opens the
 // question in a new tab. Must be called on the UI thread - it is, via the
 // launcher button tap.
@@ -218,7 +225,7 @@ func (a *assistant) open(prompt string) {
 			a.open(entry.Text)
 			entry.SetText("")
 		}
-		entry.SetPlaceHolder("Ask the assistant...")
+		entry.SetPlaceHolder("Ask fathom...")
 		entry.Wrapping = fyne.TextWrapWord
 		entry.OnSubmitted = func(_ string) { startNew() }
 
@@ -228,7 +235,7 @@ func (a *assistant) open(prompt string) {
 		}
 		input := container.NewBorder(nil, nil, nil, send, entry)
 
-		win := fyne.CurrentApp().NewWindow("AI Assistant")
+		win := fyne.CurrentApp().NewWindow("Fathom AI")
 		win.SetIcon(Icon)
 		win.SetContent(container.NewStack(container.NewBorder(nil, input, nil, nil, container.NewCenter(watermark)), a.tabs))
 		win.Resize(fyne.NewSize(460, 560))
