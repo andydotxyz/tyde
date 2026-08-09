@@ -327,8 +327,10 @@ func (n *network) networks() *netman.Networks {
 					result <- ""
 				}
 			}, win)
-		d.Resize(fyne.NewSize(320, d.MinSize().Height))
-		d.Show()
+		fyne.Do(func() {
+			d.Resize(fyne.NewSize(320, d.MinSize().Height))
+			d.Show()
+		})
 
 		return <-result
 	}

@@ -108,6 +108,11 @@ type desktop struct {
 	// overlayShapes maps each shown overlay to the screen-pixel rectangle it occupies,
 	// so frame input shapes can be made transparent only under the overlay content.
 	overlayShapes map[fyne.CanvasObject]image.Rectangle
+	// canvasOverlay records whether the root window canvas currently has a Fyne
+	// overlay (a dialog or pop-up) shown on it - see canvasOverlaysChanged.
+	canvasOverlay bool
+	// root is the input-aware wrapper handed out by Root().
+	root *rootWindow
 
 	// welcomeDone guards the first-run welcome splash so it is only ever triggered
 	// once per session, from the first primary-window layout with a real size.
@@ -461,11 +466,34 @@ func (l *desktop) MinSize(_ []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(640, 480) // tiny - window manager will scale up to screen size
 }
 
+// Root returns the primary desktop window, wrapped so that any Fyne overlay shown
+// on it (dialogs and pop-ups) is registered with the desktop - see rootWindow.
 func (l *desktop) Root() fyne.Window {
-	if l.primaryWin == nil {
+	if l.primaryWin == nil || l.primaryWin.win == nil {
 		return nil
 	}
-	return l.primaryWin.win
+
+	// The primary window changes when the screen layout does, so re-wrap if needed.
+	if l.root == nil || l.root.Window != l.primaryWin.win {
+		l.root = newRootWindow(l.primaryWin.win, l)
+	}
+	return l.root
+}
+
+// canvasOverlaysChanged reacts to a Fyne overlay being added to or removed from the
+// root window's canvas.
+func (l *desktop) canvasOverlaysChanged(added bool) {
+	if l.primaryWin == nil || l.primaryWin.win == nil {
+		return
+	}
+
+	c := l.primaryWin.win.Canvas()
+	l.canvasOverlay = len(c.Overlays().List()) > 0
+	l.applyOverlayShapes()
+
+	if added && l.canvasOverlay && c.Focused() == nil {
+		c.FocusNext()
+	}
 }
 
 func (l *desktop) ShowMenuAt(menu *fyne.Menu, pos fyne.Position) {
@@ -640,14 +668,23 @@ func (l *desktop) applyOverlayShapes() {
 		return
 	}
 
-	if len(l.overlayShapes) == 0 {
-		is.SetOverlayActive(false, nil)
-		return
-	}
-
-	regions := make([]image.Rectangle, 0, len(l.overlayShapes))
+	regions := make([]image.Rectangle, 0, len(l.overlayShapes)+1)
 	for _, r := range l.overlayShapes {
 		regions = append(regions, r)
+	}
+
+	// A Fyne canvas overlay (dialog or pop-up) is modal over the whole canvas, so
+	// rather than measuring its content it claims the entire primary screen.
+	if l.canvasOverlay {
+		if screen := l.screens.Primary(); screen != nil {
+			regions = append(regions, image.Rect(screen.X, screen.Y,
+				screen.X+screen.Width, screen.Y+screen.Height))
+		}
+	}
+
+	if len(regions) == 0 {
+		is.SetOverlayActive(false, nil)
+		return
 	}
 	is.SetOverlayActive(true, regions)
 }

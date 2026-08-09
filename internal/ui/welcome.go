@@ -73,7 +73,7 @@ func (l *desktop) ShowWelcome() {
 	ds := l.settings.(*deskSettings)
 	w := &welcome{
 		desk: l,
-		sui:  &settingsUI{settings: ds, launcherIcons: ds.LauncherIcons(), win: l.primaryWin.win},
+		sui:  &settingsUI{settings: ds, launcherIcons: ds.LauncherIcons(), win: l.Root()},
 	}
 
 	// Animated brand water filling the whole panel.
