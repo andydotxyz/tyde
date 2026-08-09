@@ -251,7 +251,7 @@ func (d *deskSettings) load() {
 
 	d.launcherDisableTaskbar = fyne.CurrentApp().Preferences().Bool("launcherdisabletaskbar")
 
-	defaultModules := "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Launcher: QR Codes|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
+	defaultModules := "Battery|Brightness|Sound|Emoji Picker|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Launcher: QR Codes|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" { // testing
 		defaultModules = "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Large Type|Launcher: Open URLs|Network|Virtual Desktops"
 	}

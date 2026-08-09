@@ -4,6 +4,7 @@ import (
 	_ "fyshos.com/tyde/modules/ai"
 	_ "fyshos.com/tyde/modules/christmas"
 	_ "fyshos.com/tyde/modules/desktops"
+	_ "fyshos.com/tyde/modules/emoji"
 	_ "fyshos.com/tyde/modules/esheep"
 	_ "fyshos.com/tyde/modules/flames"
 	_ "fyshos.com/tyde/modules/fyles"
