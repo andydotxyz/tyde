@@ -9,7 +9,7 @@ require (
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
 	github.com/FyshOS/appie v0.1.0
-	github.com/FyshOS/backgrounds v0.1.0
+	github.com/FyshOS/backgrounds v0.1.1-0.20260808235716-a384bdf00565
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/FyshOS/fyles v0.1.0
 	github.com/FyshOS/saver v0.1.2-0.20260728173722-3cc3371a21a1

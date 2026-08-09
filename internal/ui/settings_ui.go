@@ -46,7 +46,6 @@ type settingsUI struct {
 	win      fyne.Window
 	panel    *widgetPanel // owning panel, so the Account tab can refresh its avatar
 
-	fyneSettings  *settings.Settings
 	launcherIcons []string
 
 	netConn *dbus.Conn    // system bus backing the Network tab, closed with the window
@@ -178,20 +177,14 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 	screenColor := canvas.NewRectangle(ParseHexColor(d.settings.BackgroundColor()))
 	preview := container.NewCenter(monitorSurround(screen, screenColor))
 
-	// The default wallpaper used by the desktop when no image is configured.
 	set := fyne.CurrentApp().Settings()
-	defaultBg, _ := backgrounds.Default().Load(set.Theme(), set.ThemeVariant()).(*canvas.Image)
-
 	fillSelect := widget.NewSelect(backgroundFillModes, nil)
 
 	refreshPreview := func() {
 		if bgPath.Text == "" {
-			// No image set: mirror the desktop's default wallpaper, which
-			// always covers the screen and ignores the fill/colour options.
+			// The default wallpaper used by the desktop when no image is configured.
 			screen.File = ""
-			if defaultBg != nil {
-				screen.Resource = defaultBg.Resource
-			}
+			screen.Resource = backgrounds.Default().Load(set.Theme(), set.ThemeVariant()).(*canvas.Image).Resource
 			screen.FillMode = canvas.ImageFillCover
 		} else {
 			screen.Resource = nil
@@ -201,9 +194,16 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 		screen.Refresh()
 	}
 
-	fillSelect.OnChanged = func(string) { refreshPreview() }
+	fillSelect.OnChanged = func(string) {
+		refreshPreview()
+	}
 	fillSelect.SetSelected(d.settings.BackgroundFill())
-	bgPath.OnChanged = func(string) { refreshPreview() }
+	bgPath.OnChanged = func(string) {
+		refreshPreview()
+	}
+	set.AddListener(func(s fyne.Settings) {
+		refreshPreview()
+	})
 	refreshPreview() // initialise from the current setting
 
 	// A small swatch showing the currently selected background colour.
@@ -613,7 +613,7 @@ func (w *widgetPanel) showSettings() {
 
 	groups := []settingsGroup{
 		{title: "Appearance", panels: []*settingsPanel{
-			{title: "Appearance", icon: ui.fyneSettings.AppearanceIcon(), build: ui.loadAppearanceScreen},
+			{title: "Appearance", icon: (&settings.Settings{}).AppearanceIcon(), build: ui.loadAppearanceScreen},
 			{title: "Background", icon: wmtheme.WallpaperIcon, build: ui.loadBackgroundScreen},
 			{title: "Theme", icon: theme.ColorPaletteIcon(), build: ui.loadThemeScreen},
 		}},
