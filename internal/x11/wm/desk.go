@@ -252,8 +252,8 @@ func (x *x11WM) Run() {
 // updated. Focus and the desktop button grab only change on the inactive<->active edge:
 // the first overlay claims keyboard focus, and a passive button grab on the desktop
 // windows is installed so later clicks on the desktop/panels/overlay re-focus it (see
-// handleButtonPress). Re-grabbing focus on every call would steal it back from a window
-// the user selected while an overlay such as the terminal stays open.
+// handleButtonPress). When the last overlay closes the focus that was taken is handed
+// back to the top window.
 func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
 	// Remember the regions so a frame that re-shapes does not wipe out overlays.
 	x.overlayRegions = regions
@@ -271,7 +271,43 @@ func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
 		if primary := x.RootID(); primary != 0 {
 			xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, primary, xproto.TimeCurrentTime)
 		}
+		return
 	}
+
+	x.focusTopWindow()
+}
+
+// focusTopWindow returns keyboard focus to the topmost window that can take it.
+// If no window qualifies focus is left where it is, on the desktop itself.
+func (x *x11WM) focusTopWindow() {
+	win := x.topFocusable()
+	if win == nil {
+		return
+	}
+
+	win.Focus()
+	// Focus() sends an async client message that may be overridden, so also
+	// set the X input focus directly (as setupWindow does for new windows).
+	if xwin, ok := win.(x11.XWin); ok {
+		xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot,
+			xwin.ChildID(), xproto.TimeCurrentTime)
+	}
+}
+
+// topFocusable returns the topmost window that should be given keyboard focus,
+// skipping iconified windows and any that are not on the current desktop.
+func (x *x11WM) topFocusable() tyde.Window {
+	current := tyde.Instance().Desktop()
+	for i := len(x.clients) - 1; i >= 0; i-- {
+		win := x.clients[i]
+		if win.Iconic() || (win.Desktop() != current && !win.Pinned()) {
+			continue
+		}
+
+		return win
+	}
+
+	return nil
 }
 
 // grabRootButtons installs (or removes) a passive sync grab of the primary mouse button
