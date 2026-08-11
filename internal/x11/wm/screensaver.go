@@ -207,6 +207,11 @@ func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 		if s.Label != "" {
 			params = append(params, "-label", s.Label)
 		}
+		if s.Suspending {
+			// It cannot see the sleep signal that brought us here, it is only
+			// starting up as that is sent, so tell it on the way in.
+			params = append(params, "-suspending")
+		}
 
 		go func() {
 			time.Sleep(time.Millisecond * 100)

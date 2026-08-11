@@ -36,8 +36,15 @@ func (l *desktop) startXscreensaver() {
 }
 
 func (l *desktop) TriggerScreenSaver(delay bool) {
+	l.triggerScreenSaver(delay, false)
+}
+
+// triggerScreenSaver shows the screen saver, noting whether the machine is on
+// its way to sleep as it appears so it can start with its animations stopped.
+func (l *desktop) triggerScreenSaver(delay, suspending bool) {
 	s := saver.NewScreenSaver(nil)
 	s.LockImmediately = !delay
+	s.Suspending = suspending
 	s.ClockFormat = l.settings.ClockFormatting()
 	if l.settings.ScreenSaverClock() {
 		s.Label = "(clock)"
@@ -123,7 +130,7 @@ func (l *desktop) watchSleep() {
 			// About to suspend: show the locker now, give it a moment to map,
 			// then release our inhibitor so the suspend can proceed.
 			fyne.Do(func() {
-				l.TriggerScreenSaver(false)
+				l.triggerScreenSaver(false, true)
 			})
 			time.Sleep(time.Millisecond * 400)
 			if lock != nil {
