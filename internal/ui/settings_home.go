@@ -2,12 +2,12 @@ package ui
 
 import (
 	"image/color"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	deskDriver "fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -120,7 +120,9 @@ type settingsNav struct {
 	current   *settingsPanel
 	animating bool
 
-	waveAnim *fyne.Animation // drives the brand-water footer; started/stopped with the window
+	waveAnim  *fyne.Animation // drives the brand-water footer; started/stopped with the window
+	fish      *canvas.Image   // mascot floating on that water, bobbed by the wave tick
+	fishLayer *fyne.Container // unlaid-out band the mascot is positioned within
 }
 
 func newSettingsNav(groups []settingsGroup, headerIcon fyne.Resource) *settingsNav {
@@ -199,22 +201,35 @@ func (n *settingsNav) buildHome() fyne.CanvasObject {
 func (n *settingsNav) buildSea() fyne.CanvasObject {
 	shader := canvas.NewShader("tydeWelcomeWaves", welcomeWaveGL, welcomeWaveES)
 	shader.Uniforms = map[string]float32{"reveal": 1, "fade": 1}
-	n.waveAnim = canvas.NewShaderAnimation(shader)
 
 	// A transparent strut fixes the band height; the shader stretches to fill it.
 	strut := canvas.NewRectangle(color.Transparent)
 	strut.SetMinSize(fyne.NewSize(0, seaHeight))
 
-	// Rest the mascot low on the water at the right, clear of the very edge.
-	fish := canvas.NewImageFromResource(wmtheme.FyshOSLogo)
-	fish.FillMode = canvas.ImageFillContain
-	fish.SetMinSize(fyne.NewSquareSize(seaFish))
-	rightMargin := canvas.NewRectangle(color.Transparent)
-	rightMargin.SetMinSize(fyne.NewSize(theme.Padding()*3, 0))
-	fishRow := container.NewVBox(layout.NewSpacer(),
-		container.NewHBox(layout.NewSpacer(), fish, rightMargin))
+	// The mascot rests low on the water at the right, clear of the window edge, and bobs.
+	n.fish = canvas.NewImageFromResource(wmtheme.FyshOSLogo)
+	n.fish.FillMode = canvas.ImageFillContain
+	n.fish.Resize(fyne.NewSquareSize(seaFish))
+	n.fish.Hide()
+	n.fishLayer = container.NewWithoutLayout(n.fish)
 
-	return container.NewStack(shader, strut, fishRow)
+	n.waveAnim = newWaveAnimation(shader, n.bob)
+	return container.NewStack(shader, strut, n.fishLayer)
+}
+
+// bob floats the mascot on the settings water, rising and falling with the
+// waves in the same repaint so it doesn't look pasted onto moving water.
+func (n *settingsNav) bob(elapsed time.Duration) {
+	band := n.fishLayer.Size()
+	if band.IsZero() {
+		return // not laid out yet, so there is no corner to rest in
+	}
+
+	n.fish.Move(fyne.NewPos(band.Width-seaFish-theme.Padding()*3,
+		band.Height-seaFish+waveBobOffset(elapsed)))
+	if n.fish.Hidden {
+		n.fish.Show()
+	}
 }
 
 // open animates the tapped panel's icon up into the detail header and reveals

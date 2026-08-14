@@ -29,6 +29,14 @@ const (
 	welcomeCardRadius = 14
 	welcomeFish       = 116
 	welcomeCardAlpha  = .7
+
+	// waveFrameRate caps how often the resting animation repaints.
+	// The water drifts and the mascot bobs slowly enough that 20fps is fine.
+	waveFrameRate = 20
+
+	// waveBobPeriod is how long one rise-and-fall of a resting mascot takes.
+	waveBobPeriod = time.Millisecond * 2400
+	waveBobHeight = 4
 )
 
 // shouldShowWelcome reports whether the first-run welcome splash is yet to be shown.
@@ -45,11 +53,12 @@ type welcome struct {
 	sui  *settingsUI
 
 	shader     *canvas.Shader
-	waveAnim   *fyne.Animation // continuous gentle motion (drives "time")
+	waveAnim   *fyne.Animation // continuous gentle motion (drives "time" and the bob)
 	revealAnim *fyne.Animation // 0->1 wash-in (drives "reveal")
 	fish       *canvas.Image
 	fishAnim   *fyne.Animation // the swim-in
-	fishBob    *fyne.Animation // gentle idle bob once at rest
+	fishRest   fyne.Position   // where the mascot settles once it has swum in
+	bobbing    bool            // set once at rest, so the wave tick bobs the mascot
 
 	cardBg       *canvas.Rectangle // card surface, faded in from transparent over the waves
 	cardColor    color.NRGBA       // its resting (opaque) colour
@@ -79,7 +88,6 @@ func (l *desktop) ShowWelcome() {
 	// Animated brand water filling the whole panel.
 	w.shader = canvas.NewShader("tydeWelcomeWaves", welcomeWaveGL, welcomeWaveES)
 	w.shader.Uniforms = map[string]float32{"reveal": 0, "fade": 0} // fade off: full-panel rounded card
-	w.waveAnim = canvas.NewShaderAnimation(w.shader)
 
 	// The mascot. It faces right, so it rests in the bottom-right corner and
 	// swims in rightward (forward). Hidden until the water has washed in.
@@ -118,12 +126,70 @@ func (l *desktop) ShowWelcome() {
 	panel := container.NewStack(w.shader, framed, fishLayer)
 	w.hide = l.ShowModal(panel, fyne.NewSize(welcomeWidth, welcomeHeight))
 
-	w.waveAnim.Start()
+	w.startWaves()
 	w.startReveal(func() {
 		w.fish.Show()
 		w.startFishSwim(restX, restY)
 		w.startCardFade()
 	})
+}
+
+// startWaves drives the resting animation.
+func (w *welcome) startWaves() {
+	w.waveAnim = newWaveAnimation(w.shader, w.bob)
+	w.waveAnim.Start()
+}
+
+// newWaveAnimation drives a brand-water shader's "time" uniform, repainting at
+// welcomeFrameRate rather than on every tick the driver offers - the water
+// drifts slowly enough that this looks identical for a fraction of the CPU.
+// onFrame, when set, is called with the elapsed time of each frame drawn so
+// callers can move anything riding on the water in the same repaint.
+func newWaveAnimation(shader *canvas.Shader, onFrame func(elapsed time.Duration)) *fyne.Animation {
+	interval := time.Second / waveFrameRate
+	var elapsed time.Duration
+	var last, drawn time.Time
+
+	return &fyne.Animation{
+		Duration:    time.Second,
+		Curve:       fyne.AnimationLinear,
+		RepeatCount: fyne.AnimationRepeatForever,
+		Tick: func(float32) {
+			now := time.Now()
+			if !last.IsZero() {
+				elapsed += now.Sub(last)
+			}
+			last = now
+
+			if now.Sub(drawn) < interval {
+				return
+			}
+			drawn = now
+
+			shader.Uniforms["time"] = float32(elapsed.Seconds())
+			shader.Refresh()
+			if onFrame != nil {
+				onFrame(elapsed)
+			}
+		},
+	}
+}
+
+// waveBobOffset is the vertical offset of a mascot floating on the brand water
+// at the given point in the animation - one gentle rise and fall per period.
+func waveBobOffset(elapsed time.Duration) float32 {
+	phase := float64(elapsed%waveBobPeriod) / float64(waveBobPeriod)
+	return float32(math.Sin(phase*math.Pi*2)) * waveBobHeight
+}
+
+// bob keeps the resting mascot gently rising and falling so it doesn't look
+// frozen on the moving water.
+func (w *welcome) bob(elapsed time.Duration) {
+	if !w.bobbing {
+		return
+	}
+
+	w.fish.Move(fyne.NewPos(w.fishRest.X, w.fishRest.Y+waveBobOffset(elapsed)))
 }
 
 // startReveal animates the shader's water washing up from the bottom edge, then
@@ -148,6 +214,7 @@ func (w *welcome) startReveal(done func()) {
 // startFishSwim darts the mascot forward (rightward, the way it faces) into its
 // resting corner with a slight rise, then hands off to a gentle idle bob.
 func (w *welcome) startFishSwim(restX, restY float32) {
+	w.fishRest = fyne.NewPos(restX, restY)
 	startX := restX - 420
 	fired := false
 	a := fyne.NewAnimation(time.Millisecond*1800, func(f float32) {
@@ -156,24 +223,11 @@ func (w *welcome) startFishSwim(restX, restY float32) {
 		w.fish.Move(fyne.NewPos(x, restY+dip))
 		if f >= 1 && !fired {
 			fired = true
-			w.startFishBob(restX, restY)
+			w.bobbing = true // the wave tick takes the mascot from here
 		}
 	})
 	//	a.Curve = fyne.AnimationEaseOut
 	w.fishAnim = a
-	a.Start()
-}
-
-// startFishBob keeps the resting mascot gently rising and falling so it doesn't
-// look frozen on the moving water.
-func (w *welcome) startFishBob(restX, restY float32) {
-	a := fyne.NewAnimation(time.Millisecond*2400, func(f float32) {
-		bob := float32(math.Sin(float64(f)*math.Pi*2)) * 4
-		w.fish.Move(fyne.NewPos(restX, restY+bob))
-	})
-	a.Curve = fyne.AnimationLinear
-	a.RepeatCount = fyne.AnimationRepeatForever
-	w.fishBob = a
 	a.Start()
 }
 
@@ -351,9 +405,7 @@ func (w *welcome) dismiss(done bool) {
 	if w.fishAnim != nil {
 		w.fishAnim.Stop()
 	}
-	if w.fishBob != nil {
-		w.fishBob.Stop()
-	}
+	w.bobbing = false
 	if w.cardFadeAnim != nil {
 		w.cardFadeAnim.Stop()
 	}
