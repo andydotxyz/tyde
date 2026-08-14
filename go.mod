@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	codeberg.org/sdassow/unyts v0.5.1
-	fyne.io/fyne/v2 v2.8.0
+	fyne.io/fyne/v2 v2.8.1-0.20260814100159-eb09ffacfec3
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046
@@ -12,7 +12,7 @@ require (
 	github.com/FyshOS/backgrounds v0.1.1-0.20260808235716-a384bdf00565
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/FyshOS/fyles v0.1.0
-	github.com/FyshOS/saver v0.1.2-0.20260728173722-3cc3371a21a1
+	github.com/FyshOS/saver v0.1.2-0.20260814101723-cb6501988dd3
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/disintegration/imaging v1.6.2
 	github.com/fyne-io/image v0.1.1
@@ -45,7 +45,7 @@ require (
 )
 
 require (
-	fyne.io/systray v1.12.2 // indirect
+	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/ActiveState/termtest/conpty v0.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
@@ -55,7 +55,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
-	github.com/fredbi/uri v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fyne-io/gl-js v0.2.1-0.20260315212741-029c47fd27e8 // indirect
 	github.com/fyne-io/glfw-js v0.4.0 // indirect

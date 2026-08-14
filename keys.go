@@ -28,8 +28,11 @@ const (
 	KeyVolumeUp fyne.KeyName = "VolumeUp"
 )
 
-// Declare conformity with Shortcut interface
-var _ fyne.Shortcut = (*Shortcut)(nil)
+// Declare conformity with Shortcut interfaces
+var (
+	_ fyne.Shortcut         = (*Shortcut)(nil)
+	_ fyne.KeyboardShortcut = (*Shortcut)(nil)
+)
 
 // Shortcut defines a keyboard shortcut that can be configured by the user
 type Shortcut struct {
@@ -41,6 +44,16 @@ type Shortcut struct {
 // ShortcutName gets the name of this shortcut - this should be user presentable
 func (s *Shortcut) ShortcutName() string {
 	return s.Name
+}
+
+// Key returns the key that triggers this shortcut
+func (s *Shortcut) Key() fyne.KeyName {
+	return s.KeyName
+}
+
+// Mod returns the modifier keys that are required for this shortcut
+func (s *Shortcut) Mod() fyne.KeyModifier {
+	return s.Modifier
 }
 
 // NewShortcut creates a keyboard shortcut that can be configured by the user

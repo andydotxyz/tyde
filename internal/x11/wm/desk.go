@@ -556,29 +556,41 @@ func (x *x11WM) keyNameToCode(n fyne.KeyName) xproto.Keycode {
 		return keyCodeVolumeLess
 	case tyde.KeyVolumeUp:
 		return keyCodeVolumeMore
-	case fyne.KeyF9:
-		codes := keybind.StrToKeycodes(x.x, "F9")
-		return codes[0]
-	case fyne.KeyF10:
-		codes := keybind.StrToKeycodes(x.x, "F10")
-		return codes[0]
-	case fyne.KeyF11:
-		codes := keybind.StrToKeycodes(x.x, "F11")
-		return codes[0]
-	case fyne.KeyL:
-		codes := keybind.StrToKeycodes(x.x, "L")
-		return codes[0]
 	}
 
-	for i := 0; i <= 9; i++ {
-		id := strconv.Itoa(i)
-		if n == fyne.KeyName(id) {
-			codes := keybind.StrToKeycodes(x.x, id)
-			return codes[0]
-		}
+	// Anything else - letters, digits, function keys, punctuation - is looked up by name.
+	name := string(n)
+	if keysym, ok := keysymNames[n]; ok {
+		name = keysym
 	}
+	return x.codeForKeysym(name)
+}
 
-	return 0
+// keysymNames maps the Fyne keys whose names are the character itself onto the
+// X keysym names they are known by, which is what the keysym table can look up.
+var keysymNames = map[fyne.KeyName]string{
+	fyne.KeyApostrophe:   "apostrophe",
+	fyne.KeyAsterisk:     "asterisk",
+	fyne.KeyBackslash:    "backslash",
+	fyne.KeyComma:        "comma",
+	fyne.KeyEqual:        "equal",
+	fyne.KeyLeftBracket:  "bracketleft",
+	fyne.KeyMinus:        "minus",
+	fyne.KeyPeriod:       "period",
+	fyne.KeyPlus:         "plus",
+	fyne.KeyRightBracket: "bracketright",
+	fyne.KeySemicolon:    "semicolon",
+	fyne.KeySlash:        "slash",
+}
+
+// codeForKeysym resolves a keysym name to the keycode carrying it, or 0 when
+// this keyboard has no such key.
+func (x *x11WM) codeForKeysym(name string) xproto.Keycode {
+	codes := keybind.StrToKeycodes(x.x, name)
+	if len(codes) == 0 {
+		return 0
+	}
+	return codes[0]
 }
 
 func (x *x11WM) modifierToKeyMask(m fyne.KeyModifier) uint16 {
