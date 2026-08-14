@@ -392,10 +392,18 @@ func (x *x11WM) handleStateActionRequest(ev xproto.ClientMessageEvent, removeSta
 		}
 	}
 	for _, c := range x.clients {
-		if c.(x11.XWin).ChildID() == ev.Window {
-			x.NotifyWindowMoved(c)
-			break
+		if c.(x11.XWin).ChildID() != ev.Window {
+			continue
 		}
+
+		// Maximizing or fullscreening a window both moves it and changes its
+		// state - listeners such as the window bar and the desktop pets need to
+		// hear about the latter.
+		x.NotifyWindowMoved(c)
+		fyne.Do(func() {
+			x.publishWindowChange(c)
+		})
+		break
 	}
 }
 

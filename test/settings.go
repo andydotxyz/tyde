@@ -46,6 +46,11 @@ func (s *Settings) BackgroundFill() string {
 	return s.backgroundFill
 }
 
+// SetBackgroundFill configures how the background image should fill the screen.
+func (s *Settings) SetBackgroundFill(fill string) {
+	s.backgroundFill = fill
+}
+
 // BackgroundColor returns the color drawn behind the background image, as a hex string.
 func (s *Settings) BackgroundColor() string {
 	return s.backgroundColor

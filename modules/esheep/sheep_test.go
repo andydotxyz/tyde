@@ -339,6 +339,47 @@ func TestSupportZLevelFollowsSurface(t *testing.T) {
 	}
 }
 
+// TestSheepRidesItsWindow verifies that a sheep standing on a window travels
+// with it when it is dragged (rather than the surface sliding out from under it)
+// and that it is drawn at a position relative to that window, as the compositor
+// expects of a window accessory.
+func TestSheepRidesItsWindow(t *testing.T) {
+	rng := rand.New(rand.NewSource(5))
+	win := wmtest.NewWindow("w")
+	win.SetGeometry(200, 300, 200, 150)
+
+	w := floorWorld(800, 600)
+	w.ledges = append(w.ledges, ledge{y: 300, x0: 200, x1: 400, win: win})
+
+	s := &sheep{x: 300, y: 300 - spriteSize, facing: 1, state: stateWalking}
+	s.timer = 1e6 // suppress behaviour changes so we isolate the carrying
+	s.advance(frameDur, w, rng)
+	if s.win != win {
+		t.Fatalf("expected the sheep to stand on the window, got %v", s.win)
+	}
+	drawn := s.drawPos(s.x, s.y)
+	if drawn.X != s.x-200 || drawn.Y != s.y-300 {
+		t.Fatalf("expected a position relative to the window, got %v for %v,%v", drawn, s.x, s.y)
+	}
+
+	// Drag the window 60 right and 20 down; its ledge moves with it.
+	win.SetGeometry(260, 320, 200, 150)
+	w = floorWorld(800, 600)
+	w.ledges = append(w.ledges, ledge{y: 320, x0: 260, x1: 460, win: win})
+
+	before := s.x
+	s.advance(frameDur, w, rng)
+	if s.state != stateWalking {
+		t.Fatalf("the sheep fell off a window it was carried by, state %v", s.state)
+	}
+	if moved := s.x - before; moved < 60 {
+		t.Fatalf("expected the sheep to be carried 60 to the right, it moved %v", moved)
+	}
+	if drawn := s.drawPos(s.x, s.y); drawn.X < 0 || drawn.X > 200 {
+		t.Fatalf("expected the sheep to stay on its window, drawn at %v", drawn)
+	}
+}
+
 func TestWindowEdgeTurnsOrFalls(t *testing.T) {
 	rng := rand.New(rand.NewSource(3))
 	w := floorWorld(800, 600)

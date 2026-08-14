@@ -8,11 +8,19 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
-// indexOf returns the position of obj in objs, or -1.
+// indexOf returns the position of obj in objs, or -1. Accessories are drawn
+// inside a container held over their window, so those are searched too.
 func indexOf(objs []fyne.CanvasObject, obj fyne.CanvasObject) int {
 	for i, o := range objs {
 		if o == obj {
 			return i
+		}
+		if cont, ok := o.(*fyne.Container); ok {
+			for _, child := range cont.Objects {
+				if child == obj {
+					return i
+				}
+			}
 		}
 	}
 	return -1
@@ -68,5 +76,37 @@ func TestCompositorAccessoryFallsBackToTop(t *testing.T) {
 
 	if indexOf(objs, orphan) <= indexOf(objs, win.Img) {
 		t.Fatal("orphaned accessory should fall back above the windows")
+	}
+}
+
+// TestCompositorAccessoryFollowsItsWindow verifies the accessory contract: a
+// module positions its object relative to the window and we keep the two
+// together, without touching the position the module set.
+func TestCompositorAccessoryFollowsItsWindow(t *testing.T) {
+	cw := NewCompositorWidget(nil) // no screen => canvas scale of 1
+	wi := cw.EnsureWindow(1)
+	wi.X, wi.Y, wi.W, wi.H = 100, 200, 400, 300
+
+	offset := fyne.NewPos(10, -20) // a pet hanging over the window's top edge
+	pet := canvas.NewRectangle(color.White)
+	pet.Move(offset)
+	cw.SetAccessories(map[uint32][]fyne.CanvasObject{1: {pet}}, nil)
+
+	acc := cw.accessories[1]
+	if acc.Position() != fyne.NewPos(100, 200) {
+		t.Fatalf("accessories were not placed over their window, got %v", acc.Position())
+	}
+	if acc.Size() != fyne.NewSize(400, 300) {
+		t.Fatalf("accessories were not sized to their window, got %v", acc.Size())
+	}
+
+	// Drag the window: its decorations come along, still where the module put them.
+	wi.X, wi.Y = 500, 260
+	cw.PlaceWindow(wi)
+	if acc.Position() != fyne.NewPos(500, 260) {
+		t.Fatalf("accessories did not follow their window, got %v", acc.Position())
+	}
+	if pet.Position() != offset {
+		t.Fatalf("the module's placement was overwritten: %v, expected %v", pet.Position(), offset)
 	}
 }

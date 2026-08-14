@@ -250,8 +250,7 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 				wi.Y = localY
 				wi.W = width
 				wi.H = height
-				scale := sw.screen.CanvasScale()
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				target.PlaceWindow(wi) // carries the window's accessories along
 				// A cached entry can be blank: it was created before this window had been
 				// captured on any screen.
 				if wi.Img.Image == nil {
@@ -272,9 +271,7 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 					wi.Y = localY
 					wi.W = width
 					wi.H = height
-					scale := sw.screen.CanvasScale()
-					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-					wi.Img.Resize(fyne.NewSize(float32(width)/scale, float32(height)/scale))
+					sw.normal.PlaceWindow(wi)
 					sw.normal.Refresh()
 				}
 			}
@@ -898,7 +895,6 @@ func captureClient(conn *xgb.Conn, ws *widgets, c *client, refreshed map[*ui.Com
 
 		localX := c.geom.X - int16(sw.screen.X)
 		localY := c.geom.Y - int16(sw.screen.Y)
-		scale := sw.screen.CanvasScale()
 
 		if wi.W == 0 {
 			wi.X = localX
@@ -906,8 +902,7 @@ func captureClient(conn *xgb.Conn, ws *widgets, c *client, refreshed map[*ui.Com
 			wi.W = totalW
 			wi.H = totalH
 			fyne.Do(func() {
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-				wi.Img.Resize(fyne.NewSize(float32(totalW)/scale, float32(totalH)/scale))
+				target.PlaceWindow(wi)
 			})
 		}
 
@@ -1378,9 +1373,8 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 		} else {
 			wi.X = localX
 			wi.Y = localY
-			scale := sw.screen.CanvasScale()
 			fyne.Do(func() {
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				target.PlaceWindow(wi)
 			})
 		}
 	}

@@ -1235,13 +1235,15 @@ func NewEmbeddedDesktop(app fyne.App, icons appie.Provider) tyde.Desktop {
 // rebuildEmbeddedAccessories collects the WindowAccessory items from the enabled
 // modules and renders them flat into layer. Embedded mode has no compositor to
 // interleave them with windows at the right z-levels, so they all draw together
-// in this single layer. Runs on the main goroutine (via RefreshWindowAccessories).
+// in this single layer; each window's decorations go in a container held over
+// that window. Runs on the main goroutine (via RefreshWindowAccessories).
 func rebuildEmbeddedAccessories(layer *fyne.Container) {
 	inst := tyde.Instance()
 	if inst == nil || layer == nil {
 		return
 	}
 
+	byWindow := map[tyde.Window]*fyne.Container{}
 	var objs []fyne.CanvasObject
 	for _, m := range inst.Modules() {
 		am, ok := m.(tyde.WindowAccessoryModule)
@@ -1252,7 +1254,19 @@ func rebuildEmbeddedAccessories(layer *fyne.Container) {
 			if acc.Object == nil {
 				continue
 			}
-			objs = append(objs, acc.Object)
+			if acc.Window == nil {
+				objs = append(objs, acc.Object) // positioned on the screen
+				continue
+			}
+			cont, ok := byWindow[acc.Window]
+			if !ok {
+				cont = container.NewWithoutLayout()
+				cont.Move(acc.Window.Position())
+				cont.Resize(acc.Window.Size())
+				byWindow[acc.Window] = cont
+				objs = append(objs, cont)
+			}
+			cont.Objects = append(cont.Objects, acc.Object)
 		}
 	}
 

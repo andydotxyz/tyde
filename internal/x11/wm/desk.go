@@ -189,6 +189,17 @@ func (x *x11WM) AddStackListener(l tyde.StackListener) {
 	x.stack.listeners = append(x.stack.listeners, l)
 }
 
+func (x *x11WM) RemoveStackListener(l tyde.StackListener) {
+	for i, cur := range x.stack.listeners {
+		if cur != l {
+			continue
+		}
+
+		x.stack.listeners = append(x.stack.listeners[:i], x.stack.listeners[i+1:]...)
+		return
+	}
+}
+
 func (x *x11WM) Blank() {
 	go func() {
 		time.Sleep(time.Second / 3)

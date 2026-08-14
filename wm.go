@@ -10,6 +10,7 @@ import (
 type WindowManager interface {
 	Stack
 	AddStackListener(StackListener)
+	RemoveStackListener(StackListener) // stop notifying a listener, e.g. from Module.Destroy
 
 	Blank()
 	Close()
