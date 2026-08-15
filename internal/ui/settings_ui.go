@@ -490,7 +490,7 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 	var themeList []string
 
 	embedList, _ := bundledThemes.ReadDir("themes")
-	currentTheme := fyne.CurrentApp().Preferences().StringWithFallback("currentTheme", "default")
+	currentTheme := fyne.CurrentApp().Preferences().StringWithFallback("currentTheme", "system")
 	for _, dir := range embedList {
 		themeList = append(themeList, dir.Name())
 	}
