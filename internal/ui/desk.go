@@ -25,7 +25,7 @@ import (
 
 const (
 	// RootWindowName is the base string that all root windows will have in their title and is used to identify root windows.
-	RootWindowName = "Fyne Desktop"
+	RootWindowName = "Tyde Desktop"
 )
 
 // screenWindow holds the Fyne window and per-screen widgets for a single monitor.

@@ -154,7 +154,7 @@ func NewX11WindowManager(a fyne.App) (tyde.WindowManager, error) {
 	if err != nil {
 		fyne.LogError("", err)
 	}
-	err = ewmh.WmNameSet(mgr.x, mgr.x.Dummy(), ui.RootWindowName)
+	err = ewmh.WmNameSet(mgr.x, mgr.x.Dummy(), "Tyde")
 	if err != nil {
 		fyne.LogError("", err)
 	}

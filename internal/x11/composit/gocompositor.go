@@ -42,7 +42,7 @@ type client struct {
 	opacitySet   bool // true if the window has an explicit _NET_WM_WINDOW_OPACITY value
 	opaqueType   opaqueType
 	damaged      bool
-	skipped      bool // Fyne Desktop window or other skipped windows
+	skipped      bool // desktop root window or other skipped windows
 	fullscreened bool // unredirected for fullscreen bypass
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
 	pending      bool // true = a refresh was requested, awaiting render
@@ -1162,7 +1162,7 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		damaged:    false,
 	}
 
-	// Skip the Fyne Desktop root window, skip-hinted windows, and screensavers.
+	// Skip the desktop root window, skip-hinted windows, and screensavers.
 	if strings.Contains(name, ui.RootWindowName) || isScreensaver(name, attr, geom) {
 		c.skipped = true
 		_ = composite.UnredirectWindowChecked(conn, window, composite.RedirectManual).Check()
