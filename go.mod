@@ -35,7 +35,7 @@ require github.com/creack/pty v1.1.21
 require (
 	github.com/FyshOS/dryvers v0.0.0-20260222162433-1ffb8226c1cf
 	github.com/FyshOS/fyqr v0.0.0-20260624213738-536424772cba
-	github.com/FyshOS/networks v0.0.0-20260627205415-6e8695f49bdc
+	github.com/FyshOS/networks v0.0.0-20260817130109-5d9f0ce6d908
 	github.com/FyshOS/screens v0.0.0-20260731162110-c150f5b008bd
 	github.com/fyne-io/terminal v0.0.0-20251011215138-c2ed69d5a2d6
 	github.com/tmc/langchaingo v0.1.14
@@ -50,7 +50,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
 	github.com/BurntSushi/graphics-go v0.0.0-20160129215708-b43f31a4a966 // indirect
-	github.com/amenzhinsky/go-polkit v0.0.0-20210519083301-ee6a51849123 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
