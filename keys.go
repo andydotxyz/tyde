@@ -19,6 +19,9 @@ const (
 	KeyBrightnessUp fyne.KeyName = "BrightnessUp"
 	// KeyCalculator is available on some multimedia keyboards to open a calculator
 	KeyCalculator fyne.KeyName = "Calculator"
+	// KeyAssistant is the key newer keyboards label for an AI assistant (the
+	// "Copilot" key). This sends F23 with Shift and Super held - a shortcut using it must ask for both modifiers.
+	KeyAssistant fyne.KeyName = "F23"
 
 	// KeyVolumeMute is the virtual keyboard key for muting sound
 	KeyVolumeMute fyne.KeyName = "VolumeMute"

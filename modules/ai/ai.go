@@ -186,6 +186,14 @@ func (a *assistant) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 	return []tyde.LaunchSuggestion{&launchItem{a: a, text: input}}
 }
 
+// Shortcuts binds the assistant to the dedicated assistant ("Copilot") key.
+func (a *assistant) Shortcuts() map[*tyde.Shortcut]func() {
+	return map[*tyde.Shortcut]func(){
+		tyde.NewShortcut("Show AI Assistant", tyde.KeyAssistant,
+			fyne.KeyModifierShift|fyne.KeyModifierSuper): a.ShowChat,
+	}
+}
+
 // ShowChat opens the assistant with no question set, as the "Fathom" launcher
 // (tyde_ctl fathom) does - the chat window with an empty conversation ready for
 // input. Must be called on the UI thread.

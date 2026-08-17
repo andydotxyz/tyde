@@ -96,6 +96,7 @@ const (
 	keyCodePrintScreen = 107
 	keyCodeSuper       = 133
 	keyCodeCalculator  = 148
+	keyCodeAssistant   = 201 // F23, sent by the assistant ("Copilot") key
 
 	keyCodeEnter = 108
 	keyCodeLeft  = 113
@@ -550,6 +551,12 @@ func (x *x11WM) keyNameToCode(n fyne.KeyName) xproto.Keycode {
 		return keyCodeBrightMore
 	case tyde.KeyCalculator:
 		return keyCodeCalculator
+	case tyde.KeyAssistant:
+		// Most keyboard maps have no keysym for this key, fall back to F23.
+		if code := x.codeForKeysym("F23"); code != 0 {
+			return code
+		}
+		return keyCodeAssistant
 	case tyde.KeyVolumeMute:
 		return keyCodeVolumeMute
 	case tyde.KeyVolumeDown:
