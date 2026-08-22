@@ -2,6 +2,17 @@ package tyde
 
 import "fyne.io/fyne/v2"
 
+// The types of computer that Tyde can be configured for.
+const (
+	// ComputerDesktop is a machine with no battery and no touch screen.
+	ComputerDesktop = "Desktop"
+	// ComputerLaptop is a portable computer - it has a battery, but is driven
+	// with a keyboard and pointer.
+	ComputerLaptop = "Laptop"
+	// ComputerTablet is a mobile computer - a battery and a touch screen.
+	ComputerTablet = "Tablet"
+)
+
 // DeskSettings describes the configuration options available for Fyne desktop
 type DeskSettings interface {
 	Background() string
@@ -10,6 +21,7 @@ type DeskSettings interface {
 	IconTheme() string
 	BorderButtonPosition() string
 	ClockFormatting() string
+	ComputerType() string
 	NarrowWidgetPanel() bool
 
 	LauncherIcons() []string

@@ -121,13 +121,14 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 		themeList.Add(themeButton)
 	}
 
+	computer := newComputerTypeChoice(d.settings.ComputerType(), d.settings.setComputerType)
 	time := container.NewBorder(nil, nil, clockLabel, clockFormat)
 	lay := container.NewBorder(nil, nil, layoutLabel, narrowWidget)
 	border := container.NewBorder(nil, nil, borderButtonLabel, borderButton)
 	saver := container.NewBorder(nil, nil, saverLabel, saverType)
 	saverPref := container.NewGridWithColumns(2, layout.NewSpacer(),
 		container.NewBorder(nil, nil, widget.NewLabel("Label:"), saverClock, saverText))
-	return container.NewVBox(newThemeModeChoice(), time, lay, border, saver, saverPref)
+	return container.NewVBox(newThemeModeChoice(), computer, time, lay, border, saver, saverPref)
 }
 
 func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {

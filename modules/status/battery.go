@@ -15,8 +15,11 @@ import (
 	"github.com/FyshOS/dryvers"
 )
 
+// BatteryModuleName is the name of the battery status module.
+const BatteryModuleName = "Battery"
+
 var batteryMeta = tyde.ModuleMetadata{
-	Name:        "Battery",
+	Name:        BatteryModuleName,
 	NewInstance: newBattery,
 }
 

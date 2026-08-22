@@ -16,6 +16,7 @@ type Settings struct {
 	launcherDisableTaskbar bool
 	borderButtonPosition   string
 	clockFormatting        string
+	computerType           string
 
 	moduleNames []string
 
@@ -124,6 +125,20 @@ func (s *Settings) SetBorderButtonPosition(pos string) {
 // ClockFormatting returns the format that the clock uses for displaying the time. Either 12h or 24h.
 func (s *Settings) ClockFormatting() string {
 	return s.clockFormatting
+}
+
+// ComputerType returns the type of computer the desktop is configured for.
+func (s *Settings) ComputerType() string {
+	if s.computerType == "" {
+		return tyde.ComputerLaptop
+	}
+
+	return s.computerType
+}
+
+// SetComputerType sets the type of computer the desktop is configured for.
+func (s *Settings) SetComputerType(kind string) {
+	s.computerType = kind
 }
 
 // ScreenSaverClock returns if the text on the screensaver should be a clock.
