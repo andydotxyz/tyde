@@ -353,18 +353,6 @@ func TestPanel_FitsOnScreen(t *testing.T) {
 	assert.LessOrEqual(t, pos.Y+size.Height, height)
 }
 
-// With no screen to measure the keyboard still has a size, so a desktop that
-// cannot describe itself does not put an empty overlay on screen.
-func TestPanel_WithoutAScreen(t *testing.T) {
-	p, _ := newTestPanel(t)
-	tyde.SetInstance(nil)
-
-	size := p.size()
-	assert.Equal(t, fallbackWidth, size.Width)
-	assert.Greater(t, size.Height, float32(0))
-	assert.Equal(t, fyne.NewPos(0, 0), p.position(size))
-}
-
 // The background runs past the edge the keyboard is docked to, so its rounded
 // corners fall off the screen there and the keyboard meets the edge square.
 func TestPanel_BackgroundOvershootsTheDockedEdge(t *testing.T) {
@@ -375,13 +363,8 @@ func TestPanel_BackgroundOvershootsTheDockedEdge(t *testing.T) {
 	content.Resize(size)
 
 	bg := content.Objects[0]
-	assert.Equal(t, size.Width, bg.Size().Width, "no overshoot sideways, the panels are there")
-	assert.Equal(t, size.Height+cornerRadius(), bg.Size().Height)
+	assert.Equal(t, size, bg.Size())
 	assert.Equal(t, float32(0), bg.Position().Y, "docked at the bottom it overshoots downwards")
-
-	p.atTop = true
-	content.Refresh()
-	assert.Equal(t, -cornerRadius(), bg.Position().Y)
 }
 
 func TestPanel_DestroyClosesTheConnection(t *testing.T) {

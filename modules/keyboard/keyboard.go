@@ -1,13 +1,9 @@
 // Package keyboard adds an on-screen keyboard to Tyde, for touchscreen machines
-// where there may be no hardware keyboard within reach. It stays out of the way
-// until it is asked for: a keyboard icon sits in the status area alongside the
-// system tray, and tapping it raises the keyboard over whatever is on screen,
-// tapping it again puts it away. Super+K does the same for the times a hardware
-// keyboard is to hand after all.
+// where there may be no hardware keyboard within reach. It is toggled from a
+// keyboard icon sits in the status area.
 //
 // Keys are typed into the focused application as real key events through the
-// XTEST extension (see typer.go), so applications cannot tell them from a
-// physical keyboard and nothing needs to support the keyboard specially.
+// XTEST extension.
 package keyboard
 
 import (
@@ -18,7 +14,6 @@ import (
 	wmTheme "fyshos.com/tyde/theme"
 )
 
-// ModuleName is the registered name of the on-screen keyboard module.
 const ModuleName = "Virtual Keyboard"
 
 var meta = tyde.ModuleMetadata{
@@ -50,18 +45,4 @@ func (m *module) Destroy() {
 func (m *module) StatusAreaWidget() fyne.CanvasObject {
 	return &widget.Button{Icon: wmTheme.KeyboardIcon, Importance: widget.LowImportance,
 		OnTapped: func() { m.panel.toggle() }}
-}
-
-// Shortcuts binds the keyboard to Super+K, which is unclaimed elsewhere in Tyde.
-func (m *module) Shortcuts() map[*tyde.Shortcut]func() {
-	return map[*tyde.Shortcut]func(){
-		tyde.NewShortcut("Show Virtual Keyboard", fyne.KeyK, tyde.UserModifier): func() {
-			m.panel.toggle()
-		},
-	}
-}
-
-// ShowKeyboard opens the keyboard. Must be called on the UI thread.
-func (m *module) ShowKeyboard() {
-	m.panel.show()
 }

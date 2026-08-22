@@ -49,8 +49,7 @@ const (
 )
 
 // modifierSyms lists the keysym standing for each modifier, in the order they
-// are pressed. Shift goes last so it is innermost, matching the way a hand
-// reaches for Ctrl+Shift+key.
+// are pressed.
 var modifierSyms = []struct {
 	mod modifier
 	sym xproto.Keysym
@@ -131,9 +130,7 @@ func wider(k key, width float32) key {
 }
 
 // rows is the key layout: a compact US QWERTY, with the cursor keys and Escape
-// sharing the bottom row rather than earning blocks of their own. There is no
-// number pad and no function row - this is a keyboard to fill in a text field
-// with, not to replace the one on the desk.
+// sharing the bottom row rather than earning blocks of their own.
 var rows = [][]key{{
 	char("`", "~"), char("1", "!"), char("2", "@"), char("3", "#"), char("4", "$"),
 	char("5", "%"), char("6", "^"), char("7", "&"), char("8", "*"), char("9", "("),

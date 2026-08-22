@@ -1,14 +1,3 @@
-// Typing from the on-screen keyboard: turning a tap into a real key event in
-// whichever application the user is working in, using the XTEST extension.
-//
-// Two things make this more than "send a key". First, X11 delivers fake key
-// events to whatever holds the input focus, and showing a Tyde overlay hands the
-// focus to the desktop window (so overlays such as the launcher can take key
-// input) - so the focus has to be steered back to the application around every
-// keystroke. Second, a keycode is a position on the keyboard rather than a
-// character, so the character wanted has to be found in the user's own layout;
-// anything the layout cannot reach is typed by borrowing an unused keycode, the
-// way xdotool does.
 package keyboard
 
 import (
@@ -23,10 +12,7 @@ import (
 	"fyshos.com/tyde"
 )
 
-// keymapSettleDelay is how long to wait after rebinding a keycode before faking
-// the key. The server broadcasts a MappingNotify and toolkits reload their
-// keymap asynchronously, so typing immediately can deliver the *old* keysym.
-// xdotool waits the same 12ms for the same reason.
+// keymapSettleDelay is how long to wait after rebinding a keycode before faking the key.
 const keymapSettleDelay = 12 * time.Millisecond
 
 // sender types a key into the focused application. It is an interface so the
@@ -42,10 +28,8 @@ type sender interface {
 // tests can swap in a recorder.
 var newSenderFunc = newSender
 
-// x11Sender talks to the X server over its own connection. The window manager's
-// connection is busy servicing the event loop, and the focus change has to be
-// strictly ordered before the key events it applies to, so a dedicated
-// connection keeps the two from interleaving.
+// x11Sender talks to the X server over its own connection.
+// A dedicated connection keeps these events from interleaving with Tyde's X handler.
 type x11Sender struct {
 	conn *xgb.Conn
 	root xproto.Window
@@ -56,9 +40,7 @@ type x11Sender struct {
 	keysyms []xproto.Keysym
 }
 
-// newSender connects to the display and initialises XTEST. It fails when there
-// is no X server or the extension is missing, in which case the keyboard can be
-// opened but cannot type.
+// newSender connects to the display and initialises XTEST.
 func newSender() (sender, error) {
 	conn, err := xgb.NewConn()
 	if err != nil {
@@ -116,10 +98,6 @@ func (s *x11Sender) Send(sym xproto.Keysym, mods modifier) error {
 }
 
 // focusTarget hands the X input focus to the window the typing is meant for.
-// While the keyboard is up an overlay is active, so the window manager keeps the
-// focus on the desktop window - and puts it back there on every tap. The focus
-// request travels this connection, the same one the fake key events use, so the
-// server is guaranteed to apply it before them.
 func (s *x11Sender) focusTarget() {
 	win, ok := typingTarget()
 	if !ok {
@@ -214,8 +192,7 @@ func (s *x11Sender) readMapping() error {
 }
 
 // lookup finds the key that already carries a keysym in the user's layout, and
-// whether Shift has to be held to reach it. Only the first two levels are
-// searched: the levels above them need modifiers that vary by layout.
+// whether Shift has to be held to reach it.
 func (s *x11Sender) lookup(sym xproto.Keysym) (code xproto.Keycode, shifted, found bool) {
 	if s.per == 0 {
 		return 0, false, false
@@ -276,17 +253,13 @@ func (s *x11Sender) unbind(code xproto.Keycode) {
 }
 
 // xWindow is the part of a managed X11 window this module needs: the id of the
-// client window that key events are delivered to. It is matched by assertion
-// rather than imported so that the module does not depend on the X11 internals,
-// and simply does not type on a desktop that has no X windows.
+// client window that key events are delivered to. Mirroring the X11 specifics to avoid import.
 type xWindow interface {
 	ChildID() xproto.Window
 }
 
 // typingTarget picks the window typed keys should go to: the topmost one that is
-// neither iconified nor on another desktop. That is the window the manager
-// itself focuses once the keyboard is closed again, so typing goes where the
-// user would expect it to.
+// neither iconified nor on another desktop.
 func typingTarget() (xproto.Window, bool) {
 	desk := tyde.Instance()
 	if desk == nil {

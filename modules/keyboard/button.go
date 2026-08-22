@@ -6,9 +6,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// minKeySize is the floor for a key. The real size comes from rowLayout, which
-// divides the keyboard's width between the keys in each row; this only stops a
-// key collapsing to nothing on a very narrow screen.
+// minKeySize is the floor for a key size.
 const minKeySize = float32(24)
 
 // keyButton is one key. It is a button with its own minimum size, so that the

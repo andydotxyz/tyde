@@ -37,18 +37,6 @@ func TestModule_IsRegistered(t *testing.T) {
 	t.Errorf("%q is not one of the available modules", ModuleName)
 }
 
-func TestModule_Shortcut(t *testing.T) {
-	m := newTestModule(t)
-
-	shortcuts := m.Shortcuts()
-	if assert.Len(t, shortcuts, 1) {
-		for s := range shortcuts {
-			assert.Equal(t, fyne.KeyK, s.KeyName)
-			assert.Equal(t, "Show Virtual Keyboard", s.Name)
-		}
-	}
-}
-
 // The keyboard is off screen until it is asked for - a keyboard that is always
 // up is one that covers whatever is being typed into.
 func TestModule_StartsHidden(t *testing.T) {
@@ -69,20 +57,9 @@ func TestModule_StatusAreaWidgetToggles(t *testing.T) {
 	assert.False(t, m.panel.shown)
 }
 
-func TestModule_ShortcutToggles(t *testing.T) {
-	m := newTestModule(t)
-
-	for _, action := range m.Shortcuts() {
-		action()
-		assert.True(t, m.panel.shown)
-		action()
-		assert.False(t, m.panel.shown)
-	}
-}
-
 func TestModule_DestroyHidesKeyboard(t *testing.T) {
 	m := newTestModule(t)
-	m.ShowKeyboard()
+	m.panel.show()
 
 	m.Destroy()
 	assert.False(t, m.panel.shown)

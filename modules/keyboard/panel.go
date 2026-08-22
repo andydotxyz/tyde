@@ -12,25 +12,13 @@ import (
 	wmTheme "fyshos.com/tyde/theme"
 )
 
-// prefAtTop remembers which edge the keyboard sits against, because whichever
-// one keeps it clear of the field being typed into is a property of how the user
-// works rather than of the session.
 const prefAtTop = "keyboard.attop"
 
-const (
-	// keyHeight is the height of one row. It is generous on purpose: this is a
-	// keyboard for fingertips, and a key smaller than this is one that gets
-	// mistyped.
-	keyHeight = float32(48)
-
-	// fallbackWidth is only used when there is no screen to measure the content
-	// area against, which does not happen on a running desktop.
-	fallbackWidth = float32(800)
-)
+// keyHeight is the height of one row - large for fitting fingertips.
+var keyHeight = float32(48)
 
 // panel is the on-screen keyboard overlay. One instance is reused for the life
-// of the module: it is built on first show and then hidden and re-shown, so its
-// state (which edge it sits against, whether Caps is on) survives between uses.
+// of the module: it is built on first show and then hidden and re-shown.
 type panel struct {
 	content fyne.CanvasObject
 	header  fyne.CanvasObject
@@ -38,8 +26,7 @@ type panel struct {
 	flipBtn *widget.Button
 
 	send sender
-	// sendBroken records that there is no way to type - no X server, or no
-	// XTEST - so the keyboard does not retry the connection on every keystroke.
+	// sendBroken records that there is no way to type - no X server, or no XTEST
 	sendBroken bool
 
 	held   modifier // modifiers latched for the next keystroke only
@@ -65,7 +52,7 @@ func (p *panel) show() {
 	tyde.Instance().ShowOverlay(p.content, size, p.position(size))
 }
 
-// hide takes the keyboard off screen, releasing any latched modifiers so that
+// hide takes the keyboard off-screen, releasing any latched modifiers so that
 // the next time it opens it is in a known state. The content is kept for reuse.
 func (p *panel) hide() {
 	if !p.shown {
@@ -99,9 +86,7 @@ func (p *panel) destroy() {
 
 // connect opens the connection typing goes through, once the keyboard is on its
 // way up rather than on the first keystroke, so the first key is as quick as the
-// rest. A desktop with no way to fake input still shows the keyboard - the keys
-// simply do nothing, which is easier to report than a tray icon that does not
-// respond.
+// rest.
 func (p *panel) connect() {
 	if p.send != nil || p.sendBroken {
 		return
@@ -198,9 +183,8 @@ func (p *panel) updateFlipIcon() {
 	p.flipBtn.SetIcon(theme.MoveUpIcon())
 }
 
-// size is the keyboard's on-screen size: the full width of the content area, so
-// it reaches from the bar on one side to the widget panel on the other, and as
-// tall as its rows plus the strip of controls above them.
+// size is the keyboard's on-screen size: the full width of the content area,
+// and as tall as its rows plus the strip of controls above them.
 func (p *panel) size() fyne.Size {
 	pad := theme.Padding()
 	height := keyHeight*float32(len(rows)) + pad*float32(len(rows)+3)
@@ -210,7 +194,7 @@ func (p *panel) size() fyne.Size {
 
 	_, area, ok := contentArea()
 	if !ok {
-		return fyne.NewSize(fallbackWidth, height)
+		return fyne.NewSize(float32(800), height)
 	}
 	if height > area.Height {
 		height = area.Height // a screen too short for the keyboard still gets one
@@ -254,45 +238,6 @@ func contentArea() (fyne.Position, fyne.Size, bool) {
 		fyne.NewSize(float32(w)/scale, float32(h)/scale), true
 }
 
-// cornerRadius is how far the keyboard's corners are rounded, and so also how
-// far its background has to overshoot the edge it is docked to.
-func cornerRadius() float32 {
-	return theme.Size(theme.SizeNameInputRadius) + theme.Padding()
-}
-
-// dockLayout draws the keyboard over its background, letting that background run
-// past whichever edge the keyboard is docked to. The rounded corners on that side
-// then fall off the screen, so the keyboard meets the edge square while the
-// corners facing the desktop stay soft.
-type dockLayout struct {
-	panel *panel
-}
-
-func (d *dockLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if len(objects) != 2 {
-		return
-	}
-	bg, content := objects[0], objects[1]
-
-	overshoot := cornerRadius()
-	bg.Resize(fyne.NewSize(size.Width, size.Height+overshoot))
-	if d.panel.atTop {
-		bg.Move(fyne.NewPos(0, -overshoot))
-	} else {
-		bg.Move(fyne.NewPos(0, 0))
-	}
-
-	content.Resize(size)
-	content.Move(fyne.NewPos(0, 0))
-}
-
-func (d *dockLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	if len(objects) != 2 {
-		return fyne.Size{}
-	}
-	return objects[1].MinSize()
-}
-
 func (p *panel) build() {
 	rowObjects := make([]fyne.CanvasObject, 0, len(rows))
 	for _, row := range rows {
@@ -317,9 +262,7 @@ func (p *panel) build() {
 	p.header = container.NewHBox(layout.NewSpacer(), p.flipBtn, closeBtn)
 
 	bg := canvas.NewRectangle(wmTheme.WidgetPanelBackground())
-	bg.CornerRadius = cornerRadius()
-
-	p.content = container.New(&dockLayout{panel: p}, bg,
+	p.content = container.NewStack(bg,
 		container.NewPadded(container.NewBorder(p.header, nil, nil, nil, grid)))
 	p.refreshFaces()
 }
