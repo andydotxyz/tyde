@@ -145,11 +145,12 @@ func (d *deskSettings) setBackgroundColor(hex string) {
 	d.apply()
 }
 
-func (d *deskSettings) setIconTheme(name string) {
-	d.iconTheme = name
-	fyne.CurrentApp().Preferences().SetString("icontheme", d.iconTheme)
-	d.apply()
-}
+// TODO re-add the icon setting
+//func (d *deskSettings) setIconTheme(name string) {
+//	d.iconTheme = name
+//	fyne.CurrentApp().Preferences().SetString("icontheme", d.iconTheme)
+//	d.apply()
+//}
 
 func (d *deskSettings) setLauncherIcons(defaultApps []string) {
 	newLauncherIcons := strings.Join(defaultApps, "|")
