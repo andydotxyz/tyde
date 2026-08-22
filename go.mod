@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	codeberg.org/sdassow/unyts v0.5.1
-	fyne.io/fyne/v2 v2.8.1-0.20260814100159-eb09ffacfec3
+	fyne.io/fyne/v2 v2.8.1-rc3
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/BurntSushi/xgbutil v0.0.0-20190907113008-ad855c713046

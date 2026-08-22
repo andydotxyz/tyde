@@ -1,7 +1,7 @@
 codeberg.org/sdassow/unyts v0.5.1 h1:7mgAqMsgrpsFNXKXFZOzXDlCb3hAW4q0mYyOIN31lLk=
 codeberg.org/sdassow/unyts v0.5.1/go.mod h1:G7IVCrmY/57ojDjMqkmIlRpyLvLF5FrQEbaJv5RzS2k=
-fyne.io/fyne/v2 v2.8.1-0.20260814100159-eb09ffacfec3 h1:yv1Pe4j8iiyaYpPWkGcA5CadVBnPGMZF1JOoz/Or4RM=
-fyne.io/fyne/v2 v2.8.1-0.20260814100159-eb09ffacfec3/go.mod h1:kpeuFrClm0fiAgJYr2soTfwKMT5rzNcSKzmgGjxvHOY=
+fyne.io/fyne/v2 v2.8.1-rc3 h1:wvnzBA7Yx5UN8c52aOVhRtVdSVDI7zHf+P29nnwa06I=
+fyne.io/fyne/v2 v2.8.1-rc3/go.mod h1:kpeuFrClm0fiAgJYr2soTfwKMT5rzNcSKzmgGjxvHOY=
 fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 h1:149/+Wa5EsLLXfyj2pdTmvnQf2VIlgCIwSjcCTHYhIo=
 fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/ActiveState/termtest/conpty v0.5.0 h1:JLUe6YDs4Jw4xNPCU+8VwTpniYOGeKzQg4SM2YHQNA8=
