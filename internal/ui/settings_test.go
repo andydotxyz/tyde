@@ -22,16 +22,16 @@ func TestDeskSettings_IsModuleEnabled(t *testing.T) {
 }
 
 func TestModulesForComputer(t *testing.T) {
-	mods := []string{"Sound", status.BatteryModuleName, keyboard.ModuleName}
+	mods := []string{"Sound", status.BatteryModuleName, status.BrightnessModuleName, keyboard.ModuleName}
 
 	assert.Equal(t, []string{"Sound"},
 		modulesForComputer(tyde.ComputerDesktop, mods))
-	assert.Equal(t, []string{"Sound", status.BatteryModuleName},
+	assert.Equal(t, []string{"Sound", status.BatteryModuleName, status.BrightnessModuleName},
 		modulesForComputer(tyde.ComputerLaptop, mods))
-	assert.Equal(t, []string{"Sound", status.BatteryModuleName, keyboard.ModuleName},
+	assert.Equal(t, []string{"Sound", status.BatteryModuleName, status.BrightnessModuleName, keyboard.ModuleName},
 		modulesForComputer(tyde.ComputerTablet, mods))
 
 	// a machine gaining the hardware turns the modules back on
-	assert.Equal(t, []string{"Sound", status.BatteryModuleName, keyboard.ModuleName},
+	assert.Equal(t, []string{"Sound", status.BatteryModuleName, status.BrightnessModuleName, keyboard.ModuleName},
 		modulesForComputer(tyde.ComputerTablet, []string{"Sound"}))
 }
