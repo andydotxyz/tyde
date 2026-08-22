@@ -8,6 +8,7 @@ import (
 	_ "fyshos.com/tyde/modules/esheep"
 	_ "fyshos.com/tyde/modules/flames"
 	_ "fyshos.com/tyde/modules/fyles"
+	_ "fyshos.com/tyde/modules/keyboard"
 	_ "fyshos.com/tyde/modules/launcher"
 	_ "fyshos.com/tyde/modules/quaketerm"
 	_ "fyshos.com/tyde/modules/rpc"
