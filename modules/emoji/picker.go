@@ -74,7 +74,8 @@ func (p *picker) show() {
 	size := p.size()
 	pos := fyne.NewPos(
 		(float32(screen.Width)/scale-size.Width)/2,
-		(float32(screen.Height)/scale-size.Height)/2)
+		(float32(screen.Height)/scale-size.Height)/2,
+	)
 
 	p.shown = true
 	desk.ShowOverlay(p.overlay, size, pos)
@@ -138,7 +139,8 @@ func (p *picker) build() {
 			cell.SetEmoji(item,
 				func() { p.pick(item) },
 				func(in bool) { p.hover(item, in) })
-		})
+		},
+	)
 
 	p.status = widget.NewLabel("")
 	p.status.Truncation = fyne.TextTruncateEllipsis
@@ -150,8 +152,10 @@ func (p *picker) build() {
 		p.page = p.defaultPage()
 	}
 
-	close := &widget.Button{Icon: theme.CancelIcon(), Importance: widget.LowImportance,
-		OnTapped: p.hide}
+	close := &widget.Button{
+		Icon: theme.CancelIcon(), Importance: widget.LowImportance,
+		OnTapped: p.hide,
+	}
 	top := container.NewBorder(nil, nil, nil, close, p.entry)
 	bottom := container.NewVBox(p.pages, p.status)
 
@@ -172,11 +176,13 @@ func (p *picker) rebuildPageButtons() {
 		if icon == "" {
 			icon = page
 		}
-		btn := &widget.Button{Text: icon, Importance: widget.LowImportance,
+		btn := &widget.Button{
+			Text: icon, Importance: widget.LowImportance,
 			OnTapped: func() {
 				p.entry.SetText("") // leaving search behind for a group page
 				p.showPage(page)
-			}}
+			},
+		}
 		p.pages.Add(btn)
 	}
 	p.pages.Refresh()

@@ -44,3 +44,21 @@ func (t *testTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Colo
 
 	return t.Theme.Color(n, v)
 }
+
+func TestSetTouchScreen(t *testing.T) {
+	defer SetTouchScreen(false)
+
+	SetTouchScreen(true)
+	// big enough to tap - the buttons grow with the bar they sit in
+	assert.Greater(t, TitleHeight, titleHeight)
+	assert.Greater(t, TitleButtonHeight, titleButtonHeight)
+	assert.Greater(t, TitleButtonIconSize, titleButtonIconSize)
+	assert.Greater(t, ButtonWidth, buttonWidth)
+	assert.Less(t, TitleButtonHeight, TitleHeight) // still fits in the bar
+
+	SetTouchScreen(false)
+	assert.Equal(t, titleHeight, TitleHeight)
+	assert.Equal(t, titleButtonHeight, TitleButtonHeight)
+	assert.Equal(t, titleButtonIconSize, TitleButtonIconSize)
+	assert.Equal(t, buttonWidth, ButtonWidth)
+}

@@ -6,11 +6,11 @@ import (
 
 	"fyshos.com/tyde"
 	"fyshos.com/tyde/internal/icon"
+	wmTheme "fyshos.com/tyde/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -21,13 +21,13 @@ func NewBorder(win tyde.Window, ico fyne.Resource, canMaximize bool) *Border {
 	border.ExtendBaseWidget(border)
 	border.SetTitle(win.Properties().Title())
 	border.SetContent(canvas.NewRectangle(color.Transparent))
-	height := border.Theme().Size(theme.SizeNameWindowTitleBarHeight)
 
 	if ico == nil {
 		iconTheme := desk.Settings().IconTheme()
 		app := icon.FindAppFromWinInfo(win, desk.IconProvider())
 		if app != nil {
-			ico = app.Icon(iconTheme, int(height*2))
+			// load at twice the title bar height, so it is still sharp on touch version.
+			ico = app.Icon(iconTheme, int(wmTheme.TitleHeight*2))
 		}
 	}
 

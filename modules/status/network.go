@@ -71,6 +71,34 @@ func (n *network) wirelessName() (string, error) {
 	return strings.TrimSpace(net), nil
 }
 
+// airportDevice returns the macOS device name of the Wi-Fi hardware port,
+// or "" if this machine has none (as on CI runners and Mac minis without Wi-Fi).
+func airportDevice() string {
+	out, err := exec.Command("networksetup", "-listallhardwareports").Output()
+	if err != nil {
+		log.Println("Error running networksetup tool", err)
+		return ""
+	}
+
+	return parseAirportDevice(string(out))
+}
+
+// parseAirportDevice picks the Wi-Fi device out of "networksetup -listallhardwareports" output.
+func parseAirportDevice(out string) string {
+	lines := strings.Split(out, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(line, "Hardware Port: Wi-Fi") && !strings.HasPrefix(line, "Hardware Port: AirPort") {
+			continue
+		}
+		if i+1 >= len(lines) {
+			break
+		}
+		return strings.TrimSpace(strings.TrimPrefix(lines[i+1], "Device:"))
+	}
+
+	return ""
+}
+
 func (n *network) isBlocked() (bool, error) {
 	if ip, _ := exec.LookPath("rfkill"); ip != "" {
 		out, err := exec.Command("bash", []string{"-c", "rfkill | grep \"wlan\""}...).Output()
@@ -85,16 +113,19 @@ func (n *network) isBlocked() (bool, error) {
 		return false, nil
 	}
 	if ip, _ := exec.LookPath("networksetup"); ip != "" {
-		out, err := exec.Command("bash", []string{"-c", "networksetup -setairportpower en0"}...).Output()
+		dev := airportDevice()
+		if dev == "" { // no Wi-Fi hardware, so nothing to block
+			return false, nil
+		}
+
+		out, err := exec.Command("networksetup", "-getairportpower", dev).Output()
 		if err != nil {
 			log.Println("Error running networksetup tool", err)
 			return false, err
 		}
-		if strings.TrimSpace(string(out)) == "Off" {
-			return true, nil
-		}
-
-		return false, nil
+		// output looks like "Wi-Fi Power (en0): On"
+		state := strings.TrimSpace(string(out))
+		return strings.HasSuffix(state, ": Off"), nil
 	}
 
 	return false, nil
@@ -252,11 +283,16 @@ func (n *network) setFlightMode(block bool) error {
 	}
 
 	if ip, _ := exec.LookPath("networksetup"); ip != "" {
+		dev := airportDevice()
+		if dev == "" { // no Wi-Fi hardware, so nothing to toggle
+			return nil
+		}
+
 		mode := "off"
 		if !block {
 			mode = "on"
 		}
-		err := exec.Command("bash", []string{"-c", "networksetup -setairportpower en0 " + mode + " "}...).Run()
+		err := exec.Command("networksetup", "-setairportpower", dev, mode).Run()
 		if err != nil {
 			log.Println("Error running networksetup tool", err)
 			return err

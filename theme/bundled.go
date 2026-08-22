@@ -100,6 +100,13 @@ var resourceKeyboardSvg = &fyne.StaticResource{
 	StaticContent: resourceKeyboardSvgData,
 }
 
+//go:embed assets/laptop.svg
+var resourceLaptopSvgData []byte
+var resourceLaptopSvg = &fyne.StaticResource{
+	StaticName:    "assets/laptop.svg",
+	StaticContent: resourceLaptopSvgData,
+}
+
 //go:embed assets/lock.svg
 var resourceLockSvgData []byte
 var resourceLockSvg = &fyne.StaticResource{
@@ -175,6 +182,13 @@ var resourceSoundMidSvgData []byte
 var resourceSoundMidSvg = &fyne.StaticResource{
 	StaticName:    "assets/sound-mid.svg",
 	StaticContent: resourceSoundMidSvgData,
+}
+
+//go:embed assets/tablet.svg
+var resourceTabletSvgData []byte
+var resourceTabletSvg = &fyne.StaticResource{
+	StaticName:    "assets/tablet.svg",
+	StaticContent: resourceTabletSvgData,
 }
 
 //go:embed assets/wallpaper.svg

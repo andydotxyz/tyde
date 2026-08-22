@@ -139,7 +139,8 @@ func (t *themeModeTile) CreateRenderer() fyne.WidgetRenderer {
 	bar.CornerRadius = theme.Size(theme.SizeNameSelectionRadius)
 	bar.SetMinSize(fyne.NewSize(0, 8))
 	mock := container.NewStack(win, container.NewPadded(container.NewVBox(
-		bar, t.mockLine(th, 60), t.mockLine(th, 38))))
+		bar, t.mockLine(th, 60), t.mockLine(th, 38),
+	)))
 
 	label := canvas.NewText(t.title, th.Color(theme.ColorNameForeground, t.variant))
 	label.TextStyle = fyne.TextStyle{Bold: true}

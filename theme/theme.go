@@ -33,6 +33,10 @@ var (
 	CalculateIcon = theme.NewThemedResource(resourceCalculateSvg)
 	// DisplayIcon is the material design icon for computer displays in light and dark theme
 	DisplayIcon = theme.NewThemedResource(resourceDisplaySvg)
+	// LaptopIcon is the material design icon for a portable computer
+	LaptopIcon = theme.NewThemedResource(resourceLaptopSvg)
+	// TabletIcon is the material design icon for a tablet computer
+	TabletIcon = theme.NewThemedResource(resourceTabletSvg)
 	// InternetIcon is the material design icon for the internet in light and dark theme
 	InternetIcon = theme.NewThemedResource(resourceInternetSvg)
 	// EthernetIcon is the material design icon for a network connection
@@ -76,14 +80,54 @@ var (
 	// BorderWidth is the width of window frames
 	BorderWidth = float32(4)
 	// ButtonWidth is the width of window buttons
-	ButtonWidth = float32(32)
+	ButtonWidth = buttonWidth
 	// NarrowBarWidth is the size for the bars in narrow layout
 	NarrowBarWidth = float32(36)
 	// TitleHeight is the height of a frame titleBar
-	TitleHeight = float32(28)
+	TitleHeight = titleHeight
+	// TitleButtonHeight is the size of the buttons drawn in a frame titleBar
+	TitleButtonHeight = titleButtonHeight
+	// TitleButtonIconSize is the size of the icon inside a titleBar button
+	TitleButtonIconSize = titleButtonIconSize
 	// WidgetPanelWidth defines how wide the large widget panel should be
 	WidgetPanelWidth = float32(196)
 )
+
+// The frame metrics that SetTouchScreen chooses between. A finger needs a much
+// bigger target than a pointer, so a touch screen gets a taller title bar with
+// bigger buttons in it. The buttons are sized apart from the bar as they are
+// centred in it, so growing the bar alone would leave them small.
+const (
+	buttonWidth      = float32(32)
+	buttonWidthTouch = float32(44)
+
+	titleHeight      = float32(28)
+	titleHeightTouch = float32(48)
+
+	titleButtonHeight      = float32(16)
+	titleButtonHeightTouch = float32(36)
+
+	titleButtonIconSize      = float32(14)
+	titleButtonIconSizeTouch = float32(22)
+)
+
+// SetTouchScreen configures the window frame metrics for the input the user
+// has. On a touch screen the title bar and the window buttons drawn in it grow
+// big enough to tap; anywhere else they return to the pointer sizes.
+func SetTouchScreen(touch bool) {
+	if touch {
+		ButtonWidth = buttonWidthTouch
+		TitleHeight = titleHeightTouch
+		TitleButtonHeight = titleButtonHeightTouch
+		TitleButtonIconSize = titleButtonIconSizeTouch
+		return
+	}
+
+	ButtonWidth = buttonWidth
+	TitleHeight = titleHeight
+	TitleButtonHeight = titleButtonHeight
+	TitleButtonIconSize = titleButtonIconSize
+}
 
 // WidgetPanelBackground returns the semi-transparent background matching the users current theme theme
 func WidgetPanelBackground() color.Color {

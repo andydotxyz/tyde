@@ -75,8 +75,10 @@ func (m *module) Shortcuts() map[*tyde.Shortcut]func() {
 // StatusAreaWidget puts a picker button in the widget panel for the times the
 // mouse is already in hand.
 func (m *module) StatusAreaWidget() fyne.CanvasObject {
-	return &widget.Button{Icon: Icon, Importance: widget.LowImportance,
-		OnTapped: func() { m.picker.toggle() }}
+	return &widget.Button{
+		Icon: Icon, Importance: widget.LowImportance,
+		OnTapped: func() { m.picker.toggle() },
+	}
 }
 
 // LaunchSuggestions offers the picker when the launcher input starts to look
