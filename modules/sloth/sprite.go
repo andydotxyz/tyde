@@ -8,8 +8,6 @@ import (
 	"image/png"
 	"sync"
 
-	"golang.org/x/image/draw"
-
 	"fyne.io/fyne/v2"
 )
 
@@ -33,20 +31,6 @@ var (
 	loadOnce  sync.Once
 	loadedImg image.Image
 )
-
-// scaled returns a copy of img resampled to w x h. The artwork is far bigger
-// than we ever draw it and Fyne resamples an image's source every time it
-// uploads the texture - which the compositor makes it do as it repaints - so we
-// pay for that once here instead of on every frame.
-func scaled(img image.Image, w, h int) image.Image {
-	if w <= 0 || h <= 0 {
-		return img
-	}
-
-	out := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.CatmullRom.Scale(out, out.Bounds(), img, img.Bounds(), draw.Over, nil)
-	return out
-}
 
 // slothSprite lazily decodes the embedded artwork into a transparent, trimmed
 // image. It returns nil if the asset cannot be read, in which case the module

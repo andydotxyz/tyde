@@ -36,18 +36,6 @@ const keymapSettleDelay = 12 * time.Millisecond
 // own keysym and must not be offset.
 const unicodeKeysymBase = 0x01000000
 
-// inserter types text into another window. It is an interface so the picker can
-// be tested without an X server.
-type inserter interface {
-	// Focused reports the window that currently holds the X input focus, to be
-	// captured before the picker takes focus for itself.
-	Focused() (xproto.Window, error)
-	// Insert types text into target, restoring the previous focus afterwards.
-	Insert(text string, target xproto.Window) error
-	// Close releases the X connection.
-	Close()
-}
-
 // x11Inserter talks to the X server over its own connection. The window
 // manager's connection is busy servicing the event loop, and the focus/keymap
 // juggling below has to be strictly ordered against itself, so a dedicated
@@ -55,28 +43,6 @@ type inserter interface {
 type x11Inserter struct {
 	conn *xgb.Conn
 	root xproto.Window
-}
-
-// newInserter connects to the display and initialises XTEST. It fails when there
-// is no X server or the extension is missing, in which case the picker falls
-// back to the clipboard alone.
-func newInserter() (inserter, error) {
-	conn, err := xgb.NewConn()
-	if err != nil {
-		return nil, fmt.Errorf("no X display for emoji insertion: %w", err)
-	}
-	if err := xtest.Init(conn); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("XTEST extension unavailable: %w", err)
-	}
-
-	setup := xproto.Setup(conn)
-	if setup == nil || len(setup.Roots) == 0 {
-		conn.Close()
-		return nil, errors.New("X server reported no screens")
-	}
-
-	return &x11Inserter{conn: conn, root: setup.DefaultScreen(conn).Root}, nil
 }
 
 func (i *x11Inserter) Close() {

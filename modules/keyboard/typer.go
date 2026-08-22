@@ -54,7 +54,7 @@ func newSender() (sender, error) {
 	setup := xproto.Setup(conn)
 	if setup == nil || len(setup.Roots) == 0 {
 		conn.Close()
-		return nil, errors.New("X server reported no screens")
+		return nil, errors.New("x11 server reported no screens")
 	}
 
 	s := &x11Sender{conn: conn, root: setup.DefaultScreen(conn).Root}
