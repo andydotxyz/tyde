@@ -226,15 +226,15 @@ func (d *deskSettings) setComputerType(kind string) {
 
 // modulesForComputer returns the enabled module list adjusted for the type of computer.
 func modulesForComputer(kind string, names []string) []string {
-	out := make([]string, 0, len(names)+2)
+	out := make([]string, 0, len(names)+3)
 	for _, name := range names {
-		if name != status.BatteryModuleName && name != keyboard.ModuleName {
+		if name != status.BatteryModuleName && name != status.BrightnessModuleName && name != keyboard.ModuleName {
 			out = append(out, name)
 		}
 	}
 
 	if kind != tyde.ComputerDesktop {
-		out = append(out, status.BatteryModuleName)
+		out = append(out, status.BatteryModuleName, status.BrightnessModuleName)
 	}
 	if kind == tyde.ComputerTablet {
 		out = append(out, keyboard.ModuleName)
@@ -288,9 +288,9 @@ func (d *deskSettings) load() {
 
 	d.launcherDisableTaskbar = fyne.CurrentApp().Preferences().Bool("launcherdisabletaskbar")
 
-	defaultModules := "Battery|Brightness|Sound|Emoji Picker|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Launcher: QR Codes|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files"
+	defaultModules := "Sound|Emoji Picker|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Launcher: QR Codes|Launcher: Web Search|Network|Virtual Desktops|SystemTray|Terminal Overlay|Desktop Files|Remote Control"
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" { // testing
-		defaultModules = "Battery|Brightness|Sound|Launcher: Calculate|Launcher: Large Type|Launcher: Open URLs|Network|Virtual Desktops"
+		defaultModules = "Sound|Launcher: Calculate|Launcher: Convert units|Launcher: Large Type|Launcher: Open URLs|Launcher: QR Codes|Launcher: Web Search|Network|Virtual Desktops|Terminal Overlay|Desktop Files|Remote Control"
 	}
 	moduleNames := fyne.CurrentApp().Preferences().StringWithFallback("modulenames", defaultModules)
 	if moduleNames != "" {
