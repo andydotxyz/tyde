@@ -43,6 +43,8 @@ func (m *module) Destroy() {
 // StatusAreaWidget puts the keyboard icon in the status area, next to the system
 // tray icons - the one place a touchscreen user can reach without a keyboard.
 func (m *module) StatusAreaWidget() fyne.CanvasObject {
-	return &widget.Button{Icon: wmTheme.KeyboardIcon, Importance: widget.LowImportance,
-		OnTapped: func() { m.panel.toggle() }}
+	return &widget.Button{
+		Icon: wmTheme.KeyboardIcon, Importance: widget.LowImportance,
+		OnTapped: func() { m.panel.toggle() },
+	}
 }

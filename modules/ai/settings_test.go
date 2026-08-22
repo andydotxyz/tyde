@@ -92,8 +92,11 @@ func TestDescribeProbe(t *testing.T) {
 		want string
 	}{
 		{"ready", probeResult{models: []string{"llama3.2:latest"}}, ""},
-		{"unreachable", probeResult{err: &url.Error{Op: "Get", URL: "http://localhost:11434/v1/models", Err: refused}},
-			refused.Error()},
+		{
+			"unreachable",
+			probeResult{err: &url.Error{Op: "Get", URL: "http://localhost:11434/v1/models", Err: refused}},
+			refused.Error(),
+		},
 		{"no models", probeResult{}, "No models loaded yet - pull 'llama3.2' on the server, or wait for its first-use download."},
 		{"other models", probeResult{models: []string{"gemma3:4b"}}, "'llama3.2' isn't available. The server offers: gemma3:4b"},
 	} {

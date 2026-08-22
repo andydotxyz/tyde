@@ -257,8 +257,10 @@ func (p *panel) build() {
 
 	p.flipBtn = &widget.Button{Importance: widget.LowImportance, OnTapped: p.flip}
 	p.updateFlipIcon()
-	closeBtn := &widget.Button{Icon: theme.CancelIcon(), Importance: widget.LowImportance,
-		OnTapped: p.hide}
+	closeBtn := &widget.Button{
+		Icon: theme.CancelIcon(), Importance: widget.LowImportance,
+		OnTapped: p.hide,
+	}
 	p.header = container.NewHBox(layout.NewSpacer(), p.flipBtn, closeBtn)
 
 	bg := canvas.NewRectangle(wmTheme.WidgetPanelBackground())

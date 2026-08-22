@@ -180,9 +180,11 @@ func screensFromOutputs(outputs []screenOutput) ([]*tyde.Screen, *tyde.Screen) {
 			continue
 		}
 
-		screen := &tyde.Screen{Name: out.name,
-			X: out.x, Y: out.y, Width: out.width, Height: out.height,
-			Scale: out.scale}
+		screen := &tyde.Screen{
+			Name: out.name,
+			X:    out.x, Y: out.y, Width: out.width, Height: out.height,
+			Scale: out.scale,
+		}
 		screens = insertInOrder(screens, screen)
 		if out.primary {
 			primary = screen

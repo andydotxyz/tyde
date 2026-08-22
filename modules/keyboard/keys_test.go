@@ -43,8 +43,10 @@ func TestRows_HaveTheKeysThatCannotBeTypedAnotherWay(t *testing.T) {
 		}
 	}
 
-	for _, sym := range []xproto.Keysym{symSpace, symBackSpace, symTab, symReturn,
-		symEscape, symLeft, symRight, symUp, symDown} {
+	for _, sym := range []xproto.Keysym{
+		symSpace, symBackSpace, symTab, symReturn,
+		symEscape, symLeft, symRight, symUp, symDown,
+	} {
 		assert.True(t, found[sym], "keysym %#x is not on the keyboard", sym)
 	}
 }

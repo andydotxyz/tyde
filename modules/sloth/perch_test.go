@@ -31,6 +31,7 @@ func (s *stackWM) Windows() []tyde.Window { return s.windows }
 func (s *stackWM) AddStackListener(l tyde.StackListener) {
 	s.listeners = append(s.listeners, l)
 }
+
 func (s *stackWM) RemoveStackListener(l tyde.StackListener) {
 	for i, cur := range s.listeners {
 		if cur == l {
