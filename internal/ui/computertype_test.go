@@ -53,13 +53,9 @@ func TestComputerTypeChoice(t *testing.T) {
 func computerButtons(t *testing.T, o fyne.CanvasObject) []*widget.Button {
 	t.Helper()
 
-	box, ok := o.(*fyne.Container)
+	grid, ok := o.(*fyne.Container)
 	if !ok {
-		t.Fatalf("expected a container, got %T", o)
-	}
-	grid, ok := box.Objects[1].(*fyne.Container)
-	if !ok {
-		t.Fatalf("expected a button grid, got %T", box.Objects[1])
+		t.Fatalf("expected a button grid, got %T", o)
 	}
 
 	var buttons []*widget.Button
