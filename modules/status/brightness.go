@@ -16,8 +16,11 @@ import (
 	wmtheme "fyshos.com/tyde/theme"
 )
 
+// BrightnessModuleName is the name of the screen brightness module.
+const BrightnessModuleName = "Brightness"
+
 var brightnessMeta = tyde.ModuleMetadata{
-	Name:        "Brightness",
+	Name:        BrightnessModuleName,
 	NewInstance: newBrightness,
 }
 

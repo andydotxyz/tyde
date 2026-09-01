@@ -65,6 +65,10 @@ func (e *embededWM) AddStackListener(tyde.StackListener) {
 	// no stack
 }
 
+func (e *embededWM) RemoveStackListener(tyde.StackListener) {
+	// no stack
+}
+
 func (e *embededWM) Blank() {
 	// no-op, we don't control screen brightness
 }

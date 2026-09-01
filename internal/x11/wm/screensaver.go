@@ -59,6 +59,121 @@ func isScreensaverName(name string) bool {
 	return name == saver.WindowTitle
 }
 
+// unclaimedScreen returns the first screen that no screensaver window covers yet.
+func unclaimedScreen(screens []*tyde.Screen, claimed map[xproto.Window]string) *tyde.Screen {
+	for _, screen := range screens {
+		taken := false
+		for _, name := range claimed {
+			if name == screen.Name {
+				taken = true
+				break
+			}
+		}
+		if !taken {
+			return screen
+		}
+	}
+
+	return nil
+}
+
+// saverScreen returns the screen a screensaver window covers, claiming the next
+// free one the first time we see this window.
+func (x *x11WM) saverScreen(win xproto.Window) *tyde.Screen {
+	desk := tyde.Instance()
+	if desk == nil {
+		return nil
+	}
+
+	screens := desk.Screens().Screens()
+	if name, ok := x.saverScreens[win]; ok {
+		for _, screen := range screens {
+			if screen.Name == name {
+				return screen
+			}
+		}
+	}
+
+	x.pruneSaverScreens()
+	screen := unclaimedScreen(screens, x.saverScreens)
+	if screen == nil { // more saver windows than screens, don't claim a second time
+		return desk.Screens().Primary()
+	}
+
+	if x.saverScreens == nil {
+		x.saverScreens = make(map[xproto.Window]string)
+	}
+	x.saverScreens[win] = screen.Name
+	return screen
+}
+
+// configureSaver sizes a screensaver window to exactly cover the screen it was assigned.
+func (x *x11WM) configureSaver(win xproto.Window, req *xproto.ConfigureRequestEvent) {
+	screen := x.saverScreen(win)
+	if screen == nil {
+		return
+	}
+
+	geom, err := xproto.GetGeometry(x.x.Conn(), xproto.Drawable(win)).Reply()
+	covering := err == nil && int(geom.X) == screen.X && int(geom.Y) == screen.Y &&
+		int(geom.Width) == screen.Width && int(geom.Height) == screen.Height
+	if !covering {
+		x.moveSaver(win, screen.Width, screen.Height)
+		return
+	}
+
+	if !requestedSize(req) || (int(req.Width) == screen.Width && int(req.Height) == screen.Height) {
+		return // it is where we want it and it asked for nothing else
+	}
+
+	// The window covers the screen but its toolkit still lays out for the size it
+	// asked for. Repeating our geometry would not change anything — resize by a pixel.
+	x.moveSaver(win, screen.Width-1, screen.Height-1)
+	x.moveSaver(win, screen.Width, screen.Height)
+}
+
+// pruneSaverScreens forgets the windows of a saver that has gone away.
+func (x *x11WM) pruneSaverScreens() {
+	for win := range x.saverScreens {
+		_, err := xproto.GetGeometry(x.x.Conn(), xproto.Drawable(win)).Reply()
+		if err != nil {
+			delete(x.saverScreens, win)
+		}
+	}
+}
+
+// requestedSize reports whether a configure request asked for a size at all,
+// rather than only moving or restacking the window.
+func requestedSize(req *xproto.ConfigureRequestEvent) bool {
+	if req == nil {
+		return false
+	}
+
+	return req.ValueMask&(xproto.ConfigWindowWidth|xproto.ConfigWindowHeight) != 0
+}
+
+// moveSaver puts a screensaver window at the top left of the screen it covers,
+// at the given size.
+func (x *x11WM) moveSaver(win xproto.Window, width, height int) {
+	screen := x.saverScreen(win)
+	if screen == nil {
+		return
+	}
+
+	xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowX|xproto.ConfigWindowY|
+		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
+		[]uint32{uint32(screen.X), uint32(screen.Y), uint32(width), uint32(height)})
+}
+
+// configureSavers re-applies the screen geometry to all screensaver windows,
+// for when the screen layout changed while the saver is showing.
+func (x *x11WM) configureSavers() {
+	x.pruneSaverScreens()
+	for win := range x.saverScreens {
+		x.configureSaver(win, nil)
+	}
+}
+
 var screenSaverActive bool
 
 func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
@@ -91,6 +206,11 @@ func (x *x11WM) ShowScreensaver(s *saver.ScreenSaver) {
 		}
 		if s.Label != "" {
 			params = append(params, "-label", s.Label)
+		}
+		if s.Suspending {
+			// It cannot see the sleep signal that brought us here, it is only
+			// starting up as that is sent, so tell it on the way in.
+			params = append(params, "-suspending")
 		}
 
 		go func() {

@@ -19,19 +19,43 @@ const (
 	pamDMFingerprint  = "/etc/pam.d/display_manager-fingerprint"
 )
 
-const pamFinFingerprintContent = `#%PAM-1.0
+// pamStack names the system PAM configuration each management group of the fingerprint
+// services defers to. Which files exist is distro specific and must be detected.
+type pamStack struct {
+	account  string
+	session  string
+	password string
+}
+
+// detectPAMStack picks the system stack to include, supporting arch and debian bases.
+func detectPAMStack() pamStack {
+	if _, err := os.Stat("/etc/pam.d/system-local-login"); err == nil {
+		return pamStack{"system-local-login", "system-local-login", "system-local-login"}
+	}
+	return pamStack{"common-account", "common-session", "common-password"}
+}
+
+// finFingerprintContent is the greeter service: it authenticates the finger and
+// then opens a full session, so it needs every management group.
+func finFingerprintContent(s pamStack) string {
+	return fmt.Sprintf(`#%%PAM-1.0
 
 auth       required     pam_fprintd.so
-account    include      system-local-login
-session    include      system-local-login
-password   include      system-local-login
-`
+account    include      %s
+session    include      %s
+password   include      %s
+`, s.account, s.session, s.password)
+}
 
-const pamDMFingerprintContent = `#%PAM-1.0
+// dmFingerprintContent is the screensaver service, which only ever unlocks an
+// existing session and so needs auth and account.
+func dmFingerprintContent(s pamStack) string {
+	return fmt.Sprintf(`#%%PAM-1.0
 
 auth       required     pam_fprintd.so
-account    include      system-local-login
-`
+account    include      %s
+`, s.account)
+}
 
 // fingerprintLoginEnabled reports whether the fingerprint PAM services are in
 // place, i.e. whether login / unlock will accept a fingerprint.
@@ -63,14 +87,15 @@ func pamFprintdAvailable() bool {
 func setFingerprintLogin(enable bool) error {
 	var script string
 	if enable {
+		stack := detectPAMStack()
 		script = fmt.Sprintf(`set -e
 cat > %s <<'EOF'
 %sEOF
 cat > %s <<'EOF'
 %sEOF
 chmod 644 %s %s`,
-			pamFinFingerprint, pamFinFingerprintContent,
-			pamDMFingerprint, pamDMFingerprintContent,
+			pamFinFingerprint, finFingerprintContent(stack),
+			pamDMFingerprint, dmFingerprintContent(stack),
 			pamFinFingerprint, pamDMFingerprint)
 	} else {
 		script = fmt.Sprintf("rm -f %s %s", pamFinFingerprint, pamDMFingerprint)

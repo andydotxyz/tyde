@@ -123,6 +123,45 @@ func (s *Service) ListModules(_ string, reply *[]string) error {
 	return nil
 }
 
+// moduleAction runs a command that an optional module provides.
+// The loaded modules are asked in turn and the first one offering the
+// action performs it - or the user is told which module they need to enable.
+func moduleAction(what string, find func(tyde.Module) func()) error {
+	desk := tyde.Instance()
+	if desk == nil {
+		return errors.New("desktop not running")
+	}
+
+	for _, m := range desk.Modules() {
+		if action := find(m); action != nil {
+			fyne.Do(action)
+			return nil
+		}
+	}
+	return fmt.Errorf("the %s module is not enabled", what)
+}
+
+// showAI opens the AI assistant's chat window with no prompt set - what the
+// "Fathom" launcher does.
+func showAI() error {
+	return moduleAction("AI assistant", func(m tyde.Module) func() {
+		if chat, ok := m.(interface{ ShowChat() }); ok {
+			return chat.ShowChat
+		}
+		return nil
+	})
+}
+
+// showEmoji opens the emoji picker - what the "Emoji Picker" launcher does.
+func showEmoji() error {
+	return moduleAction("emoji picker", func(m tyde.Module) func() {
+		if picker, ok := m.(interface{ ShowPicker() }); ok {
+			return picker.ShowPicker
+		}
+		return nil
+	})
+}
+
 func newRPC() tyde.Module {
 	sock := SocketPath()
 	os.Remove(sock) // clean up stale socket
@@ -136,6 +175,8 @@ func newRPC() tyde.Module {
 			}
 			return nil
 		},
+		"fathom": showAI,
+		"emoji":  showEmoji,
 		"restart": func() error {
 			if os.Getenv("FYNE_DESK_RUNNER") != "" {
 				os.Exit(5)

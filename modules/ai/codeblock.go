@@ -22,9 +22,15 @@ func (s *copyableCodeSegment) Visual() fyne.CanvasObject {
 }
 
 // Update refreshes the panel from the segment's current text - used as the
-// streaming reply grows the block in place.
+// streaming reply grows the block in place. The object handed back by Fyne can
+// be one created for a different segment type at this position (the reply is
+// re-parsed on every streamed chunk, so a slot can change type between paints);
+// in that case skip the in-place update rather than crash on a bad type
+// assertion - Fyne rebuilds it from Visual on the next cycle.
 func (s *copyableCodeSegment) Update(o fyne.CanvasObject) {
-	o.(*copyableCodeBlock).update(&s.CodeBlockSegment)
+	if cb, ok := o.(*copyableCodeBlock); ok {
+		cb.update(&s.CodeBlockSegment)
+	}
 }
 
 // copyableCodeBlock stacks Fyne's own code-block visual under a small copy

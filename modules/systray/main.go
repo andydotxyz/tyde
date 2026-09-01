@@ -328,6 +328,12 @@ func (t *tray) parseMenuItem(id int32, menu *menu.Dbusmenu, in interface{}, pos 
 			}
 			closer()
 		}
+
+		if s, ok := data["shortcut"]; ok {
+			if short := parseShortcut(ret.Label, s); short != nil {
+				ret.Shortcut = short
+			}
+		}
 	}
 
 	if i, ok := data["icon-data"]; ok {

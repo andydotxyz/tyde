@@ -4,6 +4,7 @@ import (
 	"image"
 	"math/rand"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 
 	"fyshos.com/tyde"
@@ -86,6 +87,8 @@ type sheep struct {
 	runTimer   float32     // seconds left in the current sprint
 	doomed     bool        // this fall will end in a splat
 	win        tyde.Window // window the sheep currently stands on (nil = floor/airborne => drawn on top)
+	// Where win was at the last tick.
+	lastWinPos fyne.Position
 
 	img   *canvas.Image
 	daisy *canvas.Image
@@ -94,8 +97,50 @@ type sheep struct {
 func (s *sheep) centerX() float32 { return s.x + spriteSize/2 }
 func (s *sheep) feet() float32    { return s.y + spriteSize }
 
+// setSupport records the window the sheep is standing on (nil for the floor or
+// mid-air), along with where that window is right now - see rideWindow.
+func (s *sheep) setSupport(win tyde.Window) {
+	s.win = win
+	if win == nil {
+		s.lastWinPos = fyne.Position{}
+		return
+	}
+	s.lastWinPos = win.Position()
+}
+
+// rideWindow carries the sheep along with the window it is standing on, so that
+// dragging a window takes its passengers with it instead of sliding out from
+// under them.
+func (s *sheep) rideWindow() {
+	if s.win == nil {
+		return
+	}
+	pos := s.win.Position()
+	if pos == s.lastWinPos {
+		return
+	}
+
+	s.x += pos.X - s.lastWinPos.X
+	s.y += pos.Y - s.lastWinPos.Y
+	s.daisyX += pos.X - s.lastWinPos.X
+	s.daisyY += pos.Y - s.lastWinPos.Y
+	s.lastWinPos = pos
+}
+
+// drawPos converts a world position into the coordinates its accessory is drawn
+// in: relative to the window the sheep stands on, or the screen when it has none.
+// It offsets by the position rideWindow last saw, so a window moved mid-frame
+// doesn't shunt the sheep off it until the physics catch up on the next tick.
+func (s *sheep) drawPos(x, y float32) fyne.Position {
+	if s.win == nil {
+		return fyne.NewPos(x, y)
+	}
+	return fyne.NewPos(x-s.lastWinPos.X, y-s.lastWinPos.Y)
+}
+
 // advance steps the sheep's logic forward by dt seconds within world w.
 func (s *sheep) advance(dt float32, w *world, rng *rand.Rand) {
+	s.rideWindow()
 	if s.hopCD > 0 {
 		s.hopCD -= dt
 	}
@@ -170,7 +215,7 @@ func (s *sheep) advanceAir(dt float32, w *world, rng *rand.Rand) {
 		if l := w.landing(s.centerX(), prevFeet, s.feet()); l != nil {
 			s.y = l.y - spriteSize
 			s.vx, s.vy = 0, 0
-			s.win = l.win // draw at this surface's z-level from now on
+			s.setSupport(l.win) // draw at this surface's z-level from now on
 			if s.doomed {
 				s.splat()
 			} else {
@@ -282,7 +327,7 @@ func (s *sheep) advanceWalk(dt float32, w *world, rng *rand.Rand) {
 		}
 	}
 
-	s.win = sup.win
+	s.setSupport(sup.win)
 	s.y = sup.y - spriteSize
 	speed := float32(walkSpeed)
 	if s.running {
@@ -402,7 +447,7 @@ func (s *sheep) launchFromTop(w *world, rng *rand.Rand, canDie bool) {
 	s.vx, s.vy = 0, 0
 	s.facing = 0
 	s.state = stateFalling
-	s.win = nil // airborne => drawn on top
+	s.setSupport(nil) // airborne => drawn on top
 	s.frame, s.frameTime = 0, 0
 	s.doomed = canDie && rng.Float32() < deathOdds
 }

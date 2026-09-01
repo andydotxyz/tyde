@@ -67,6 +67,7 @@ type x11WM struct {
 	menuSize       fyne.Size
 	menuPos        fyne.Position
 	transientMap   map[xproto.Window][]xproto.Window
+	saverScreens   map[xproto.Window]string
 	oldRoot        *xgraphics.Image
 }
 
@@ -95,6 +96,7 @@ const (
 	keyCodePrintScreen = 107
 	keyCodeSuper       = 133
 	keyCodeCalculator  = 148
+	keyCodeAssistant   = 201 // F23, sent by the assistant ("Copilot") key
 
 	keyCodeEnter = 108
 	keyCodeLeft  = 113
@@ -153,7 +155,7 @@ func NewX11WindowManager(a fyne.App) (tyde.WindowManager, error) {
 	if err != nil {
 		fyne.LogError("", err)
 	}
-	err = ewmh.WmNameSet(mgr.x, mgr.x.Dummy(), ui.RootWindowName)
+	err = ewmh.WmNameSet(mgr.x, mgr.x.Dummy(), "Tyde")
 	if err != nil {
 		fyne.LogError("", err)
 	}
@@ -186,6 +188,17 @@ func NewX11WindowManager(a fyne.App) (tyde.WindowManager, error) {
 
 func (x *x11WM) AddStackListener(l tyde.StackListener) {
 	x.stack.listeners = append(x.stack.listeners, l)
+}
+
+func (x *x11WM) RemoveStackListener(l tyde.StackListener) {
+	for i, cur := range x.stack.listeners {
+		if cur != l {
+			continue
+		}
+
+		x.stack.listeners = append(x.stack.listeners[:i], x.stack.listeners[i+1:]...)
+		return
+	}
 }
 
 func (x *x11WM) Blank() {
@@ -251,8 +264,8 @@ func (x *x11WM) Run() {
 // updated. Focus and the desktop button grab only change on the inactive<->active edge:
 // the first overlay claims keyboard focus, and a passive button grab on the desktop
 // windows is installed so later clicks on the desktop/panels/overlay re-focus it (see
-// handleButtonPress). Re-grabbing focus on every call would steal it back from a window
-// the user selected while an overlay such as the terminal stays open.
+// handleButtonPress). When the last overlay closes the focus that was taken is handed
+// back to the top window.
 func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
 	// Remember the regions so a frame that re-shapes does not wipe out overlays.
 	x.overlayRegions = regions
@@ -270,7 +283,43 @@ func (x *x11WM) SetOverlayActive(active bool, regions []image.Rectangle) {
 		if primary := x.RootID(); primary != 0 {
 			xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot, primary, xproto.TimeCurrentTime)
 		}
+		return
 	}
+
+	x.focusTopWindow()
+}
+
+// focusTopWindow returns keyboard focus to the topmost window that can take it.
+// If no window qualifies focus is left where it is, on the desktop itself.
+func (x *x11WM) focusTopWindow() {
+	win := x.topFocusable()
+	if win == nil {
+		return
+	}
+
+	win.Focus()
+	// Focus() sends an async client message that may be overridden, so also
+	// set the X input focus directly (as setupWindow does for new windows).
+	if xwin, ok := win.(x11.XWin); ok {
+		xproto.SetInputFocus(x.x.Conn(), xproto.InputFocusPointerRoot,
+			xwin.ChildID(), xproto.TimeCurrentTime)
+	}
+}
+
+// topFocusable returns the topmost window that should be given keyboard focus,
+// skipping iconified windows and any that are not on the current desktop.
+func (x *x11WM) topFocusable() tyde.Window {
+	current := tyde.Instance().Desktop()
+	for i := len(x.clients) - 1; i >= 0; i-- {
+		win := x.clients[i]
+		if win.Iconic() || (win.Desktop() != current && !win.Pinned()) {
+			continue
+		}
+
+		return win
+	}
+
+	return nil
 }
 
 // grabRootButtons installs (or removes) a passive sync grab of the primary mouse button
@@ -502,35 +551,53 @@ func (x *x11WM) keyNameToCode(n fyne.KeyName) xproto.Keycode {
 		return keyCodeBrightMore
 	case tyde.KeyCalculator:
 		return keyCodeCalculator
+	case tyde.KeyAssistant:
+		// Most keyboard maps have no keysym for this key, fall back to F23.
+		if code := x.codeForKeysym("F23"); code != 0 {
+			return code
+		}
+		return keyCodeAssistant
 	case tyde.KeyVolumeMute:
 		return keyCodeVolumeMute
 	case tyde.KeyVolumeDown:
 		return keyCodeVolumeLess
 	case tyde.KeyVolumeUp:
 		return keyCodeVolumeMore
-	case fyne.KeyF9:
-		codes := keybind.StrToKeycodes(x.x, "F9")
-		return codes[0]
-	case fyne.KeyF10:
-		codes := keybind.StrToKeycodes(x.x, "F10")
-		return codes[0]
-	case fyne.KeyF11:
-		codes := keybind.StrToKeycodes(x.x, "F11")
-		return codes[0]
-	case fyne.KeyL:
-		codes := keybind.StrToKeycodes(x.x, "L")
-		return codes[0]
 	}
 
-	for i := 0; i <= 9; i++ {
-		id := strconv.Itoa(i)
-		if n == fyne.KeyName(id) {
-			codes := keybind.StrToKeycodes(x.x, id)
-			return codes[0]
-		}
+	// Anything else - letters, digits, function keys, punctuation - is looked up by name.
+	name := string(n)
+	if keysym, ok := keysymNames[n]; ok {
+		name = keysym
 	}
+	return x.codeForKeysym(name)
+}
 
-	return 0
+// keysymNames maps the Fyne keys whose names are the character itself onto the
+// X keysym names they are known by, which is what the keysym table can look up.
+var keysymNames = map[fyne.KeyName]string{
+	fyne.KeyApostrophe:   "apostrophe",
+	fyne.KeyAsterisk:     "asterisk",
+	fyne.KeyBackslash:    "backslash",
+	fyne.KeyComma:        "comma",
+	fyne.KeyEqual:        "equal",
+	fyne.KeyLeftBracket:  "bracketleft",
+	fyne.KeyMinus:        "minus",
+	fyne.KeyPeriod:       "period",
+	fyne.KeyPlus:         "plus",
+	fyne.KeyRightBracket: "bracketright",
+	fyne.KeySemicolon:    "semicolon",
+	fyne.KeySlash:        "slash",
+}
+
+// codeForKeysym resolves a keysym name to the keycode carrying it, or 0 when
+// this keyboard has no such key.
+func (x *x11WM) codeForKeysym(name string) xproto.Keycode {
+	codes := keybind.StrToKeycodes(x.x, name)
+	if len(codes) == 0 {
+		return 0
+	}
+	return codes[0]
 }
 
 func (x *x11WM) modifierToKeyMask(m fyne.KeyModifier) uint16 {
@@ -754,12 +821,23 @@ func (x *x11WM) configureWindow(win xproto.Window, ev xproto.ConfigureRequestEve
 		x.configureRoots() // we added a root window, so reconfigure
 		return
 	}
+	if isScreensaverName(name) {
+		x.configureSaver(win, &ev) // the saver covers a screen, it does not get to size itself
+		return
+	}
 	xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowX|xproto.ConfigWindowY|
 		xproto.ConfigWindowWidth|xproto.ConfigWindowHeight,
 		[]uint32{uint32(xcoord), uint32(ycoord), uint32(width), uint32(height)})
 }
 
 func (x *x11WM) destroyWindow(win xproto.Window) {
+	for name, rootID := range x.rootIDs {
+		if rootID == win {
+			delete(x.rootIDs, name)
+			return
+		}
+	}
+
 	c := x.clientForWin(win)
 	if c == nil {
 		// check if it was recently closed
@@ -1037,6 +1115,7 @@ func (x *x11WM) showWindow(win xproto.Window, parent xproto.Window) {
 	// A screensaver must cover the whole screen, panels included. Detect it here
 	// — by the name the saver sets before mapping.
 	if isScreensaverName(name) {
+		x.configureSaver(win, nil) // full size before it is mapped, so it never appears small
 		xproto.MapWindow(x.x.Conn(), win)
 		xproto.ConfigureWindow(x.x.Conn(), win, xproto.ConfigWindowStackMode,
 			[]uint32{uint32(xproto.StackModeAbove)})

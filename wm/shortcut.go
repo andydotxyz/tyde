@@ -8,25 +8,28 @@ import (
 	"fyshos.com/tyde"
 )
 
+// shortcutEntry pairs a registered shortcut with the handler to run for it.
+type shortcutEntry struct {
+	shortcut *tyde.Shortcut
+	handler  func()
+}
+
 // ShortcutHandler is a simple implementation for tracking registered shortcuts
 type ShortcutHandler struct {
 	mu    sync.RWMutex
-	entry map[*tyde.Shortcut]func()
+	entry map[string]shortcutEntry
 }
 
 // TypedShortcut handle the registered shortcut
 func (sh *ShortcutHandler) TypedShortcut(shortcut fyne.Shortcut) {
-	var matched func()
-	for s, f := range sh.entry {
-		if s.ShortcutName() == shortcut.ShortcutName() {
-			matched = f
-		}
-	}
-	if matched == nil {
+	sh.mu.RLock()
+	entry, ok := sh.entry[shortcut.ShortcutName()]
+	sh.mu.RUnlock()
+	if !ok {
 		return
 	}
 
-	matched()
+	entry.handler()
 }
 
 // AddShortcut register an handler to be executed when the shortcut action is triggered
@@ -34,19 +37,19 @@ func (sh *ShortcutHandler) AddShortcut(shortcut *tyde.Shortcut, handler func()) 
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
 	if sh.entry == nil {
-		sh.entry = make(map[*tyde.Shortcut]func())
+		sh.entry = make(map[string]shortcutEntry)
 	}
-	sh.entry[shortcut] = handler
+	sh.entry[shortcut.ShortcutName()] = shortcutEntry{shortcut: shortcut, handler: handler}
 }
 
 // Shortcuts returns the list of all registered shortcuts
 func (sh *ShortcutHandler) Shortcuts() []*tyde.Shortcut {
-	sh.mu.Lock()
-	defer sh.mu.Unlock()
+	sh.mu.RLock()
+	defer sh.mu.RUnlock()
 
-	var shorts []*tyde.Shortcut
-	for s := range sh.entry {
-		shorts = append(shorts, s)
+	shorts := make([]*tyde.Shortcut, 0, len(sh.entry))
+	for _, entry := range sh.entry {
+		shorts = append(shorts, entry.shortcut)
 	}
 	return shorts
 }

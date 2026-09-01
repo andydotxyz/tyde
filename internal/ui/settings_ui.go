@@ -47,7 +47,6 @@ type settingsUI struct {
 	win      fyne.Window
 	panel    *widgetPanel // owning panel, so the Account tab can refresh its avatar
 
-	fyneSettings  *settings.Settings
 	launcherIcons []string
 
 	netConn *dbus.Conn    // system bus backing the Network tab, closed with the window
@@ -123,13 +122,14 @@ func (d *settingsUI) loadAppearanceScreen() fyne.CanvasObject {
 		themeList.Add(themeButton)
 	}
 
+	computer := newComputerTypeChoice(d.settings.ComputerType(), d.settings.setComputerType)
 	time := container.NewBorder(nil, nil, clockLabel, clockFormat)
 	lay := container.NewBorder(nil, nil, layoutLabel, narrowWidget)
 	border := container.NewBorder(nil, nil, borderButtonLabel, borderButton)
 	saver := container.NewBorder(nil, nil, saverLabel, saverType)
 	saverPref := container.NewGridWithColumns(2, layout.NewSpacer(),
 		container.NewBorder(nil, nil, widget.NewLabel("Label:"), saverClock, saverText))
-	return container.NewVBox(time, lay, border, saver, saverPref)
+	return container.NewVBox(newThemeModeChoice(), computer, time, lay, border, saver, saverPref)
 }
 
 func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
@@ -179,20 +179,14 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 	screenColor := canvas.NewRectangle(ParseHexColor(d.settings.BackgroundColor()))
 	preview := container.NewCenter(monitorSurround(screen, screenColor))
 
-	// The default wallpaper used by the desktop when no image is configured.
 	set := fyne.CurrentApp().Settings()
-	defaultBg, _ := backgrounds.Default().Load(set.Theme(), set.ThemeVariant()).(*canvas.Image)
-
 	fillSelect := widget.NewSelect(backgroundFillModes, nil)
 
 	refreshPreview := func() {
 		if bgPath.Text == "" {
-			// No image set: mirror the desktop's default wallpaper, which
-			// always covers the screen and ignores the fill/colour options.
+			// The default wallpaper used by the desktop when no image is configured.
 			screen.File = ""
-			if defaultBg != nil {
-				screen.Resource = defaultBg.Resource
-			}
+			screen.Resource = backgrounds.Default().Load(set.Theme(), set.ThemeVariant()).(*canvas.Image).Resource
 			screen.FillMode = canvas.ImageFillCover
 		} else {
 			screen.Resource = nil
@@ -202,9 +196,16 @@ func (d *settingsUI) loadBackgroundScreen() fyne.CanvasObject {
 		screen.Refresh()
 	}
 
-	fillSelect.OnChanged = func(string) { refreshPreview() }
+	fillSelect.OnChanged = func(string) {
+		refreshPreview()
+	}
 	fillSelect.SetSelected(d.settings.BackgroundFill())
-	bgPath.OnChanged = func(string) { refreshPreview() }
+	bgPath.OnChanged = func(string) {
+		refreshPreview()
+	}
+	set.AddListener(func(s fyne.Settings) {
+		refreshPreview()
+	})
 	refreshPreview() // initialise from the current setting
 
 	// A small swatch showing the currently selected background colour.
@@ -416,7 +417,9 @@ func (d *settingsUI) loadModulesScreen() fyne.CanvasObject {
 // loadAIScreen builds the AI assistant setup: an enable toggle (wired into the
 // module enable/disable machinery) above the module's own provider/token panel.
 func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
-	enable := widget.NewCheck("Enable AI Assistant", func(on bool) {
+	enable := widget.NewCheck("Enable AI Assistant", nil)
+	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+	enable.OnChanged = func(on bool) {
 		names := d.settings.ModuleNames()
 		var out []string
 		for _, n := range names {
@@ -428,8 +431,7 @@ func (d *settingsUI) loadAIScreen() fyne.CanvasObject {
 			out = append(out, ai.ModuleName)
 		}
 		d.settings.setModuleNames(out)
-	})
-	enable.SetChecked(isModuleEnabled(ai.ModuleName, d.settings))
+	}
 
 	head := container.NewVBox(enable, widget.NewSeparator())
 	return container.NewBorder(head, nil, nil, nil, ai.SettingsContent())
@@ -490,7 +492,7 @@ func (d *settingsUI) loadThemeScreen() fyne.CanvasObject {
 	var themeList []string
 
 	embedList, _ := bundledThemes.ReadDir("themes")
-	currentTheme := fyne.CurrentApp().Preferences().StringWithFallback("currentTheme", "default")
+	currentTheme := fyne.CurrentApp().Preferences().StringWithFallback("currentTheme", "system")
 	for _, dir := range embedList {
 		themeList = append(themeList, dir.Name())
 	}
@@ -617,7 +619,7 @@ func (w *widgetPanel) showSettings(panel string) {
 
 	groups := []settingsGroup{
 		{title: "Appearance", panels: []*settingsPanel{
-			{title: "Appearance", icon: ui.fyneSettings.AppearanceIcon(), build: ui.loadAppearanceScreen},
+			{title: "Appearance", icon: (&settings.Settings{}).AppearanceIcon(), build: ui.loadAppearanceScreen},
 			{title: "Background", icon: wmtheme.WallpaperIcon, build: ui.loadBackgroundScreen},
 			{title: "Theme", icon: theme.ColorPaletteIcon(), build: ui.loadThemeScreen},
 		}},

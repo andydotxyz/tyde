@@ -49,6 +49,11 @@ func (w *Window) Focus() {
 	w.focused = true
 }
 
+// Unfocus is a test utility to take input focus away from this window
+func (w *Window) Unfocus() {
+	w.focused = false
+}
+
 // Fullscreen simulates this window becoming full screen
 func (w *Window) Fullscreen() {
 	w.fullscreen = true
@@ -79,7 +84,7 @@ func (w *Window) Maximize() {
 
 // Maximized returns true if this window has been made maximized
 func (w *Window) Maximized() bool {
-	return false
+	return w.maximized
 }
 
 // Move the window, does nothing in test windows
@@ -100,16 +105,18 @@ func (w *Window) Pinned() bool {
 	return w.pinned
 }
 
-// Position returns 0, 0 for test windows
+// Position returns the current position.
 func (w *Window) Position() fyne.Position {
-	return fyne.NewPos(0, 0)
+	return fyne.NewPos(float32(w.x), float32(w.y))
 }
 
 // Resize the window, does nothing in test windows
 func (w *Window) Resize(_ fyne.Size) {}
 
-// Size returns 0x0 for test windows
-func (w *Window) Size() fyne.Size { return fyne.Size{} }
+// Size returns the current size.
+func (w *Window) Size() fyne.Size {
+	return fyne.NewSize(float32(w.width), float32(w.height))
+}
 
 // Properties obtains the window properties currently set
 func (w *Window) Properties() tyde.WindowProperties {

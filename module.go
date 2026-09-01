@@ -57,10 +57,9 @@ type OverlayAreaModule interface {
 	OverlayAreaWidget() fyne.CanvasObject
 }
 
-// WindowAccessory is a decorative canvas object drawn at the z-level of a
-// particular window, so it is occluded by windows stacked above that one. A nil
-// Window means the object is drawn above all windows. The module owns the object
-// (it positions and animates it); the compositor only manages its stacking.
+// WindowAccessory is a decorative canvas object drawn with a particular window:
+// at the object's own position relative to that window's top left corner, and at
+// the window's z-level so windows stacked above it occlude the decoration.
 type WindowAccessory struct {
 	Object fyne.CanvasObject
 	Window Window
@@ -69,8 +68,9 @@ type WindowAccessory struct {
 // WindowAccessoryModule contributes WindowAccessory items that the compositor
 // interleaves among the window images - e.g. a desktop pet that walks along a
 // window's title bar and disappears behind windows above it. Call
-// Desktop.RefreshWindowAccessories when the set or stacking of accessories
-// changes so the compositor re-assembles them.
+// Desktop.RefreshWindowAccessories when the set, stacking or offsets of the
+// accessories change so the compositor re-assembles them; following a window as
+// it moves is handled for you.
 type WindowAccessoryModule interface {
 	Module
 	WindowAccessories() []WindowAccessory

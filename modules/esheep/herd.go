@@ -194,8 +194,9 @@ func (h *herd) detectHops() {
 
 // render reconciles each sheep's logical state with its canvas objects. Must be
 // called on the main goroutine (it is, via fyne.Do in loop). The compositor owns
-// parenting of the images; here we only create/position/animate them. Membership
-// (which images are drawn, and at what z-level) is reported by WindowAccessories.
+// parenting of the images; here we only create/position/animate them. Positions
+// are relative to the window a sheep stands on. Membership (which images are drawn,
+// and at what z-level) is reported by WindowAccessories.
 func (h *herd) updateImages() {
 	for _, s := range h.sheep {
 		frames := s.currentFrames(h.poses)
@@ -212,7 +213,7 @@ func (h *herd) updateImages() {
 			s.img.Image = img
 			s.img.Refresh()
 		}
-		s.img.Move(fyne.NewPos(s.x, s.y))
+		s.img.Move(s.drawPos(s.x, s.y))
 
 		h.updateDaisy(s)
 	}
@@ -235,5 +236,5 @@ func (h *herd) updateDaisy(s *sheep) {
 		s.daisy.Image = img
 		s.daisy.Refresh()
 	}
-	s.daisy.Move(fyne.NewPos(s.daisyX, s.daisyY))
+	s.daisy.Move(s.drawPos(s.daisyX, s.daisyY))
 }

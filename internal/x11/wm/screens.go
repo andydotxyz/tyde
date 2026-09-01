@@ -117,29 +117,84 @@ func getScale(widthPx, widthMm uint16) float32 {
 	return scale
 }
 
-func (xsp *x11ScreensProvider) insertInOrder(tmpScreens []*tyde.Screen, outputInfo *randr.GetOutputInfoReply, crtcInfo *randr.GetCrtcInfoReply) ([]*tyde.Screen, int) {
+// screenOutput is the information a connected output contributes to the screen
+// layout (an abstraction over the randr types.
+type screenOutput struct {
+	name                string
+	x, y, width, height int
+	scale               float32
+	primary             bool
+}
+
+func insertInOrder(screens []*tyde.Screen, newScreen *tyde.Screen) []*tyde.Screen {
 	insertIndex := -1
-	for i, screen := range tmpScreens {
-		if screen.X >= int(crtcInfo.X) && screen.Y >= int(crtcInfo.Y) {
+	for i, screen := range screens {
+		if screen.X >= newScreen.X && screen.Y >= newScreen.Y {
 			insertIndex = i
 			break
 		}
 	}
 
-	newScreen := &tyde.Screen{
-		Name: string(outputInfo.Name),
-		X:    int(crtcInfo.X), Y: int(crtcInfo.Y), Width: int(crtcInfo.Width), Height: int(crtcInfo.Height),
-		Scale: getScale(crtcInfo.Width, uint16(outputInfo.MmWidth)),
-	}
 	if insertIndex == -1 {
-		tmpScreens = append(tmpScreens, newScreen)
-		insertIndex = len(tmpScreens) - 1
-	} else {
-		tmpScreens = append(tmpScreens, nil)
-		copy(tmpScreens[insertIndex+1:], tmpScreens[insertIndex:])
-		tmpScreens[insertIndex] = newScreen
+		return append(screens, newScreen)
 	}
-	return tmpScreens, insertIndex
+
+	screens = append(screens, nil)
+	copy(screens[insertIndex+1:], screens[insertIndex:])
+	screens[insertIndex] = newScreen
+	return screens
+}
+
+// screenForOutput returns the screen an output joins rather than adds to, which
+// is one starting at the same place - two outputs showing the same corner of the
+// desktop are mirroring each other.
+func screenForOutput(screens []*tyde.Screen, out screenOutput) *tyde.Screen {
+	for _, screen := range screens {
+		if screen.X == out.x && screen.Y == out.y {
+			return screen
+		}
+	}
+
+	return nil
+}
+
+// screensFromOutputs works out the logical screens of the desktop from the
+// connected outputs, and which of them is primary.
+//
+// Mirrored outputs make up a single screen. The screen also takes the identity
+// of the primary output of its group.
+func screensFromOutputs(outputs []screenOutput) ([]*tyde.Screen, *tyde.Screen) {
+	var screens []*tyde.Screen
+	var primary *tyde.Screen
+	for _, out := range outputs {
+		if mirrored := screenForOutput(screens, out); mirrored != nil {
+			// The desktop covers the largest of the mirrored modes, as that is
+			// what the X screen was sized to hold.
+			mirrored.Width = max(mirrored.Width, out.width)
+			mirrored.Height = max(mirrored.Height, out.height)
+			if out.primary {
+				mirrored.Name = out.name
+				mirrored.Scale = out.scale
+				primary = mirrored
+			}
+			continue
+		}
+
+		screen := &tyde.Screen{
+			Name: out.name,
+			X:    out.x, Y: out.y, Width: out.width, Height: out.height,
+			Scale: out.scale,
+		}
+		screens = insertInOrder(screens, screen)
+		if out.primary {
+			primary = screen
+		}
+	}
+
+	if primary == nil && len(screens) > 0 {
+		primary = screens[0]
+	}
+	return screens, primary
 }
 
 func (xsp *x11ScreensProvider) setupScreens() {
@@ -156,8 +211,8 @@ func (xsp *x11ScreensProvider) setupScreens() {
 	if err == nil {
 		primaryInfo, _ = randr.GetOutputInfo(xsp.x.x.Conn(), primary.Output, 0).Reply()
 	}
-	primaryFound := false
-	var tmpScreens []*tyde.Screen
+
+	var outputs []screenOutput
 	for _, output := range resources.Outputs {
 		outputInfo, err := randr.GetOutputInfo(xsp.x.x.Conn(), output, 0).Reply()
 		if err != nil {
@@ -172,21 +227,25 @@ func (xsp *x11ScreensProvider) setupScreens() {
 			fyne.LogError("Could not get randr crtcs", err)
 			continue
 		}
-		insertIndex := 0
-		tmpScreens, insertIndex = xsp.insertInOrder(tmpScreens, outputInfo, crtcInfo)
-		if primaryInfo != nil {
-			if string(primaryInfo.Name) == string(outputInfo.Name) {
-				primaryFound = true
-				xsp.primary = tmpScreens[insertIndex]
-				xsp.active = tmpScreens[insertIndex]
-			}
-		}
+
+		outputs = append(outputs, screenOutput{
+			name: string(outputInfo.Name),
+			x:    int(crtcInfo.X), y: int(crtcInfo.Y),
+			width: int(crtcInfo.Width), height: int(crtcInfo.Height),
+			scale:   getScale(crtcInfo.Width, uint16(outputInfo.MmWidth)),
+			primary: primaryInfo != nil && string(primaryInfo.Name) == string(outputInfo.Name),
+		})
 	}
-	if !primaryFound {
-		xsp.primary = tmpScreens[0]
-		xsp.active = tmpScreens[0]
+
+	screens, primaryScreen := screensFromOutputs(outputs)
+	if len(screens) == 0 { // nothing is switched on, fall back to the X screen size
+		xsp.setupSingleScreen()
+		return
 	}
-	xsp.screens = tmpScreens
+
+	xsp.screens = screens
+	xsp.primary = primaryScreen
+	xsp.active = primaryScreen
 }
 
 func (xsp *x11ScreensProvider) setupSingleScreen() {

@@ -19,12 +19,10 @@ var desksMeta = tyde.ModuleMetadata{
 }
 
 type desktops struct {
-	current int
-	gui     *pager
+	gui *pager
 }
 
-func (d *desktops) DesktopChangeNotify(id int) {
-	d.current = id
+func (d *desktops) DesktopChangeNotify(_ int) {
 	d.gui.refresh()
 }
 
@@ -50,19 +48,22 @@ func (d *desktops) Shortcuts() map[*tyde.Shortcut]func() {
 	}
 
 	mapping[&tyde.Shortcut{Name: "Switch to Previous Desktop", KeyName: fyne.KeyUp, Modifier: tyde.UserModifier}] = func() {
-		if d.current == 0 {
+		current := tyde.Instance().Desktop()
+		if current == 0 {
 			return
 		}
-		d.setDesktop(d.current - 1)
+		d.setDesktop(current - 1)
 	}
 	mapping[&tyde.Shortcut{Name: "Switch to Next Desktop", KeyName: fyne.KeyDown, Modifier: tyde.UserModifier}] = func() {
-		if d.current == deskCount-1 {
+		current := tyde.Instance().Desktop()
+		if current == deskCount-1 {
 			return
 		}
-		d.setDesktop(d.current + 1)
+		d.setDesktop(current + 1)
 	}
 	mapping[&tyde.Shortcut{Name: "Move Window to Previous Desktop", KeyName: fyne.KeyUp, Modifier: tyde.UserModifier | fyne.KeyModifierShift}] = func() {
-		if d.current == 0 {
+		current := tyde.Instance().Desktop()
+		if current == 0 {
 			return
 		}
 
@@ -71,10 +72,11 @@ func (d *desktops) Shortcuts() map[*tyde.Shortcut]func() {
 		}
 
 		w := tyde.Instance().WindowManager().Windows()[0]
-		w.SetDesktop(d.current - 1)
+		w.SetDesktop(current - 1)
 	}
 	mapping[&tyde.Shortcut{Name: "Move Window to Next Desktop", KeyName: fyne.KeyDown, Modifier: tyde.UserModifier | fyne.KeyModifierShift}] = func() {
-		if d.current == deskCount-1 {
+		current := tyde.Instance().Desktop()
+		if current == deskCount-1 {
 			return
 		}
 
@@ -83,7 +85,7 @@ func (d *desktops) Shortcuts() map[*tyde.Shortcut]func() {
 		}
 
 		w := tyde.Instance().WindowManager().Windows()[0]
-		w.SetDesktop(d.current + 1)
+		w.SetDesktop(current + 1)
 	}
 	return mapping
 }
@@ -99,7 +101,6 @@ func (d *desktops) StatusAreaWidget() fyne.CanvasObject {
 }
 
 func (d *desktops) setDesktop(id int) {
-	d.current = id
 	tyde.Instance().SetDesktop(id)
 	d.gui.refreshButtons()
 }

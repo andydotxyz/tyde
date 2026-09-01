@@ -19,6 +19,9 @@ const (
 	KeyBrightnessUp fyne.KeyName = "BrightnessUp"
 	// KeyCalculator is available on some multimedia keyboards to open a calculator
 	KeyCalculator fyne.KeyName = "Calculator"
+	// KeyAssistant is the key newer keyboards label for an AI assistant (the
+	// "Copilot" key). This sends F23 with Shift and Super held - a shortcut using it must ask for both modifiers.
+	KeyAssistant fyne.KeyName = "F23"
 
 	// KeyVolumeMute is the virtual keyboard key for muting sound
 	KeyVolumeMute fyne.KeyName = "VolumeMute"
@@ -28,8 +31,11 @@ const (
 	KeyVolumeUp fyne.KeyName = "VolumeUp"
 )
 
-// Declare conformity with Shortcut interface
-var _ fyne.Shortcut = (*Shortcut)(nil)
+// Declare conformity with Shortcut interfaces
+var (
+	_ fyne.Shortcut         = (*Shortcut)(nil)
+	_ fyne.KeyboardShortcut = (*Shortcut)(nil)
+)
 
 // Shortcut defines a keyboard shortcut that can be configured by the user
 type Shortcut struct {
@@ -41,6 +47,16 @@ type Shortcut struct {
 // ShortcutName gets the name of this shortcut - this should be user presentable
 func (s *Shortcut) ShortcutName() string {
 	return s.Name
+}
+
+// Key returns the key that triggers this shortcut
+func (s *Shortcut) Key() fyne.KeyName {
+	return s.KeyName
+}
+
+// Mod returns the modifier keys that are required for this shortcut
+func (s *Shortcut) Mod() fyne.KeyModifier {
+	return s.Modifier
 }
 
 // NewShortcut creates a keyboard shortcut that can be configured by the user

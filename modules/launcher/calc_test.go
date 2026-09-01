@@ -11,6 +11,7 @@ func TestCalc_IsExpression(t *testing.T) {
 
 	assert.True(t, c.isExpression("5*3"))
 	assert.True(t, c.isExpression("5*(3+2)"))
+	assert.True(t, c.isExpression("5x6"))
 	assert.True(t, c.isExpression("5/5-1"))
 
 	assert.False(t, c.isExpression("33"))
@@ -23,6 +24,10 @@ func TestCalc_Eval(t *testing.T) {
 	c := newCalcSuggest().(*calc)
 
 	res, err := c.eval("5*3")
+	assert.NoError(t, err)
+	assert.Equal(t, "15", res)
+
+	res, err = c.eval("5x3")
 	assert.NoError(t, err)
 	assert.Equal(t, "15", res)
 

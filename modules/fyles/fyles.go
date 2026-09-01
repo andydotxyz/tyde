@@ -43,10 +43,14 @@ func (f *fyles) ScreenAreaWidget() fyne.CanvasObject {
 		icons := lib.NewFylesPanel(f.tapped, win)
 		icons.HideParent = true
 		icons.Filter = filterHidden()
-		f.setDesktopDir(icons)
+		list := desktopListing()
 		f.icons = icons
 
 		fyne.Do(func() {
+			if list != nil {
+				icons.SetListing(list)
+			}
+
 			holder.Objects = []fyne.CanvasObject{icons}
 			holder.Refresh()
 		})
@@ -71,7 +75,10 @@ func (f *fyles) Metadata() tyde.ModuleMetadata {
 	return fylesMeta
 }
 
-func (f *fyles) setDesktopDir(p *lib.Panel) {
+// desktopListing reads the desktop directory and returns the items to show,
+// the shortcuts we always offer first. Call this from a goroutine as it can be slow.
+// Returns nil if the directory could not be read.
+func desktopListing() []fyne.URI {
 	home, _ := os.UserHomeDir()
 	u := storage.NewFileURI(filepath.Join(home, "Desktop"))
 	homeDir := newCustomURI("file://"+home, "Home", theme.FolderIcon())
@@ -79,12 +86,12 @@ func (f *fyles) setDesktopDir(p *lib.Panel) {
 	trash := newCustomURI("file://"+filepath.Join(home, ".local", "share", "Trash", "files"), "Trash", theme.DeleteIcon())
 
 	list, err := storage.List(u)
-	list = append([]fyne.URI{homeDir, trash, settings}, list...)
 	if err != nil {
 		fyne.LogError("Could not read Desktop dir", err)
-	} else {
-		p.SetListing(list)
+		return nil
 	}
+
+	return append([]fyne.URI{homeDir, trash, settings}, list...)
 }
 
 func (f *fyles) tapped(u fyne.URI) {

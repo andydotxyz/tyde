@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -8,8 +9,10 @@ import (
 	_ "image/gif"  // register decoders so renderWallpaper can read any wallpaper
 	_ "image/jpeg" // ...
 	_ "image/png"  // ...
+	"io"
 	"math"
 	"os"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -86,9 +89,8 @@ func loadWallpaper() fyne.CanvasObject {
 // renderWallpaper rasterises the current wallpaper into an opaque RGBA image of
 // the given pixel size, honouring the configured background colour and fill
 // mode. It mirrors loadWallpaper's settings so a synthesised desktop face (used
-// by the cube transition before a desktop has been captured live) matches the
-// real background. The colour fill always backs the image so "Fit" letterboxing
-// reads correctly; a missing or unreadable wallpaper just leaves that fill.
+// by the cube transition and the desktop overview before a desktop has been
+// captured live).
 func renderWallpaper(w, h int) *image.RGBA {
 	if w <= 0 || h <= 0 {
 		return nil
@@ -102,23 +104,70 @@ func renderWallpaper(w, h int) *image.RGBA {
 	bg := ParseHexColor(inst.Settings().BackgroundColor())
 	draw.Draw(out, out.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
 
-	path := inst.Settings().Background()
-	if path == "" {
-		return out
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return out
-	}
-	defer f.Close()
-	src, _, err := image.Decode(f)
-	if err != nil {
+	src, fill := wallpaperSource(inst.Settings())
+	if src == nil {
 		return out
 	}
 
-	xdraw.CatmullRom.Scale(out, wallpaperRect(src.Bounds(), w, h, inst.Settings().BackgroundFill()),
+	xdraw.CatmullRom.Scale(out, wallpaperRect(src.Bounds(), w, h, fill),
 		src, src.Bounds(), draw.Over, nil)
 	return out
+}
+
+// wallpaperSource returns the decoded wallpaper, mirroring loadWallpaper.
+func wallpaperSource(set tyde.DeskSettings) (image.Image, string) {
+	if path := set.Background(); path != "" {
+		if img := decodeWallpaper("file:"+path, func() (io.ReadCloser, error) {
+			return os.Open(path)
+		}); img != nil {
+			return img, set.BackgroundFill()
+		}
+	}
+
+	app := fyne.CurrentApp()
+	if app == nil {
+		return nil, ""
+	}
+	s := app.Settings()
+	img, _ := backgrounds.Default().Load(s.Theme(), s.ThemeVariant()).(*canvas.Image)
+	if img == nil || img.Resource == nil {
+		return nil, ""
+	}
+
+	res := img.Resource
+	return decodeWallpaper("res:"+res.Name(), func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(res.Content())), nil
+	}), "Fill"
+}
+
+// wallpaperCache holds the most recently decoded wallpaper.
+var wallpaperCache struct {
+	sync.Mutex
+	key string
+	img image.Image
+}
+
+// decodeWallpaper decodes the image from open(), caching the result under key.
+// Returns nil if it cannot be read or decoded.
+func decodeWallpaper(key string, open func() (io.ReadCloser, error)) image.Image {
+	wallpaperCache.Lock()
+	defer wallpaperCache.Unlock()
+	if wallpaperCache.key == key && wallpaperCache.img != nil {
+		return wallpaperCache.img
+	}
+
+	r, err := open()
+	if err != nil {
+		return nil
+	}
+	defer r.Close()
+	img, _, err := image.Decode(r)
+	if err != nil {
+		return nil
+	}
+
+	wallpaperCache.key, wallpaperCache.img = key, img
+	return img
 }
 
 // wallpaperRect returns the destination rectangle for the wallpaper within a

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Fathom
+Comment=Chat with the Tyde AI assistant
+Exec=tyde_ctl fathom
+Icon=com.fyshos.tyde
+Type=Application
+Categories=Utility;
+Keywords=fathom;ai;chat;assistant;llm;

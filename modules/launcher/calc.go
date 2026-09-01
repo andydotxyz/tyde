@@ -3,6 +3,7 @@ package launcher
 import (
 	"regexp"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 
@@ -13,7 +14,7 @@ import (
 )
 
 var (
-	exprRegex = regexp.MustCompile(`^[0-9.+\-*/()<^>:%]+$`)
+	exprRegex = regexp.MustCompile(`^[0-9.+\-*x/()<^>:%]+$`)
 	numRegex  = regexp.MustCompile(`^[0-9.]+$`)
 )
 
@@ -40,6 +41,7 @@ func (c *calc) LaunchSuggestions(input string) []tyde.LaunchSuggestion {
 }
 
 func (c *calc) eval(sum string) (string, error) {
+	sum = strings.ReplaceAll(sum, "x", "*")
 	expression, err := govaluate.NewEvaluableExpression(sum)
 	if err != nil {
 		return "", err

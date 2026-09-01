@@ -42,7 +42,7 @@ type client struct {
 	opacitySet   bool // true if the window has an explicit _NET_WM_WINDOW_OPACITY value
 	opaqueType   opaqueType
 	damaged      bool
-	skipped      bool // Fyne Desktop window or other skipped windows
+	skipped      bool // desktop root window or other skipped windows
 	fullscreened bool // unredirected for fullscreen bypass
 	visualMoving bool // position being managed by VisualMoveCallback (drag/animation)
 	pending      bool // true = a refresh was requested, awaiting render
@@ -92,7 +92,7 @@ const (
 
 	// backgroundDim is the translucency applied to background windows that have no explicit opacity.
 	// (see win.defaultBackgroundTransparency).
-	backgroundDim = 0.2
+	backgroundDim = 0.1
 )
 
 type cookieReply[R any] interface {
@@ -250,8 +250,7 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 				wi.Y = localY
 				wi.W = width
 				wi.H = height
-				scale := sw.screen.CanvasScale()
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				target.PlaceWindow(wi) // carries the window's accessories along
 				// A cached entry can be blank: it was created before this window had been
 				// captured on any screen.
 				if wi.Img.Image == nil {
@@ -272,9 +271,7 @@ func Run(done chan struct{}, screenComps []ui.ScreenCompositors) error {
 					wi.Y = localY
 					wi.W = width
 					wi.H = height
-					scale := sw.screen.CanvasScale()
-					wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-					wi.Img.Resize(fyne.NewSize(float32(width)/scale, float32(height)/scale))
+					sw.normal.PlaceWindow(wi)
 					sw.normal.Refresh()
 				}
 			}
@@ -898,7 +895,6 @@ func captureClient(conn *xgb.Conn, ws *widgets, c *client, refreshed map[*ui.Com
 
 		localX := c.geom.X - int16(sw.screen.X)
 		localY := c.geom.Y - int16(sw.screen.Y)
-		scale := sw.screen.CanvasScale()
 
 		if wi.W == 0 {
 			wi.X = localX
@@ -906,8 +902,7 @@ func captureClient(conn *xgb.Conn, ws *widgets, c *client, refreshed map[*ui.Com
 			wi.W = totalW
 			wi.H = totalH
 			fyne.Do(func() {
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
-				wi.Img.Resize(fyne.NewSize(float32(totalW)/scale, float32(totalH)/scale))
+				target.PlaceWindow(wi)
 			})
 		}
 
@@ -1167,7 +1162,7 @@ func addClient(conn *xgb.Conn, window xproto.Window) error {
 		damaged:    false,
 	}
 
-	// Skip the Fyne Desktop root window, skip-hinted windows, and screensavers.
+	// Skip the desktop root window, skip-hinted windows, and screensavers.
 	if strings.Contains(name, ui.RootWindowName) || isScreensaver(name, attr, geom) {
 		c.skipped = true
 		_ = composite.UnredirectWindowChecked(conn, window, composite.RedirectManual).Check()
@@ -1378,9 +1373,8 @@ func configureClient(conn *xgb.Conn, ws *widgets, e xproto.ConfigureNotifyEvent)
 		} else {
 			wi.X = localX
 			wi.Y = localY
-			scale := sw.screen.CanvasScale()
 			fyne.Do(func() {
-				wi.Img.Move(fyne.NewPos(float32(localX)/scale, float32(localY)/scale))
+				target.PlaceWindow(wi)
 			})
 		}
 	}
