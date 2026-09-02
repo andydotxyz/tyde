@@ -296,7 +296,7 @@ func versionChange(up Update) string {
 	if up.OldVersion == "" {
 		return up.NewVersion + " (new)"
 	}
-	return fmt.Sprintf("%s → %s", up.OldVersion, up.NewVersion)
+	return fmt.Sprintf("%s -> %s", up.OldVersion, up.NewVersion)
 }
 
 func lastCheckedText(t time.Time) string {

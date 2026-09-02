@@ -630,13 +630,13 @@ func (w *widgetPanel) showSettings(panel string) {
 			{title: "AI", icon: ai.Icon, build: ui.loadAIScreen},
 		}},
 		{title: "System", panels: []*settingsPanel{
+			{title: "Account", icon: wmtheme.UserIcon, build: ui.loadAccountScreen},
 			{title: "Display", icon: wmtheme.ScreensIcon, build: func() fyne.CanvasObject {
 				return container.NewBorder(scale, nil, nil, nil, screenui)
 			}},
 			{title: "Network", icon: wmtheme.WifiIcon, build: ui.loadNetworkScreen},
 			{title: "Time/Date", icon: wmtheme.ClockIcon, build: ui.loadTimeScreen},
 			{title: "Updates", icon: wmtheme.UpdateIcon, build: updates.SettingsContent},
-			{title: "Account", icon: wmtheme.UserIcon, build: ui.loadAccountScreen},
 		}},
 	}
 
@@ -662,7 +662,7 @@ func (w *widgetPanel) showSettings(panel string) {
 
 	win.SetPadded(false)
 	win.SetContent(nav.root)
-	win.Resize(fyne.NewSize(530, 500))
+	win.Resize(fyne.NewSize(440, 530))
 	nav.waveAnim.Start()
 
 	win.SetCloseIntercept(func() {
