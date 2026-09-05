@@ -74,10 +74,10 @@ func (c *Checker) Backend() Backend {
 // State returns the most recent result, the error from the last attempt (if it
 // failed), whether a check is running, and when the last check completed (zero
 // if none has).
-func (c *Checker) State() (res Result, err error, checking bool, checked time.Time) {
+func (c *Checker) State() (res Result, checking bool, checked time.Time, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.result, c.err, c.checking, c.checked
+	return c.result, c.checking, c.checked, c.err
 }
 
 // SetListener registers fn to run on the render thread whenever the state

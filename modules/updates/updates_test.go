@@ -53,7 +53,7 @@ func TestCheckerRestoresResultAcrossRestart(t *testing.T) {
 	fresh := newTestChecker(b)
 	fresh.load()
 
-	res, _, _, checked := fresh.State()
+	res, _, checked, _ := fresh.State()
 	if len(res.Updates) != 1 || res.Updates[0].Name != "glibc" {
 		t.Errorf("result not restored: %+v", res.Updates)
 	}
@@ -70,7 +70,7 @@ func TestCheckerStoresResult(t *testing.T) {
 	c := newTestChecker(b)
 	c.Check()
 
-	res, err, checking, checked := c.State()
+	res, checking, checked, err := c.State()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestCheckerKeepsLastGoodResult(t *testing.T) {
 	b.err = errors.New("network unreachable")
 	c.Check()
 
-	res, err, _, _ := c.State()
+	res, _, _, err := c.State()
 	if err == nil {
 		t.Fatal("expected the failure to be reported")
 	}
@@ -222,7 +222,7 @@ func TestCheckerConcurrentChecksCollapse(t *testing.T) {
 	go c.Check()
 	// Wait for the first check to be in flight before racing a second one.
 	for i := 0; i < 100; i++ {
-		if _, _, checking, _ := c.State(); checking {
+		if _, checking, _, _ := c.State(); checking {
 			break
 		}
 		time.Sleep(time.Millisecond)

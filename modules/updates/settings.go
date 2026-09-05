@@ -105,7 +105,7 @@ func (p *updatesPanel) build() fyne.CanvasObject {
 
 // refresh redraws the panel from checker state. Runs on the render thread.
 func (p *updatesPanel) refresh() {
-	res, err, checking, checked := p.checker.State()
+	res, checking, checked, err := p.checker.State()
 	p.items = res.Updates
 	p.list.Refresh()
 
@@ -278,17 +278,17 @@ func installError(err error, tail string) error {
 	if errors.As(err, &exit) {
 		switch exit.ExitCode() {
 		case 126:
-			return errors.New("Authentication was cancelled, so no updates were installed.")
+			return errors.New("authentication was cancelled, so no updates were installed")
 		case 127:
-			return errors.New("Authentication failed, so no updates were installed. " +
-				"Your account must be an administrator to install system updates.")
+			return errors.New("authentication failed, so no updates were installed. " +
+				"Your account must be an administrator to install system updates")
 		}
 	}
 
 	if tail = strings.TrimSpace(tail); tail != "" {
-		return &backendError{what: "The package manager reported a problem", detail: tail}
+		return &backendError{what: "the package manager reported a problem", detail: tail}
 	}
-	return &backendError{what: "The update did not complete", detail: err.Error()}
+	return &backendError{what: "the update did not complete", detail: err.Error()}
 }
 
 // versionChange renders the version transition for a pending update.

@@ -77,7 +77,7 @@ func (u *updates) StatusAreaWidget() fyne.CanvasObject {
 // refresh syncs the indicator with the checker state. It must run on the render
 // thread; the checker guarantees that for listener callbacks.
 func (u *updates) refresh(row fyne.CanvasObject) {
-	res, err, checking, _ := u.checker.State()
+	res, checking, _, err := u.checker.State()
 
 	switch {
 	case len(res.Updates) > 0:
