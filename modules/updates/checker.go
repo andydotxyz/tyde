@@ -278,8 +278,10 @@ func (c *Checker) save(res Result, checked time.Time) {
 		return
 	}
 
-	data, err := json.Marshal(snapshot{Updates: res.Updates, Stale: res.Stale,
-		StaleReason: res.StaleReason, Checked: checked.Unix()})
+	data, err := json.Marshal(snapshot{
+		Updates: res.Updates, Stale: res.Stale,
+		StaleReason: res.StaleReason, Checked: checked.Unix(),
+	})
 	if err != nil {
 		return
 	}
