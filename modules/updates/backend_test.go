@@ -70,7 +70,7 @@ Conf libc6 (2.36-9+deb12u1 Debian:12.5/stable [amd64])
 }
 
 func TestVersionChange(t *testing.T) {
-	if got := versionChange(Update{OldVersion: "1", NewVersion: "2"}); got != "1 → 2" {
+	if got := versionChange(Update{OldVersion: "1", NewVersion: "2"}); got != "1 -> 2" {
 		t.Errorf("got %q", got)
 	}
 	if got := versionChange(Update{NewVersion: "2"}); got != "2 (new)" {
