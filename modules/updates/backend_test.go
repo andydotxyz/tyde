@@ -105,7 +105,7 @@ func TestInstallErrorAuthCancelled(t *testing.T) {
 	}
 
 	err = installError(exitErrorWithCode(t, 127), "")
-	if !strings.Contains(err.Error(), "Authentication failed") {
+	if !strings.Contains(err.Error(), "authentication failed") {
 		t.Errorf("expected an authentication failure message, got %q", err)
 	}
 }
