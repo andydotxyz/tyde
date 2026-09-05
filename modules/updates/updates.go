@@ -12,8 +12,10 @@ import (
 	wmtheme "fyshos.com/tyde/theme"
 )
 
+const ModuleName = "Updates"
+
 var updatesMeta = tyde.ModuleMetadata{
-	Name:        "Updates",
+	Name:        ModuleName,
 	NewInstance: newUpdates,
 }
 

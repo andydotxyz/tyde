@@ -636,8 +636,20 @@ func (w *widgetPanel) showSettings(panel string) {
 			}},
 			{title: "Network", icon: wmtheme.WifiIcon, build: ui.loadNetworkScreen},
 			{title: "Time/Date", icon: wmtheme.ClockIcon, build: ui.loadTimeScreen},
-			{title: "Updates", icon: wmtheme.UpdateIcon, build: updates.SettingsContent},
 		}},
+	}
+
+	for _, mod := range tyde.AvailableModules() {
+		if mod.Name != updates.ModuleName {
+			continue
+		}
+
+		if isModuleEnabled(mod.Name, w.desk.Settings()) {
+			groups[2].panels = append(groups[2].panels,
+				&settingsPanel{title: "Updates", icon: wmtheme.UpdateIcon, build: updates.SettingsContent},
+			)
+		}
+		break
 	}
 
 	settingsIcon := theme.SettingsIcon()
